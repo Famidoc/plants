@@ -160,13 +160,26 @@
   <!-- 花草詳細頁 Modal (Plant Detail Modal) -->
   <div id="plantModalBackdrop" class="modal-backdrop">
     <div id="plantModalContainer" class="modal-container">
-      <button class="modal-close-btn" onclick="closePlantDetailModal();">✕</button>
+      <button class="modal-close-btn" onclick="closePlantDetailModal();" title="關閉 (Esc)">✕</button>
       
+      <!-- 上一筆 / 下一筆導覽按鈕 -->
+      <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="上一筆 (鍵盤 ❮ 鍵)" onclick="navigatePlantModal(-1);">
+        <span>❮</span> <span class="nav-text">上一筆</span>
+      </button>
+      <button class="modal-nav-btn modal-nav-next" id="modalNextBtn" title="下一筆 (鍵盤 ❯ 鍵)" onclick="navigatePlantModal(1);">
+        <span class="nav-text">下一筆</span> <span>❯</span>
+      </button>
+
       <div class="modal-header-hero">
         <img id="modalHeroImg" src="" alt="花草大圖" class="modal-hero-img">
         <div class="modal-hero-overlay">
-          <h2 id="modalTitle" class="modal-title">花草名稱</h2>
-          <div id="modalDateLoc" class="modal-date-loc">記錄日期</div>
+          <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+              <h2 id="modalTitle" class="modal-title">花草名稱</h2>
+              <div id="modalDateLoc" class="modal-date-loc">記錄日期</div>
+            </div>
+            <span id="modalIndexBadge" class="modal-index-badge">第 1 筆</span>
+          </div>
         </div>
       </div>
 

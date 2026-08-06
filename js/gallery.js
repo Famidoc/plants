@@ -6,6 +6,8 @@ let currentPlantsList = [];
 let activeCategory = 'ALL';
 let searchQuery = '';
 let isSortAsc = false;
+let currentlyRenderedList = [];
+let currentDetailIndex = -1;
 
 // SVG 綠色葉片無圖備援
 const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
@@ -61,6 +63,9 @@ function renderGallery() {
       sorted = sorted.filter(p => (p.family || '').includes(activeCategory));
     }
   }
+
+  // 儲存目前呈列的清單，供 Modal [上一筆][下一筆] 切換
+  currentlyRenderedList = sorted;
 
   // 更新顯示筆數標籤
   if (countBadge) {
@@ -177,6 +182,26 @@ function setupGalleryEventListeners() {
       renderGallery();
     });
   }
+
+  // 鍵盤 ← / → / Esc 快速導覽燈箱
+  if (!window.modalKeyNavBound) {
+    window.modalKeyNavBound = true;
+    window.addEventListener('keydown', (e) => {
+      const modalBackdrop = document.getElementById('plantModalBackdrop');
+      if (modalBackdrop && modalBackdrop.classList.contains('open')) {
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          navigatePlantModal(-1);
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          navigatePlantModal(1);
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          closePlantDetailModal();
+        }
+      }
+    });
+  }
 }
 
 /**
@@ -185,6 +210,23 @@ function setupGalleryEventListeners() {
 function openPlantDetailModal(plant) {
   const modalBackdrop = document.getElementById('plantModalBackdrop');
   if (!modalBackdrop) return;
+
+  // 計算當前筆數位置
+  if (currentlyRenderedList.length > 0) {
+    const idx = currentlyRenderedList.findIndex(p => p.id === plant.id);
+    if (idx !== -1) {
+      currentDetailIndex = idx;
+    }
+  }
+
+  const indexBadge = document.getElementById('modalIndexBadge');
+  if (indexBadge) {
+    if (currentlyRenderedList.length > 0 && currentDetailIndex !== -1) {
+      indexBadge.textContent = `第 ${currentDetailIndex + 1} / ${currentlyRenderedList.length} 筆`;
+    } else {
+      indexBadge.textContent = '';
+    }
+  }
 
   const dateFormatted = plant.dateAdded 
     ? `${plant.dateAdded.slice(0,4)}年${plant.dateAdded.slice(4,6)}月${plant.dateAdded.slice(6,8)}日` 
@@ -249,10 +291,41 @@ function openPlantDetailModal(plant) {
     }
   }
 
-  // 重置預設啟用第一個 Tab
-  switchModalTab('tab-basic');
+  // 重置預設啟用第一個 Tab (除非是點擊 [上一筆/下一筆] 連續瀏覽)
+  if (!modalBackdrop.classList.contains('open')) {
+    switchModalTab('tab-basic');
+  }
 
   modalBackdrop.classList.add('open');
+}
+
+/**
+ * 燈箱上一筆 (-1) / 下一筆 (+1) 切換
+ */
+function navigatePlantModal(direction) {
+  if (!currentlyRenderedList || currentlyRenderedList.length === 0) return;
+  if (currentDetailIndex === -1) currentDetailIndex = 0;
+
+  let nextIndex = currentDetailIndex + direction;
+  // 循環流覽
+  if (nextIndex < 0) {
+    nextIndex = currentlyRenderedList.length - 1;
+  } else if (nextIndex >= currentlyRenderedList.length) {
+    nextIndex = 0;
+  }
+
+  const nextPlant = currentlyRenderedList[nextIndex];
+  if (nextPlant) {
+    // 記憶使用者當前停留在哪一個 Tab (基本資料 / 形態特徵 / 養護)
+    const activeTabBtn = document.querySelector('#plantModalContainer .tab-btn.active');
+    const activeTabId = activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'tab-basic';
+    
+    openPlantDetailModal(nextPlant);
+    
+    if (activeTabId) {
+      switchModalTab(activeTabId);
+    }
+  }
 }
 
 function closePlantDetailModal() {

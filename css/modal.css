@@ -68,6 +68,77 @@
   transform: rotate(90deg);
 }
 
+/* 上一筆 / 下一筆導覽按鈕 */
+.modal-nav-btn {
+  position: absolute;
+  top: 150px;
+  transform: translateY(-50%);
+  background: rgba(15, 32, 23, 0.85);
+  color: #ffffff;
+  border: 1px solid rgba(175, 209, 158, 0.4);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.modal-nav-btn:hover {
+  background: rgba(44, 94, 67, 0.95);
+  border-color: #afd19e;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  transform: translateY(-50%) scale(1.06);
+}
+
+.modal-nav-btn:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+.modal-nav-prev {
+  left: 16px;
+}
+
+.modal-nav-next {
+  right: 16px;
+}
+
+.modal-index-badge {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+  .modal-nav-btn .nav-text {
+    display: none;
+  }
+  .modal-nav-btn {
+    padding: 0.45rem 0.65rem;
+    font-size: 1.05rem;
+  }
+  .modal-nav-prev {
+    left: 10px;
+  }
+  .modal-nav-next {
+    right: 10px;
+  }
+}
+
 .modal-header-hero {
   position: relative;
   width: 100%;
