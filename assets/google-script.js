@@ -360,7 +360,7 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc) {
 }
 
 /**
- * 自動深度擷取文件末端 [其他附圖] 下的所有特徵照片
+ * 自動深度擷取文件中的所有特徵附圖照片 (支援 InlineImage、PositionedImage 浮動圖與所有圖案)
  */
 function extractGalleryImages(doc, debugLog) {
   var gallery = [];
@@ -368,57 +368,80 @@ function extractGalleryImages(doc, debugLog) {
 
   try {
     var body = doc.getBody();
-    var paragraphs = body.getParagraphs();
-    var inGallerySection = false;
-    var currentCaption = "";
+    
+    // 1. 取得所有 InlineImages (內聯圖片)
+    var inlineImgs = body.getImages() || [];
+    
+    // 2. 取得所有 PositionedImages (浮動 / 環繞圖片)
+    var posImgs = [];
+    try {
+      posImgs = body.getPositionedImages() || [];
+    } catch(ePos) {}
 
-    for (var i = 0; i < paragraphs.length; i++) {
-      var p = paragraphs[i];
-      var text = p.getText().trim();
+    if (debugLog) {
+      debugLog.push("📷 " + doc.getName() + " 偵測照片 - Inline: " + inlineImgs.length + " 張, Positioned: " + posImgs.length + " 張");
+    }
 
-      if (text.indexOf("其他附圖") !== -1) {
-        inGallerySection = true;
-        continue;
-      }
-
-      if (inGallerySection) {
-        if (text && text.length > 0 && text.indexOf("http") !== 0) {
-          currentCaption = text;
+    // 嘗試尋找「其他附圖」下方的文字作為 Caption 標題
+    var captionText = "";
+    try {
+      var fullText = body.getText();
+      var idx = fullText.indexOf("其他附圖");
+      if (idx !== -1) {
+        var subText = fullText.substring(idx + 4).trim();
+        var lines = subText.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+        if (lines.length > 0) {
+          captionText = lines[0]; // 例如：植株 (20260727@九九峰心之芳庭)
         }
+      }
+    } catch(eCap) {}
 
-        for (var j = 0; j < p.getNumChildren(); j++) {
-          var child = p.getChild(j);
-          if (child.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
-            var imgObj = child.asInlineImage();
-            var base64 = compressBlobToBase64(imgObj.getBlob());
-            if (base64) {
-              gallery.push({
-                caption: currentCaption || "特徵附圖照片",
-                url: base64
-              });
-              currentCaption = "";
-            }
-          }
+    var addedUrls = {};
+
+    // A. 處理所有 2 張以後的 InlineImages
+    if (inlineImgs.length > 1) {
+      for (var i = 1; i < inlineImgs.length; i++) {
+        var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
+        if (b64_in && !addedUrls[b64_in]) {
+          addedUrls[b64_in] = true;
+          gallery.push({
+            caption: captionText || ("特徵附圖照片 " + (gallery.length + 1)),
+            url: b64_in
+          });
         }
       }
     }
 
-    if (gallery.length === 0) {
-      var allImages = body.getImages();
-      if (allImages && allImages.length > 1) {
-        for (var k = 1; k < allImages.length; k++) {
-          var imgB64 = compressBlobToBase64(allImages[k].getBlob());
-          if (imgB64) {
-            gallery.push({
-              caption: "特徵附圖照片 " + k,
-              url: imgB64
-            });
-          }
+    // B. 處理所有 PositionedImages (浮動圖片)
+    if (posImgs.length > 0) {
+      for (var p = 0; p < posImgs.length; p++) {
+        var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
+        if (b64_pos && !addedUrls[b64_pos]) {
+          addedUrls[b64_pos] = true;
+          gallery.push({
+            caption: captionText || ("特徵附圖照片 " + (gallery.length + 1)),
+            url: b64_pos
+          });
+        }
+      }
+    }
+
+    // C. 如果圖集仍為空但文件內有多張照片，則包含剩餘照片
+    if (gallery.length === 0 && inlineImgs.length > 0) {
+      for (var m = 0; m < inlineImgs.length; m++) {
+        var b64_m = compressBlobToBase64(inlineImgs[m].getBlob());
+        if (b64_m && !addedUrls[b64_m]) {
+          addedUrls[b64_m] = true;
+          gallery.push({
+            caption: captionText || "特徵照片",
+            url: b64_m
+          });
         }
       }
     }
   } catch(e) {
-    if (debugLog) debugLog.push("⚠️ 擷取其他附圖例外: " + e.toString());
+    if (debugLog) debugLog.push("⚠️ 擷取圖集例外: " + e.toString());
   }
+
   return gallery;
 }
