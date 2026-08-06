@@ -5,6 +5,7 @@
 let currentPlantsList = [];
 let activeCategory = 'ALL';
 let searchQuery = '';
+let isSortAsc = false;
 
 // SVG 綠色葉片無圖備援
 const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
@@ -17,18 +18,24 @@ async function initGallery() {
 }
 
 /**
- * 核心渲染函式：包含逆向排序 (後加入者在最上面)
+ * 核心渲染函式：包含正/逆向排序 (後加入者在最上面 或 最舊者在最上面)
  */
 function renderGallery() {
   const gridContainer = document.getElementById('plantGridContainer');
   const countBadge = document.getElementById('plantCountBadge');
+  const sortBtn = document.getElementById('sortOrderToggleBtn');
   if (!gridContainer) return;
 
-  // 1. 複製資料庫並執行逆向排序 (後加入者/日期最新者放在最上面)
+  // 更新排序按鈕 UI
+  if (sortBtn) {
+    sortBtn.textContent = isSortAsc ? '⬆ 正向排序（最舊在上）' : '⬇ 逆向排序（最新在上）';
+  }
+
+  // 1. 複製資料庫並執行排序
   let sorted = [...currentPlantsList].sort((a, b) => {
     const dateA = a.dateAdded || "0";
     const dateB = b.dateAdded || "0";
-    return dateB.localeCompare(dateA);
+    return isSortAsc ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
   });
 
   // 2. 進行搜尋過濾
@@ -142,6 +149,16 @@ function setupGalleryEventListeners() {
       if (searchInput) searchInput.value = '';
       searchQuery = '';
       clearBtn.classList.remove('visible');
+      renderGallery();
+    });
+  }
+
+  // 排序切換按鈕點擊
+  const sortBtn = document.getElementById('sortOrderToggleBtn');
+  if (sortBtn && !sortBtn.dataset.bound) {
+    sortBtn.dataset.bound = 'true';
+    sortBtn.addEventListener('click', () => {
+      isSortAsc = !isSortAsc;
       renderGallery();
     });
   }

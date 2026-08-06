@@ -124,6 +124,21 @@
   font-weight: 700;
   font-size: 0.8rem;
   border: 1px solid #c2decb;
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.order-badge:hover {
+  background: #d4e8dc;
+  border-color: #a7d4b4;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(27, 59, 43, 0.15);
+}
+
+.order-badge:active {
+  transform: translateY(0);
 }
 
 /* 花草卡片網格 (Plant Card Grid) */
