@@ -317,7 +317,7 @@ function extractMorphologyDetails(text) {
   return details;
 }
 
-function parseDocText(text, fileName, defaultDateStr, imageUrl, doc) {
+function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
   function getField(pattern) {
     var m = text.match(pattern);
     return m ? m[1].trim() : '';
