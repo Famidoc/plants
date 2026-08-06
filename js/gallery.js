@@ -327,6 +327,25 @@ function openPlantDetailModal(plant) {
     }
   }
 
+  // 🔗 參考資料 Tab 渲染 (外部參考連結)
+  const refContainer = document.getElementById('modalReferencesList');
+  if (refContainer) {
+    const refs = plant.references || [];
+    if (refs && refs.length > 0) {
+      refContainer.innerHTML = refs.map(r => `
+        <li>
+          <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="reference-link">
+            🌐 ${r.title || r.url} ↗
+          </a>
+        </li>
+      `).join('');
+    } else {
+      refContainer.innerHTML = `
+        <li style="color: var(--text-muted); padding: 0.5rem 0;">尚無外部參考連結紀錄</li>
+      `;
+    }
+  }
+
   // 重置預設啟用第一個 Tab (除非是點擊 [上一筆/下一筆] 連續瀏覽)
   if (!modalBackdrop.classList.contains('open')) {
     switchModalTab('tab-basic');
