@@ -360,7 +360,7 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc) {
 }
 
 /**
- * 自動深度擷取文件中的所有特徵附圖照片 (支援 InlineImage、PositionedImage 浮動圖與所有圖案)
+ * 自動深度擷取文件中的所有照片 (包含內聯圖片與浮動圖片)，歸入「植物圖集」
  */
 function extractGalleryImages(doc, debugLog) {
   var gallery = [];
@@ -378,10 +378,6 @@ function extractGalleryImages(doc, debugLog) {
       posImgs = body.getPositionedImages() || [];
     } catch(ePos) {}
 
-    if (debugLog) {
-      debugLog.push("📷 " + doc.getName() + " 偵測照片 - Inline: " + inlineImgs.length + " 張, Positioned: " + posImgs.length + " 張");
-    }
-
     // 嘗試尋找「其他附圖」下方的文字作為 Caption 標題
     var captionText = "";
     try {
@@ -398,47 +394,30 @@ function extractGalleryImages(doc, debugLog) {
 
     var addedUrls = {};
 
-    // A. 處理所有 2 張以後的 InlineImages
-    if (inlineImgs.length > 1) {
-      for (var i = 1; i < inlineImgs.length; i++) {
-        var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
-        if (b64_in && !addedUrls[b64_in]) {
-          addedUrls[b64_in] = true;
-          gallery.push({
-            caption: captionText || ("特徵附圖照片 " + (gallery.length + 1)),
-            url: b64_in
-          });
-        }
+    // A. 處理所有 InlineImages
+    for (var i = 0; i < inlineImgs.length; i++) {
+      var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
+      if (b64_in && !addedUrls[b64_in]) {
+        addedUrls[b64_in] = true;
+        gallery.push({
+          caption: (captionText && i === inlineImgs.length - 1) ? captionText : (captionText || ("特徵照片 " + (gallery.length + 1))),
+          url: b64_in
+        });
       }
     }
 
     // B. 處理所有 PositionedImages (浮動圖片)
-    if (posImgs.length > 0) {
-      for (var p = 0; p < posImgs.length; p++) {
-        var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
-        if (b64_pos && !addedUrls[b64_pos]) {
-          addedUrls[b64_pos] = true;
-          gallery.push({
-            caption: captionText || ("特徵附圖照片 " + (gallery.length + 1)),
-            url: b64_pos
-          });
-        }
+    for (var p = 0; p < posImgs.length; p++) {
+      var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
+      if (b64_pos && !addedUrls[b64_pos]) {
+        addedUrls[b64_pos] = true;
+        gallery.push({
+          caption: captionText || ("特徵照片 " + (gallery.length + 1)),
+          url: b64_pos
+        });
       }
     }
 
-    // C. 如果圖集仍為空但文件內有多張照片，則包含剩餘照片
-    if (gallery.length === 0 && inlineImgs.length > 0) {
-      for (var m = 0; m < inlineImgs.length; m++) {
-        var b64_m = compressBlobToBase64(inlineImgs[m].getBlob());
-        if (b64_m && !addedUrls[b64_m]) {
-          addedUrls[b64_m] = true;
-          gallery.push({
-            caption: captionText || "特徵照片",
-            url: b64_m
-          });
-        }
-      }
-    }
   } catch(e) {
     if (debugLog) debugLog.push("⚠️ 擷取圖集例外: " + e.toString());
   }
