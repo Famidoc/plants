@@ -97,6 +97,19 @@ function scanDocAndFolderForPhoto(doc, folder, plantName, debugLog, fileName) {
   } catch(eC) {}
 
   try {
+    var drawings = doc.getBody().getInlineDrawings();
+    if (drawings && drawings.length > 0) {
+      for (var d = 0; d < drawings.length; d++) {
+        var resD = compressBlobToBase64(drawings[d].getBlob());
+        if (resD) {
+          debugLog.push("✅ " + fileName + " 成功從 InlineDrawing 擷取");
+          return resD;
+        }
+      }
+    }
+  } catch(eDraw) {}
+
+  try {
     var driveImg = findDriveFolderPhoto(folder, plantName);
     if (driveImg) {
       debugLog.push("✅ " + fileName + " 成功從 Drive 資料夾擷取");
@@ -378,6 +391,12 @@ function extractGalleryImages(doc, debugLog) {
       posImgs = body.getPositionedImages() || [];
     } catch(ePos) {}
 
+    // 3. 取得所有 InlineDrawings (透過「插入 > 繪圖」或編輯器插入之圖片)
+    var drawings = [];
+    try {
+      drawings = body.getInlineDrawings() || [];
+    } catch(eDraw) {}
+
     // 嘗試尋找「其他附圖」下方的文字作為 Caption 標題
     var captionText = "";
     try {
@@ -416,6 +435,20 @@ function extractGalleryImages(doc, debugLog) {
           url: b64_pos
         });
       }
+    }
+
+    // C. 處理所有 InlineDrawings (繪圖圖片)
+    for (var d = 0; d < drawings.length; d++) {
+      try {
+        var b64_draw = compressBlobToBase64(drawings[d].getBlob());
+        if (b64_draw && !addedUrls[b64_draw]) {
+          addedUrls[b64_draw] = true;
+          gallery.push({
+            caption: captionText || ("特徵繪圖照片 " + (gallery.length + 1)),
+            url: b64_draw
+          });
+        }
+      } catch(eD) {}
     }
 
   } catch(e) {
