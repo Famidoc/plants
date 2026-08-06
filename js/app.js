@@ -19,7 +19,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 5. 註冊 PWA Service Worker 與安裝提示
   registerServiceWorker();
+
+  // 6. 背景靜默自動同步 Google Drive 最新資料 (無需使用者手動點擊)
+  setTimeout(() => {
+    autoBackgroundSyncGAS();
+  }, 1500);
 });
+
+async function autoBackgroundSyncGAS() {
+  const url = getSavedGasUrl();
+  if (!url) return;
+  try {
+    const plants = await fetchLatestDataFromGAS();
+    if (plants && Array.isArray(plants) && plants.length > 0) {
+      saveStoredPlants(plants);
+      const modalBackdrop = document.getElementById('plantModalBackdrop');
+      if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
+        initGallery();
+      }
+    }
+  } catch(e) {}
+}
 
 function setupNavigation() {
   const navBtns = document.querySelectorAll('.nav-btn, .mobile-nav-item');
@@ -179,7 +199,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=12')
+      navigator.serviceWorker.register('./sw.js?v=13')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
           reg.addEventListener('updatefound', () => {
