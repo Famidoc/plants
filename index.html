@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>捻花惹草 - 花草圖鑑與知識測驗 PWA</title>
+  <meta name="description" content="整理 Google Drive [捻花惹草] 花草資料庫，提供逆向排序展示、搜尋篩選與隨機 5 題知識測驗。">
+  <meta name="theme-color" content="#1b3b2b">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="./css/main.css?v=8">
+  <link rel="stylesheet" href="./css/gallery.css?v=8">
+  <link rel="stylesheet" href="./css/modal.css?v=8">
+  <link rel="stylesheet" href="./css/quiz.css?v=8">
+</head>
+<body>
+
+  <!-- 頂部導覽列 (Header) -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="#" class="brand-logo">
+        <span class="brand-icon">🪴</span>
+        <div>
+          <span class="brand-title">捻花惹草</span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗</span>
+        </div>
+      </a>
+
+      <!-- Desktop 導覽 -->
+      <nav class="nav-links">
+        <button class="nav-btn active" data-target-view="galleryView">
+          <span>📖</span> 花草圖鑑
+        </button>
+        <button class="nav-btn" data-target-view="quizView">
+          <span>🎯</span> 知識測驗
+        </button>
+        <button class="nav-btn" id="openSettingsBtn">
+          <span>⚙️</span> 同步與設定
+        </button>
+        <button class="nav-btn" id="pwaInstallBtn" style="display: none; background: linear-gradient(135deg, #e5ba73, #c69443); color: #1b3b2b;">
+          <span>📲</span> 安裝 App
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主內容區域 -->
+  <main class="app-main">
+
+    <!-- View 1: 花草圖鑑展覽 (Gallery View) -->
+    <section id="galleryView" class="view-section active">
+      <div class="gallery-controls">
+        <div class="search-bar-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" class="search-input" placeholder="搜尋花草名稱、學名、別名、科別、照護提示或關鍵字..." aria-label="搜尋花草">
+          <button id="searchClearBtn" class="search-clear-btn" aria-label="清除搜尋">✕</button>
+        </div>
+
+        <div class="filter-toolbar">
+          <div class="category-chips" id="categoryChips">
+            <button class="chip-btn active" data-category="ALL">全部花草</button>
+            <button class="chip-btn" data-category="PET_SAFE">🐾 寵物友善</button>
+            <button class="chip-btn" data-category="鳳尾蕨科">鳳尾蕨科</button>
+            <button class="chip-btn" data-category="天南星科">天南星科</button>
+            <button class="chip-btn" data-category="觀賞植物">其他觀賞植物</button>
+          </div>
+
+          <div class="sort-info-bar">
+            <span class="order-badge">⬇ 逆向排序（最新在上）</span>
+            <span id="plantCountBadge">載入中...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 花草卡片網格 -->
+      <div id="plantGridContainer" class="plant-grid">
+        <!-- JS 動態生成 -->
+      </div>
+    </section>
+
+    <!-- View 2: 知識測驗 (Quiz View) -->
+    <section id="quizView" class="view-section">
+      <div class="quiz-wrapper">
+        
+        <!-- 進行中的測驗畫面 -->
+        <div id="quizPlayingContainer" style="display: none;">
+          <div class="quiz-header-card">
+            <div class="quiz-meta-bar">
+              <span class="quiz-step-title">🎯 隨機花草照片識別測驗</span>
+              <span id="quizCounter" class="quiz-counter">第 1 / 5 題</span>
+            </div>
+            <div class="quiz-progress-track">
+              <div id="quizProgressFill" class="quiz-progress-fill"></div>
+            </div>
+          </div>
+
+          <div class="quiz-question-card">
+            <div class="quiz-prompt-text">請問下方的照片是哪一種花草植物？</div>
+            <div class="quiz-photo-box">
+              <img id="quizPhotoImg" src="" alt="測驗題目花草照片" class="quiz-photo-img">
+            </div>
+          </div>
+
+          <div id="quizOptionsGrid" class="quiz-options-grid">
+            <!-- 4 個選項按鈕由 JS 動態生成 -->
+          </div>
+        </div>
+
+        <!-- 測驗結算畫面 (Scorecard View) -->
+        <div id="quizResultContainer" class="quiz-result-card" style="display: none;">
+          <div class="score-badge-circle">
+            <span id="scoreNum" class="score-num">100</span>
+            <span class="score-max">/ 100 分</span>
+          </div>
+          <h2 id="scoreRankTitle" class="score-rank-title">🏆 綠手指花草大師！</h2>
+          <p id="scoreDescText" class="score-desc">太厲害了！5 題全部答對！</p>
+
+          <button id="restartQuizBtn" class="btn-primary" style="font-size: 1.1rem; padding: 0.85rem 2rem;">
+            🔄 再測驗一次（隨機選出 5 題）
+          </button>
+
+          <div class="quiz-breakdown-list">
+            <h3 style="color: var(--primary-dark); margin-bottom: 0.5rem; text-align: left;">📋 本次 5 題答題明細（每題20分）：</h3>
+            <div id="quizBreakdownList">
+              <!-- JS 產生答題明細 -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 行動端 Bottom Navigation (Mobile Only) -->
+  <nav class="mobile-bottom-nav">
+    <button class="mobile-nav-item active" data-target-view="galleryView">
+      <i>📖</i>
+      <span>花草圖鑑</span>
+    </button>
+    <button class="mobile-nav-item" data-target-view="quizView">
+      <i>🎯</i>
+      <span>知識測驗</span>
+    </button>
+    <button class="mobile-nav-item" onclick="document.getElementById('openSettingsBtn').click();">
+      <i>⚙️</i>
+      <span>設定同步</span>
+    </button>
+  </nav>
+
+  <!-- 花草詳細頁 Modal (Plant Detail Modal) -->
+  <div id="plantModalBackdrop" class="modal-backdrop">
+    <div id="plantModalContainer" class="modal-container">
+      <button class="modal-close-btn" onclick="closePlantDetailModal();">✕</button>
+      
+      <div class="modal-header-hero">
+        <img id="modalHeroImg" src="" alt="花草大圖" class="modal-hero-img">
+        <div class="modal-hero-overlay">
+          <h2 id="modalTitle" class="modal-title">花草名稱</h2>
+          <div id="modalDateLoc" class="modal-date-loc">記錄日期</div>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div class="modal-tabs">
+          <button class="tab-btn active" data-tab="tab-basic" onclick="switchModalTab('tab-basic')">基本資料</button>
+          <button class="tab-btn" data-tab="tab-morphology" onclick="switchModalTab('tab-morphology')">形態特徵</button>
+          <button class="tab-btn" data-tab="tab-care" onclick="switchModalTab('tab-care')">養護與用途</button>
+          <button class="tab-btn" data-tab="tab-references" onclick="switchModalTab('tab-references')">參考資料</button>
+        </div>
+
+        <!-- Tab 1: 基本資料 -->
+        <div id="tab-basic" class="tab-content active">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">學名 (Scientific Name)</div>
+              <div id="modalSciName" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">英文名 (English Name)</div>
+              <div id="modalEngName" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">別名 (Aliases)</div>
+              <div id="modalAliases" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">科屬別 (Family & Genus)</div>
+              <div id="modalFamily" class="info-value">--</div>
+            </div>
+          </div>
+          <div class="info-item" style="border-left-color: #2e7d32;">
+            <div class="info-label">寵物安全性 (Pet Safety)</div>
+            <div id="modalPetFriendly" class="info-value">--</div>
+          </div>
+        </div>
+
+        <!-- Tab 2: 形態特徵 -->
+        <div id="tab-morphology" class="tab-content">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">花期</div>
+              <div id="modalBloom" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">果期</div>
+              <div id="modalFruit" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">孢子期</div>
+              <div id="modalSpore" class="info-value">--</div>
+            </div>
+          </div>
+          <h4 class="detail-section-title">🌿 葉柄、葉片與根莖細節</h4>
+          <p id="modalMorphologyText" class="detail-text">--</p>
+        </div>
+
+        <!-- Tab 3: 養護與用途 -->
+        <div id="tab-care" class="tab-content">
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="info-label">☀️ 光照需求</div>
+              <div id="modalLight" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">💧 水分與空氣濕度</div>
+              <div id="modalHumidity" class="info-value">--</div>
+            </div>
+            <div class="info-item">
+              <div class="info-label">🚰 建議水質</div>
+              <div id="modalWaterQuality" class="info-value">--</div>
+            </div>
+          </div>
+          <h4 class="detail-section-title">💡 特殊作用與用途</h4>
+          <p id="modalUsesText" class="detail-text">--</p>
+        </div>
+
+        <!-- Tab 4: 參考資料 -->
+        <div id="tab-references" class="tab-content">
+          <h4 class="detail-section-title">🔗 外部植物資訊資料庫連結</h4>
+          <ul id="modalReferencesList" class="reference-list">
+            <!-- 外部連結 -->
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 設定與 Google Drive 同步 Modal -->
+  <div id="settingsModalBackdrop" class="modal-backdrop">
+    <div class="modal-container" style="max-width: 640px;">
+      <button class="modal-close-btn" id="closeSettingsBtn">✕</button>
+      <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8e3;">
+        <h3 style="color: var(--primary-dark); font-size: 1.3rem;">⚙️ 雲端同步與資料管理</h3>
+        <p style="font-size: 0.88rem; color: #2d3748; margin-top: 8px; background: #fff8e1; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #f57c00; line-height: 1.5;">
+          <span style="color: #b71c1c; font-weight: 900; font-size: 0.92rem; background: #ffebee; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcdd2; margin-right: 6px;">👑 管理員維護專用</span>
+          一般讀者進入 App 無需設定此處，即可直接瀏覽完整圖鑑與進行知識測驗。
+        </p>
+      </div>
+
+      <div class="settings-box">
+        <div class="form-group">
+          <label class="form-label" for="gasApiUrlInput">📡 Google Apps Script Web App API 網址</label>
+          <input type="url" id="gasApiUrlInput" class="form-input" placeholder="https://script.google.com/macros/s/.../exec">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
+            填入您的 Google Apps Script 部署 API 網址後，點擊「⚡ 立即連線同步」即可將 Google Drive [捻花惹草] 資料夾最新內容更新發布至 App 中。
+          </p>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <button id="triggerSyncBtn" class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.85rem;">⚡ 立即連線同步</button>
+        </div>
+
+        <hr style="border: none; border-top: 1px dashed #cccccc; margin: 1.5rem 0;">
+
+        <div class="form-group">
+          <label class="form-label" for="rawDocInput">📝 手動貼上 Google Doc 純文字快速新增</label>
+          <textarea id="rawDocInput" class="form-input" rows="4" placeholder="在此處貼上 Google Doc 內容（例如《鐵線蕨》文字格式），系統會自動解析關鍵字欄位並逆向排入圖鑑中..."></textarea>
+        </div>
+
+        <button id="pasteDocParseBtn" class="btn-primary" style="width: 100%;">
+          ✨ 解析並新增至花草圖鑑
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Scripts with ?v=8 Cache Buster -->
+  <script src="./js/data.js?v=8"></script>
+  <script src="./js/sync.js?v=8"></script>
+  <script src="./js/gallery.js?v=8"></script>
+  <script src="./js/quiz.js?v=8"></script>
+  <script src="./js/app.js?v=8"></script>
+
+</body>
+</html>

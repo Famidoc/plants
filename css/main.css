@@ -1,0 +1,252 @@
+/* ==========================================================================
+   「捻花惹草」Design System - 自然植系 (Botanical Theme) CSS
+   ========================================================================== */
+
+:root {
+  /* 品牌與自然色系 Token */
+  --primary-dark: #1b3b2b;
+  --primary: #2c5e43;
+  --primary-light: #4a7c59;
+  --accent-sage: #88ab8e;
+  --accent-mint: #afd19e;
+  --accent-gold: #e5ba73;
+  
+  /* 介面與背景色 */
+  --bg-gradient: linear-gradient(135deg, #0f2017 0%, #1c3629 50%, #15281e 100%);
+  --bg-surface: #f4f7f4;
+  --surface-card: rgba(255, 255, 255, 0.88);
+  --surface-card-hover: rgba(255, 255, 255, 0.98);
+  --glass-bg: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  
+  /* 文字顏色 */
+  --text-main: #1f2923;
+  --text-muted: #526358;
+  --text-light: #e8f0eb;
+  
+  /* 功能標籤與狀態 */
+  --badge-pet-safe: #2e7d32;
+  --badge-pet-safe-bg: #e8f5e9;
+  --badge-tag-bg: #e0ece4;
+  --danger: #d32f2f;
+  --success: #388e3c;
+
+  /* 字體與圓角 */
+  --font-family: 'Outfit', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 9999px;
+
+  /* 動畫與轉場 */
+  --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 基礎重置與 Body */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background: var(--bg-gradient);
+  color: var(--text-main);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 70px; /* 手機端 Bottom Navigation 留空 */
+}
+
+/* Header & 頂部列 */
+.app-header {
+  background: rgba(15, 32, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--glass-border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0.75rem 1.5rem;
+}
+
+.header-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: var(--text-light);
+}
+
+.brand-icon {
+  font-size: 1.8rem;
+  background: linear-gradient(135deg, var(--accent-mint), var(--accent-sage));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+
+.brand-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.brand-subtitle {
+  font-size: 0.75rem;
+  color: var(--accent-sage);
+  display: block;
+}
+
+/* 頂部/選單導覽按鈕 (Desktop Navigation) */
+.nav-links {
+  display: flex;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glass-border);
+}
+
+.nav-btn {
+  background: transparent;
+  border: none;
+  color: #a3c2ad;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: var(--transition-fast);
+}
+
+.nav-btn:hover {
+  color: var(--text-light);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-btn.active {
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(44, 94, 67, 0.4);
+}
+
+/* 行動端 Bottom Navigation (Mobile Only) */
+.mobile-bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(15, 32, 23, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--glass-border);
+  z-index: 1000;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: #8fae99;
+  font-size: 0.75rem;
+  font-weight: 600;
+  gap: 2px;
+  cursor: pointer;
+  flex: 1;
+  height: 100%;
+  transition: var(--transition-fast);
+}
+
+.mobile-nav-item i {
+  font-size: 1.25rem;
+}
+
+.mobile-nav-item.active {
+  color: var(--accent-mint);
+}
+
+/* 主內容區域與 View 分頁 */
+.app-main {
+  max-width: 1200px;
+  width: 100%;
+  margin: 1.5rem auto;
+  padding: 0 1rem;
+  flex: 1;
+}
+
+.view-section {
+  display: none;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.view-section.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Toast 提示訊息 */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  background: var(--primary-dark);
+  color: #ffffff;
+  padding: 0.85rem 1.4rem;
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--accent-mint);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  animation: slideInRight 0.3s forwards;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* 響應式調整 */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .mobile-bottom-nav { display: flex; }
+  body { padding-bottom: 74px; }
+  .app-header { padding: 0.75rem 1rem; }
+}

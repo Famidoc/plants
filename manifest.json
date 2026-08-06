@@ -1,0 +1,24 @@
+{
+  "name": "捻花惹草 - 花草圖鑑與知識測驗",
+  "short_name": "捻花惹草",
+  "description": "Google Drive [捻花惹草] 花草資料庫、逆向排序圖鑑與隨機 5 題知識測驗 PWA 應用程式",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1b3b2b",
+  "theme_color": "#2c5e43",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

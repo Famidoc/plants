@@ -1,0 +1,256 @@
+/**
+ * 「捻花惹草」圖鑑展覽與關鍵字搜尋/篩選器控制器
+ */
+
+let currentPlantsList = [];
+let activeCategory = 'ALL';
+let searchQuery = '';
+
+// SVG 綠色葉片無圖備援
+const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
+
+async function initGallery() {
+  // 優先讀取記憶體或 IndexedDB (0.005 秒秒刷上一次同步的 13 筆花草)
+  currentPlantsList = await loadStoredPlantsAsync();
+  renderGallery();
+  setupGalleryEventListeners();
+}
+
+/**
+ * 核心渲染函式：包含逆向排序 (後加入者在最上面)
+ */
+function renderGallery() {
+  const gridContainer = document.getElementById('plantGridContainer');
+  const countBadge = document.getElementById('plantCountBadge');
+  if (!gridContainer) return;
+
+  // 1. 複製資料庫並執行逆向排序 (後加入者/日期最新者放在最上面)
+  let sorted = [...currentPlantsList].sort((a, b) => {
+    const dateA = a.dateAdded || "0";
+    const dateB = b.dateAdded || "0";
+    return dateB.localeCompare(dateA);
+  });
+
+  // 2. 進行搜尋過濾
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    sorted = sorted.filter(p => {
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchSci = (p.scientificName || '').toLowerCase().includes(q);
+      const matchAliases = (p.aliases || []).some(a => a.toLowerCase().includes(q));
+      const matchFamily = (p.family || '').toLowerCase().includes(q);
+      const matchCare = JSON.stringify(p.careNotes || {}).toLowerCase().includes(q);
+      const matchLoc = (p.locationNote || '').toLowerCase().includes(q);
+      const matchMorph = JSON.stringify(p.morphologyDetails || []).toLowerCase().includes(q);
+      return matchName || matchSci || matchAliases || matchFamily || matchCare || matchLoc || matchMorph;
+    });
+  }
+
+  // 3. 進行分類 Chips 篩選
+  if (activeCategory !== 'ALL') {
+    if (activeCategory === 'PET_SAFE') {
+      sorted = sorted.filter(p => p.petFriendly === true);
+    } else {
+      sorted = sorted.filter(p => (p.family || '').includes(activeCategory));
+    }
+  }
+
+  // 更新顯示筆數標籤
+  if (countBadge) {
+    countBadge.textContent = `共 ${sorted.length} 筆資料 (逆序呈列)`;
+  }
+
+  // 4. 產生卡片 HTML
+  if (sorted.length === 0) {
+    gridContainer.innerHTML = `
+      <div class="empty-gallery-state" style="grid-column: 1 / -1;">
+        <div class="empty-icon">🌿</div>
+        <h3>未找到符合條件的花草</h3>
+        <p>請嘗試清除搜尋關鍵字或切換分類標籤</p>
+      </div>
+    `;
+    return;
+  }
+
+  gridContainer.innerHTML = sorted.map((plant, index) => {
+    const aliasesTag = (plant.aliases && plant.aliases.length > 0) 
+      ? `<span class="plant-tag">${plant.aliases[0]}</span>` : '';
+    const familyTag = plant.family ? `<span class="plant-tag">${plant.family.split(' ')[0]}</span>` : '';
+    const dateFormatted = plant.dateAdded 
+      ? `${plant.dateAdded.slice(0,4)}/${plant.dateAdded.slice(4,6)}/${plant.dateAdded.slice(6,8)}` 
+      : '最新';
+
+    let rawUrl = plant.imageUrl || '';
+    let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
+    if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
+      cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
+    }
+
+    let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+
+    return `
+      <div class="plant-card" data-id="${plant.id}">
+        <div class="plant-image-container">
+          <img src="${cleanImageUrl}" alt="${plant.name}" class="plant-card-img">
+          ${index === 0 ? '<span class="newest-tag">最新加入</span>' : ''}
+          ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
+          ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
+        </div>
+        <div class="plant-card-body">
+          <h3 class="plant-card-title">${plant.name}</h3>
+          <div class="plant-card-date">📅 ${dateFormatted} ${plant.locationNote ? `• ${plant.locationNote}` : ''}</div>
+          <div class="plant-card-sci-name">${plant.scientificName}</div>
+          <div class="plant-card-tags">
+            ${familyTag}
+            ${aliasesTag}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 綁定卡片點擊開啟詳細 Modal
+  gridContainer.querySelectorAll('.plant-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const plantId = card.getAttribute('data-id');
+      const plantData = currentPlantsList.find(p => p.id === plantId);
+      if (plantData) {
+        openPlantDetailModal(plantData);
+      }
+    });
+  });
+}
+
+function setupGalleryEventListeners() {
+  const searchInput = document.getElementById('searchInput');
+  const clearBtn = document.getElementById('searchClearBtn');
+
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', (e) => {
+      searchQuery = e.target.value;
+      if (clearBtn) {
+        clearBtn.classList.toggle('visible', searchQuery.length > 0);
+      }
+      renderGallery();
+    });
+  }
+
+  if (clearBtn && !clearBtn.dataset.bound) {
+    clearBtn.dataset.bound = 'true';
+    clearBtn.addEventListener('click', () => {
+      if (searchInput) searchInput.value = '';
+      searchQuery = '';
+      clearBtn.classList.remove('visible');
+      renderGallery();
+    });
+  }
+
+  // 分類 Chips 點擊
+  const chipContainer = document.getElementById('categoryChips');
+  if (chipContainer && !chipContainer.dataset.bound) {
+    chipContainer.dataset.bound = 'true';
+    chipContainer.addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip-btn');
+      if (!chip) return;
+      
+      chipContainer.querySelectorAll('.chip-btn').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeCategory = chip.getAttribute('data-category') || 'ALL';
+      renderGallery();
+    });
+  }
+}
+
+/**
+ * 開啟花草詳細資料視窗 (Modal View)
+ */
+function openPlantDetailModal(plant) {
+  const modalBackdrop = document.getElementById('plantModalBackdrop');
+  if (!modalBackdrop) return;
+
+  const dateFormatted = plant.dateAdded 
+    ? `${plant.dateAdded.slice(0,4)}年${plant.dateAdded.slice(4,6)}月${plant.dateAdded.slice(6,8)}日` 
+    : '';
+
+  let rawUrl = plant.imageUrl || '';
+  let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
+  if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
+    cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
+  }
+
+  // 填入資料
+  document.getElementById('modalHeroImg').src = cleanImageUrl;
+  document.getElementById('modalTitle').textContent = plant.name;
+  document.getElementById('modalDateLoc').textContent = `📅 記錄於：${dateFormatted} ${plant.locationNote ? `(${plant.locationNote})` : ''}`;
+
+  // 基本資料 Tab
+  document.getElementById('modalSciName').textContent = plant.scientificName || '無';
+  document.getElementById('modalEngName').textContent = plant.englishName || '無';
+  document.getElementById('modalAliases').textContent = (plant.aliases && plant.aliases.length > 0) ? plant.aliases.join('、') : '無';
+  document.getElementById('modalFamily').textContent = plant.family || '無';
+  document.getElementById('modalPetFriendly').textContent = plant.petFriendly ? '✅ 寵物友善（對貓狗無毒）' : '⚠️ 需注意寵物接觸（非完全無毒）';
+
+  // 形態特徵 Tab 完整渲染 (完整呈列株型與莖幹、葉片、花朵/果實、根系等項目)
+  document.getElementById('modalBloom').textContent = plant.bloomPeriod || '無';
+  document.getElementById('modalFruit').textContent = plant.fruitPeriod || '無';
+  document.getElementById('modalSpore').textContent = plant.sporePeriod || '無';
+
+  let morphText = '';
+  if (plant.morphologyDetails && Array.isArray(plant.morphologyDetails) && plant.morphologyDetails.length > 0) {
+    morphText = plant.morphologyDetails.map(item => `【${item.label}】${item.value}`).join('\n\n');
+  } else {
+    let morphLines = [];
+    if (plant.morphology?.stem) morphLines.push(`【莖 / 株型】${plant.morphology.stem}`);
+    if (plant.morphology?.leaf) morphLines.push(`【葉片】${plant.morphology.leaf}`);
+    if (plant.morphology?.sporangia) morphLines.push(`【花朵 / 果實 / 孢子】${plant.morphology.sporangia}`);
+    if (plant.morphology?.rhizome) morphLines.push(`【根系】${plant.morphology.rhizome}`);
+    morphText = morphLines.length > 0 ? morphLines.join('\n\n') : (plant.morphology?.fullText || '詳見內文說明');
+  }
+
+  document.getElementById('modalMorphologyText').textContent = morphText;
+
+  // 養護注意事項 Tab
+  document.getElementById('modalLight').textContent = plant.careNotes?.light || '中等散射光';
+  document.getElementById('modalHumidity').textContent = plant.careNotes?.humidity || '維持介質適度濕潤';
+  document.getElementById('modalWaterQuality').textContent = plant.careNotes?.waterQuality || '普通過濾水或靜置水';
+  document.getElementById('modalUsesText').textContent = (plant.uses && plant.uses.length > 0) ? plant.uses.join('\n') : '觀賞植物';
+
+  // 參考資料 Tab
+  const refList = document.getElementById('modalReferencesList');
+  if (refList) {
+    if (plant.references && plant.references.length > 0) {
+      refList.innerHTML = plant.references.map(r => `
+        <li>
+          <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="reference-link">
+            🔗 ${r.title}
+          </a>
+        </li>
+      `).join('');
+    } else {
+      refList.innerHTML = '<li>無相關外部參考連結</li>';
+    }
+  }
+
+  // 重置預設啟用第一個 Tab
+  switchModalTab('tab-basic');
+
+  modalBackdrop.classList.add('open');
+}
+
+function closePlantDetailModal() {
+  const modalBackdrop = document.getElementById('plantModalBackdrop');
+  if (modalBackdrop) modalBackdrop.classList.remove('open');
+}
+
+function switchModalTab(tabId) {
+  const modal = document.getElementById('plantModalContainer');
+  if (!modal) return;
+
+  modal.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
+  });
+  modal.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.toggle('active', content.id === tabId);
+  });
+}
