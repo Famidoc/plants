@@ -18,10 +18,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=13">
-  <link rel="stylesheet" href="./css/gallery.css?v=13">
-  <link rel="stylesheet" href="./css/modal.css?v=13">
-  <link rel="stylesheet" href="./css/quiz.css?v=13">
+  <link rel="stylesheet" href="./css/main.css?v=14">
+  <link rel="stylesheet" href="./css/gallery.css?v=14">
+  <link rel="stylesheet" href="./css/modal.css?v=14">
+  <link rel="stylesheet" href="./css/quiz.css?v=14">
 </head>
 <body>
 
@@ -172,7 +172,8 @@
       </button>
 
       <div class="modal-header-hero">
-        <img id="modalHeroImg" src="" alt="花草大圖" class="modal-hero-img">
+        <img id="modalHeroBgBlur" src="" alt="" class="modal-hero-bg-blur">
+        <img id="modalHeroImg" src="" alt="花草大圖" class="modal-hero-img" title="點擊檢視全螢幕大圖">
         <div class="modal-hero-overlay">
           <div style="display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
@@ -320,12 +321,19 @@
     </div>
   </div>
 
-  <!-- JavaScript Scripts with ?v=13 Cache Buster -->
-  <script src="./js/data.js?v=13"></script>
-  <script src="./js/sync.js?v=13"></script>
-  <script src="./js/gallery.js?v=13"></script>
-  <script src="./js/quiz.js?v=13"></script>
-  <script src="./js/app.js?v=13"></script>
+  <!-- 全螢幕無遮擋照片放大 Modal -->
+  <div id="fullScreenPhotoModal" class="full-screen-photo-backdrop" onclick="closeFullScreenPhoto();">
+    <button class="full-screen-close-btn" onclick="closeFullScreenPhoto();">✕</button>
+    <img id="fullScreenPhotoImg" src="" alt="全螢幕照片" class="full-screen-photo-img">
+    <div id="fullScreenPhotoCaption" class="full-screen-photo-caption"></div>
+  </div>
+
+  <!-- JavaScript Scripts with ?v=14 Cache Buster -->
+  <script src="./js/data.js?v=14"></script>
+  <script src="./js/sync.js?v=14"></script>
+  <script src="./js/gallery.js?v=14"></script>
+  <script src="./js/quiz.js?v=14"></script>
+  <script src="./js/app.js?v=14"></script>
 
 </body>
 </html>

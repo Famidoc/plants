@@ -239,7 +239,18 @@ function openPlantDetailModal(plant) {
   }
 
   // 填入資料
-  document.getElementById('modalHeroImg').src = cleanImageUrl;
+  const heroImg = document.getElementById('modalHeroImg');
+  const heroBgBlur = document.getElementById('modalHeroBgBlur');
+  if (heroImg) heroImg.src = cleanImageUrl;
+  if (heroBgBlur) heroBgBlur.src = cleanImageUrl;
+
+  // 點擊主圖可查看無遮擋全螢幕大圖
+  if (heroImg) {
+    heroImg.onclick = () => {
+      openFullScreenPhoto(heroImg.src, plant.name);
+    };
+  }
+
   document.getElementById('modalTitle').textContent = plant.name;
   document.getElementById('modalDateLoc').textContent = `📅 記錄於：${dateFormatted} ${plant.locationNote ? `(${plant.locationNote})` : ''}`;
 
@@ -287,7 +298,7 @@ function openPlantDetailModal(plant) {
   if (galleryContainer) {
     if (galleryImages.length > 0) {
       galleryContainer.innerHTML = galleryImages.map((img, idx) => `
-        <div class="gallery-item-card" data-url="${img.url}">
+        <div class="gallery-item-card" data-url="${img.url}" data-caption="${img.caption || `特徵照片 ${idx + 1}`}">
           <img src="${img.url}" alt="${img.caption || '特徵照片'}" class="gallery-item-img">
           <div class="gallery-item-caption">${img.caption || `特徵照片 ${idx + 1}`}</div>
         </div>
@@ -298,7 +309,8 @@ function openPlantDetailModal(plant) {
         card.addEventListener('click', () => {
           const targetUrl = card.getAttribute('data-url');
           if (targetUrl) {
-            document.getElementById('modalHeroImg').src = targetUrl;
+            if (heroImg) heroImg.src = targetUrl;
+            if (heroBgBlur) heroBgBlur.src = targetUrl;
             galleryContainer.querySelectorAll('.gallery-item-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
           }
@@ -367,4 +379,20 @@ function switchModalTab(tabId) {
   modal.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === tabId);
   });
+}
+
+function openFullScreenPhoto(url, caption) {
+  const modal = document.getElementById('fullScreenPhotoModal');
+  const img = document.getElementById('fullScreenPhotoImg');
+  const cap = document.getElementById('fullScreenPhotoCaption');
+  if (modal && img) {
+    img.src = url;
+    if (cap) cap.textContent = caption || '';
+    modal.classList.add('open');
+  }
+}
+
+function closeFullScreenPhoto() {
+  const modal = document.getElementById('fullScreenPhotoModal');
+  if (modal) modal.classList.remove('open');
 }

@@ -210,18 +210,41 @@
 .modal-header-hero {
   position: relative;
   width: 100%;
-  height: 380px;
+  height: 400px;
   flex-shrink: 0;
-  background: #0f2017;
+  background: #08120d;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-hero-bg-blur {
+  position: absolute;
+  top: -5%;
+  left: -5%;
+  width: 110%;
+  height: 110%;
+  object-fit: cover;
+  filter: blur(28px) brightness(0.4);
+  z-index: 1;
+  pointer-events: none;
 }
 
 .modal-hero-img {
-  width: 100%;
+  position: relative;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: 100%;
-  object-fit: cover;
-  object-position: center 30%;
-  transition: transform 0.3s ease;
+  object-fit: contain;
+  z-index: 2;
+  transition: transform 0.25s ease;
+  cursor: zoom-in;
+}
+
+.modal-hero-img:hover {
+  transform: scale(1.015);
 }
 
 .modal-hero-overlay {
@@ -393,9 +416,71 @@
 .form-input {
   width: 100%;
   padding: 0.75rem 1rem;
-  border: 1px solid #c8d6cb;
+  border-left: 4px solid var(--primary-light);
   border-radius: var(--radius-md);
-  font-size: 0.95rem;
+  margin-top: 1rem;
+}
+
+/* 全螢幕無遮擋照片檢視器 (Full Screen Lightbox) */
+.full-screen-photo-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(5, 12, 8, 0.95);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 3500;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 1.5rem;
+  cursor: zoom-out;
+}
+
+.full-screen-photo-backdrop.open {
+  display: flex;
+  animation: fadeIn 0.2s ease;
+}
+
+.full-screen-photo-img {
+  max-width: 95vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.85);
+}
+
+.full-screen-photo-caption {
+  color: #afd19e;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-top: 14px;
+  text-align: center;
+  background: rgba(15, 32, 23, 0.85);
+  padding: 6px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(175, 209, 158, 0.3);
+}
+
+.full-screen-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.5rem;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-primary {
