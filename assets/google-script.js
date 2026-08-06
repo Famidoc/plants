@@ -123,32 +123,26 @@ function scanDocAndFolderForPhoto(doc, folder, plantName, debugLog, fileName) {
 function compressBlobToBase64(blob) {
   if (!blob) return null;
 
-  var imgBlob = blob;
   try {
-    var cType = blob.getContentType() || "";
-    if (cType.indexOf("image/") === -1) {
-      imgBlob = blob.getAs(MimeType.PNG);
-    }
-  } catch(eMime) {
+    var bytes = blob.getBytes();
+    if (!bytes || bytes.length === 0) return null;
+
     try {
-      imgBlob = blob.getAs(MimeType.JPEG);
-    } catch(eMime2) {}
-  }
-
-  try {
-    var resized = ImagesService.makeImage(imgBlob).resize(400, 400).getAs(MimeType.JPEG);
-    var rawBase64 = Utilities.base64Encode(resized.getBytes());
-    return "data:image/jpeg;base64," + rawBase64.replace(/[\r\n\s]+/g, "");
-  } catch(e1) {}
-
-  try {
-    var bytes = imgBlob.getBytes();
-    if (bytes && bytes.length > 0) {
-      var rawBase64_2 = Utilities.base64Encode(bytes);
-      var finalType = imgBlob.getContentType() || "image/jpeg";
-      return "data:" + finalType + ";base64," + rawBase64_2.replace(/[\r\n\s]+/g, "");
+      var resized = ImagesService.makeImage(blob).resize(500, 500).getAs(MimeType.JPEG);
+      var rawBase64 = Utilities.base64Encode(resized.getBytes());
+      return "data:image/jpeg;base64," + rawBase64.replace(/[\r\n\s]+/g, "");
+    } catch(eResize) {
+      try {
+        var jpegBlob = blob.getAs(MimeType.JPEG);
+        var rawBase64_2 = Utilities.base64Encode(jpegBlob.getBytes());
+        return "data:image/jpeg;base64," + rawBase64_2.replace(/[\r\n\s]+/g, "");
+      } catch(eMime) {}
     }
-  } catch(e2) {}
+    
+    var rawBase64_3 = Utilities.base64Encode(bytes);
+    var cType = blob.getContentType() || "image/jpeg";
+    return "data:" + cType + ";base64," + rawBase64_3.replace(/[\r\n\s]+/g, "");
+  } catch(eFinal) {}
 
   return null;
 }
