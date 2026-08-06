@@ -179,8 +179,21 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then((reg) => console.log('PWA ServiceWorker 註冊成功:', reg.scope))
+      navigator.serviceWorker.register('./sw.js?v=9')
+        .then((reg) => {
+          console.log('PWA ServiceWorker 註冊成功:', reg.scope);
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showToast('✨ App 發現最新更新，正在為您載入最新版面...');
+                  setTimeout(() => window.location.reload(), 1000);
+                }
+              });
+            }
+          });
+        })
         .catch((err) => console.log('PWA ServiceWorker 註冊失敗:', err));
     });
   }
