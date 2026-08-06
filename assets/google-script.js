@@ -20,11 +20,11 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    var files = folder.getFilesByType(MimeType.GOOGLE_DOCS);
+    var docs = getAllDocsInFolder(folder);
     var plantList = [];
 
-    while (files.hasNext()) {
-      var file = files.next();
+    for (var i = 0; i < docs.length; i++) {
+      var file = docs[i];
       var docId = file.getId();
       var fileName = file.getName();
       var createdDate = file.getDateCreated();
@@ -37,7 +37,7 @@ function doGet(e) {
 
         var imageUrl = scanDocAndFolderForPhoto(doc, folder, plantNameOnly, debugLog, fileName) || "./assets/images/ferns.jpg";
         
-        var parsedPlant = parseDocText(text, fileName, formattedDate, imageUrl, doc);
+        var parsedPlant = parseDocText(text, fileName, formattedDate, imageUrl, doc, debugLog);
         plantList.push(parsedPlant);
       } catch (docErr) {
         debugLog.push("❌ 讀取 Doc 異常 (" + fileName + "): " + docErr.toString());
@@ -157,13 +157,64 @@ function findDriveFolderPhoto(folder, plantName) {
 
 function findTargetFolder() {
   var candidateNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
+  var bestFolder = null;
+
   for (var i = 0; i < candidateNames.length; i++) {
     var folders = DriveApp.getFoldersByName(candidateNames[i]);
-    if (folders.hasNext()) {
-      return folders.next();
+    while (folders.hasNext()) {
+      var f = folders.next();
+      var docs = getAllDocsInFolder(f);
+      if (docs.length > 0) {
+        return f;
+      }
+      if (!bestFolder) bestFolder = f;
     }
   }
-  return null;
+  return bestFolder;
+}
+
+function getAllDocsInFolder(folder) {
+  var docs = [];
+  var seenIds = {};
+
+  function searchIn(targetFolder) {
+    if (!targetFolder) return;
+
+    try {
+      var files = targetFolder.getFilesByType(MimeType.GOOGLE_DOCS);
+      while (files.hasNext()) {
+        var f = files.next();
+        if (!seenIds[f.getId()]) {
+          seenIds[f.getId()] = true;
+          docs.push(f);
+        }
+      }
+    } catch(e1) {}
+
+    try {
+      var allFiles = targetFolder.getFiles();
+      while (allFiles.hasNext()) {
+        var f2 = allFiles.next();
+        var m = f2.getMimeType();
+        if (m === MimeType.GOOGLE_DOCS || m === "application/vnd.google-apps.document") {
+          if (!seenIds[f2.getId()]) {
+            seenIds[f2.getId()] = true;
+            docs.push(f2);
+          }
+        }
+      }
+    } catch(e2) {}
+
+    try {
+      var subs = targetFolder.getSubFolders();
+      while (subs.hasNext()) {
+        searchIn(subs.next());
+      }
+    } catch(e3) {}
+  }
+
+  searchIn(folder);
+  return docs;
 }
 
 function extractReferences(text, doc) {
