@@ -303,6 +303,71 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc) {
       humidity: getField(/(?:水分與濕度|濕度)[：:\s]+([^\n]+)/),
       waterQuality: getField(/(?:水質)[：:\s]+([^\n]+)/)
     },
-    references: references
+    references: references,
+    galleryImages: extractGalleryImages(doc, debugLog)
   };
+}
+
+/**
+ * 自動深度擷取文件末端 [其他附圖] 下的所有特徵照片
+ */
+function extractGalleryImages(doc, debugLog) {
+  var gallery = [];
+  if (!doc) return gallery;
+
+  try {
+    var body = doc.getBody();
+    var paragraphs = body.getParagraphs();
+    var inGallerySection = false;
+    var currentCaption = "";
+
+    for (var i = 0; i < paragraphs.length; i++) {
+      var p = paragraphs[i];
+      var text = p.getText().trim();
+
+      if (text.indexOf("其他附圖") !== -1) {
+        inGallerySection = true;
+        continue;
+      }
+
+      if (inGallerySection) {
+        if (text && text.length > 0 && text.indexOf("http") !== 0) {
+          currentCaption = text;
+        }
+
+        for (var j = 0; j < p.getNumChildren(); j++) {
+          var child = p.getChild(j);
+          if (child.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
+            var imgObj = child.asInlineImage();
+            var base64 = compressBlobToBase64(imgObj.getBlob());
+            if (base64) {
+              gallery.push({
+                caption: currentCaption || "特徵附圖照片",
+                url: base64
+              });
+              currentCaption = "";
+            }
+          }
+        }
+      }
+    }
+
+    if (gallery.length === 0) {
+      var allImages = body.getImages();
+      if (allImages && allImages.length > 1) {
+        for (var k = 1; k < allImages.length; k++) {
+          var imgB64 = compressBlobToBase64(allImages[k].getBlob());
+          if (imgB64) {
+            gallery.push({
+              caption: "特徵附圖照片 " + k,
+              url: imgB64
+            });
+          }
+        }
+      }
+    }
+  } catch(e) {
+    if (debugLog) debugLog.push("⚠️ 擷取其他附圖例外: " + e.toString());
+  }
+  return gallery;
 }

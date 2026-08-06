@@ -18,10 +18,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=10">
-  <link rel="stylesheet" href="./css/gallery.css?v=10">
-  <link rel="stylesheet" href="./css/modal.css?v=10">
-  <link rel="stylesheet" href="./css/quiz.css?v=10">
+  <link rel="stylesheet" href="./css/main.css?v=11">
+  <link rel="stylesheet" href="./css/gallery.css?v=11">
+  <link rel="stylesheet" href="./css/modal.css?v=11">
+  <link rel="stylesheet" href="./css/quiz.css?v=11">
 </head>
 <body>
 
@@ -189,6 +189,7 @@
           <button class="tab-btn active" data-tab="tab-basic" onclick="switchModalTab('tab-basic')">基本資料</button>
           <button class="tab-btn" data-tab="tab-morphology" onclick="switchModalTab('tab-morphology')">形態特徵</button>
           <button class="tab-btn" data-tab="tab-care" onclick="switchModalTab('tab-care')">養護與用途</button>
+          <button class="tab-btn" data-tab="tab-gallery" onclick="switchModalTab('tab-gallery')">📷 植物圖集 <span id="modalGalleryCountBadge" class="gallery-count-badge">0</span></button>
           <button class="tab-btn" data-tab="tab-references" onclick="switchModalTab('tab-references')">參考資料</button>
         </div>
 
@@ -258,7 +259,18 @@
           <p id="modalUsesText" class="detail-text">--</p>
         </div>
 
-        <!-- Tab 4: 參考資料 -->
+        <!-- Tab 4: 📷 植物圖集 (其他附圖) -->
+        <div id="tab-gallery" class="tab-content">
+          <div class="detail-section-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span>📷 植物特徵與多角度附圖</span>
+            <span style="font-size:0.8rem; color:var(--text-muted); font-weight:normal;">點擊下方圖片可於上方放大顯示</span>
+          </div>
+          <div id="modalGalleryContainer" class="modal-gallery-grid">
+            <!-- JS 動態生成 -->
+          </div>
+        </div>
+
+        <!-- Tab 5: 參考資料 -->
         <div id="tab-references" class="tab-content">
           <h4 class="detail-section-title">🔗 外部植物資訊資料庫連結</h4>
           <ul id="modalReferencesList" class="reference-list">
@@ -308,12 +320,12 @@
     </div>
   </div>
 
-  <!-- JavaScript Scripts with ?v=10 Cache Buster -->
-  <script src="./js/data.js?v=10"></script>
-  <script src="./js/sync.js?v=10"></script>
-  <script src="./js/gallery.js?v=10"></script>
-  <script src="./js/quiz.js?v=10"></script>
-  <script src="./js/app.js?v=10"></script>
+  <!-- JavaScript Scripts with ?v=11 Cache Buster -->
+  <script src="./js/data.js?v=11"></script>
+  <script src="./js/sync.js?v=11"></script>
+  <script src="./js/gallery.js?v=11"></script>
+  <script src="./js/quiz.js?v=11"></script>
+  <script src="./js/app.js?v=11"></script>
 
 </body>
 </html>

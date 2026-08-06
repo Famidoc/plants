@@ -275,19 +275,43 @@ function openPlantDetailModal(plant) {
   document.getElementById('modalWaterQuality').textContent = plant.careNotes?.waterQuality || '普通過濾水或靜置水';
   document.getElementById('modalUsesText').textContent = (plant.uses && plant.uses.length > 0) ? plant.uses.join('\n') : '觀賞植物';
 
-  // 參考資料 Tab
-  const refList = document.getElementById('modalReferencesList');
-  if (refList) {
-    if (plant.references && plant.references.length > 0) {
-      refList.innerHTML = plant.references.map(r => `
-        <li>
-          <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="reference-link">
-            🔗 ${r.title}
-          </a>
-        </li>
+  // 📷 植物圖集 Tab 渲染 (其他附圖)
+  const galleryContainer = document.getElementById('modalGalleryContainer');
+  const galleryCountBadge = document.getElementById('modalGalleryCountBadge');
+  const galleryImages = plant.galleryImages || [];
+
+  if (galleryCountBadge) {
+    galleryCountBadge.textContent = galleryImages.length;
+  }
+
+  if (galleryContainer) {
+    if (galleryImages.length > 0) {
+      galleryContainer.innerHTML = galleryImages.map((img, idx) => `
+        <div class="gallery-item-card" data-url="${img.url}">
+          <img src="${img.url}" alt="${img.caption || '特徵照片'}" class="gallery-item-img">
+          <div class="gallery-item-caption">${img.caption || `特徵照片 ${idx + 1}`}</div>
+        </div>
       `).join('');
+
+      // 點擊縮圖：將主圖 (Hero Photo) 放大替換顯示該特徵照片
+      galleryContainer.querySelectorAll('.gallery-item-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const targetUrl = card.getAttribute('data-url');
+          if (targetUrl) {
+            document.getElementById('modalHeroImg').src = targetUrl;
+            galleryContainer.querySelectorAll('.gallery-item-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+          }
+        });
+      });
     } else {
-      refList.innerHTML = '<li>無相關外部參考連結</li>';
+      galleryContainer.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 2rem; text-align: center; color: var(--text-muted); background: #f8faf8; border-radius: 12px; border: 1px dashed #c2decb;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🌿</div>
+          <div style="font-weight: 700; color: var(--primary-dark);">此花草目前尚未包含其他特徵附圖照片</div>
+          <div style="font-size: 0.85rem; margin-top: 4px;">如需補充，可在 Google Doc 檔案末端加入「其他附圖」標題並插入圖片，同步後即可自動載入！</div>
+        </div>
+      `;
     }
   }
 
