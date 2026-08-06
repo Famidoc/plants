@@ -71,7 +71,7 @@
 /* 上一筆 / 下一筆導覽按鈕 */
 .modal-nav-btn {
   position: absolute;
-  top: 150px;
+  top: 85px;
   transform: translateY(-50%);
   background: rgba(15, 32, 23, 0.85);
   color: #ffffff;
@@ -128,6 +128,7 @@
     display: none;
   }
   .modal-nav-btn {
+    top: 75px;
     padding: 0.45rem 0.65rem;
     font-size: 1.05rem;
   }
