@@ -204,14 +204,29 @@ function setupQrModal() {
 
   if (openQrBtn && qrModalBackdrop) {
     openQrBtn.addEventListener('click', (e) => {
-      e.preventDefault();
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       qrModalBackdrop.classList.add('open');
     });
   }
 
   if (closeQrBtn && qrModalBackdrop) {
-    closeQrBtn.addEventListener('click', () => {
+    closeQrBtn.addEventListener('click', (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       qrModalBackdrop.classList.remove('open');
+    });
+  }
+
+  if (qrModalBackdrop) {
+    qrModalBackdrop.addEventListener('click', (e) => {
+      if (e.target === qrModalBackdrop) {
+        qrModalBackdrop.classList.remove('open');
+      }
     });
   }
 }
