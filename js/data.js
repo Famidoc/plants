@@ -33,13 +33,20 @@ async function saveToIndexedDB(key, val) {
 
 async function getFromIndexedDB(key) {
   try {
-    const db = await dbPromise;
+    const db = await Promise.race([
+      dbPromise,
+      new Promise(resolve => setTimeout(() => resolve(null), 1000))
+    ]);
     if (!db) return null;
     return new Promise((resolve) => {
-      const tx = db.transaction('plants', 'readonly');
-      const req = tx.objectStore('plants').get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
+      try {
+        const tx = db.transaction('plants', 'readonly');
+        const req = tx.objectStore('plants').get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      } catch(txErr) {
+        resolve(null);
+      }
     });
   } catch(e) {
     return null;
