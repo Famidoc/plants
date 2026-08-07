@@ -31,7 +31,12 @@
       <a href="#" class="brand-logo">
         <span class="brand-icon">🪴</span>
         <div>
-          <span class="brand-title">捻花惹草</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="brand-title">捻花惹草</span>
+            <button id="openQrModalBtn" class="qr-badge-btn" title="點擊顯示 App 分享 QR Code" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.35); color: #ffffff; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+              <span>📱</span> <span>QR Code</span>
+            </button>
+          </div>
           <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v2.6.0</small></span>
         </div>
       </a>
@@ -333,6 +338,32 @@
     <img id="fullScreenPhotoImg" src="" alt="全螢幕照片" class="full-screen-photo-img">
     <div id="fullScreenPhotoCaption" class="full-screen-photo-caption"></div>
   </div>
+
+  <!-- QR Code 分享 Modal -->
+  <div id="qrModalBackdrop" class="modal-backdrop">
+    <div class="modal-container" style="max-width: 380px; text-align: center; padding: 2rem 1.5rem; border-radius: 16px;">
+      <button class="modal-close-btn" id="closeQrModalBtn">✕</button>
+      <h3 style="color: var(--primary-dark); font-size: 1.25rem; margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <span>📱</span> <span>分享《捻花惹草》App</span>
+      </h3>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1.2rem; line-height: 1.5;">
+        使用手機相機掃描下方 QR Code，即可直接於手機瀏覽圖鑑與安裝 PWA App！
+      </p>
+      
+      <div style="background: #ffffff; padding: 1rem; border-radius: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(0,0,0,0.08); border: 1px solid #e2e8e3;">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://famidoc.github.io/plants/" alt="捻花惹草 App QR Code" style="width: 200px; height: 200px; display: block; border-radius: 8px;">
+      </div>
+      
+      <p style="font-size: 0.8rem; color: #4a5568; margin-top: 1rem; word-break: break-all; font-family: monospace; background: #f7fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #edf2f7;">
+        https://famidoc.github.io/plants/
+      </p>
+    </div>
+  </div>
+
+  <!-- 頁尾宣告 (Footer) -->
+  <footer class="app-footer" style="text-align: center; padding: 1.8rem 1rem; color: rgba(255,255,255,0.75); font-size: 0.88rem; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 3rem; background: rgba(0,0,0,0.18);">
+    <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
+  </footer>
 
   <!-- JavaScript Scripts with ?v=26 Cache Buster -->
   <script src="./js/data.js?v=26"></script>

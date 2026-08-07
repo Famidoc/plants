@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. 設定 Modal 與 GAS 同步綁定
   setupSettingsModal();
 
+  // 4.5 QR Code 分享彈窗綁定
+  setupQrModal();
+
   // 5. 註冊 PWA Service Worker 與自動版面升級監聽
   registerServiceWorker();
 
@@ -191,9 +194,24 @@ function setupSettingsModal() {
         rawDocInput.value = '';
         showToast(`✅ 成功新增花草「${newPlant.name}」！`);
         if (modalBackdrop) modalBackdrop.classList.remove('open');
-      } else {
-        showToast('解析失敗，請確認格式');
-      }
+  }
+}
+
+function setupQrModal() {
+  const openQrBtn = document.getElementById('openQrModalBtn');
+  const qrModalBackdrop = document.getElementById('qrModalBackdrop');
+  const closeQrBtn = document.getElementById('closeQrModalBtn');
+
+  if (openQrBtn && qrModalBackdrop) {
+    openQrBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      qrModalBackdrop.classList.add('open');
+    });
+  }
+
+  if (closeQrBtn && qrModalBackdrop) {
+    closeQrBtn.addEventListener('click', () => {
+      qrModalBackdrop.classList.remove('open');
     });
   }
 }
