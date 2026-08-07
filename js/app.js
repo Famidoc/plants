@@ -194,6 +194,10 @@ function setupSettingsModal() {
         rawDocInput.value = '';
         showToast(`✅ 成功新增花草「${newPlant.name}」！`);
         if (modalBackdrop) modalBackdrop.classList.remove('open');
+      } else {
+        showToast('解析失敗，請確認格式');
+      }
+    });
   }
 }
 
