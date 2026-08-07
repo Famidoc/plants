@@ -37,12 +37,22 @@ async function fetchLatestDataFromGAS() {
       throw new Error(`GAS 傳回錯誤：${result.error}`);
     }
 
-    if (result && Array.isArray(result.plants)) {
-      if (result.plants.length === 0) {
-        throw new Error('已連線至 Google Drive，但 [捻花惹草] 資料夾內尚未找到任何 Google Doc 檔案。');
+    if (result && (Array.isArray(result.plants) || Array.isArray(result.deletedPlants))) {
+      const plants = result.plants || [];
+      const deletedPlants = result.deletedPlants || [];
+      const syncMode = result.syncMode || 'FULL';
+      const folderFound = result.folderFound || 'Google Drive';
+
+      if (plants.length === 0 && deletedPlants.length === 0) {
+        throw new Error(`已成功連線至 Google Drive (${folderFound})，但目前資料夾內未發現任何 Google Doc 檔案。`);
       }
-      saveStoredPlants(result.plants);
-      return result.plants;
+
+      return {
+        syncMode,
+        plants,
+        deletedPlants,
+        folderFound
+      };
     } else {
       throw new Error('回傳 JSON 格式不符合預期 (未包含 plants 陣列)');
     }

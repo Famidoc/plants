@@ -1,17 +1,17 @@
-const CACHE_NAME = 'nian-hua-re-cao-v16';
+const CACHE_NAME = 'nian-hua-re-cao-v26';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/main.css?v=16',
-  './css/gallery.css?v=16',
-  './css/modal.css?v=16',
-  './css/quiz.css?v=16',
-  './js/app.js?v=16',
-  './js/data.js?v=16',
-  './js/sync.js?v=16',
-  './js/gallery.js?v=16',
-  './js/quiz.js?v=16'
+  './css/main.css?v=26',
+  './css/gallery.css?v=26',
+  './css/modal.css?v=26',
+  './css/quiz.css?v=26',
+  './js/app.js?v=26',
+  './js/data.js?v=26',
+  './js/sync.js?v=26',
+  './js/gallery.js?v=26',
+  './js/quiz.js?v=26'
 ];
 
 self.addEventListener('install', (event) => {
@@ -29,7 +29,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('刪除舊版本 快取:', key);
+            console.log('刪除舊版本快取:', key);
             return caches.delete(key);
           }
         })
@@ -42,8 +42,16 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
   event.respondWith(
-    fetch(event.request).catch(() => {
-      return caches.match(event.request);
-    })
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => caches.match(event.request))
   );
 });

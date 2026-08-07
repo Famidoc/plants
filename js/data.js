@@ -188,6 +188,73 @@ function saveStoredPlants(plants) {
   }
 }
 
+/**
+ * 智慧增量合併與刪除 (INCREMENTAL 模式專用，非同步讀取 IndexedDB 完整資料庫，絕對不覆蓋原本已存在的花草)
+ */
+async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants = []) {
+  let currentList = [...(await loadStoredPlantsAsync())];
+
+  let deletedCount = 0;
+  let addedCount = 0;
+  let updatedCount = 0;
+
+  // 1. 處理刪除 (Deletions)
+  if (Array.isArray(deletedPlants) && deletedPlants.length > 0) {
+    deletedPlants.forEach(item => {
+      const targetName = typeof item === 'string' ? item.trim() : (item.name || '').trim();
+      if (!targetName) return;
+
+      const beforeLen = currentList.length;
+      currentList = currentList.filter(p => {
+        const pName = (p.name || '').trim();
+        return pName !== targetName && !pName.includes(targetName) && !targetName.includes(pName);
+      });
+      if (currentList.length < beforeLen) {
+        deletedCount += (beforeLen - currentList.length);
+      }
+    });
+  }
+
+  // 2. 處理新增與更新 (Upsert)
+  if (Array.isArray(newOrUpdatedPlants) && newOrUpdatedPlants.length > 0) {
+    newOrUpdatedPlants.forEach(incomingPlant => {
+      if (!incomingPlant || !incomingPlant.name) return;
+      const incomingName = incomingPlant.name.trim();
+
+      const existingIdx = currentList.findIndex(p => {
+        const existingName = (p.name || '').trim();
+        return existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName);
+      });
+
+      if (existingIdx !== -1) {
+        // 更新 (Update)
+        const oldId = currentList[existingIdx].id;
+        currentList[existingIdx] = {
+          ...incomingPlant,
+          id: oldId || incomingPlant.id || `plant-${Date.now()}`
+        };
+        updatedCount++;
+      } else {
+        // 新增 (Insert at top)
+        currentList.unshift({
+          ...incomingPlant,
+          id: incomingPlant.id || `plant-${Date.now()}`
+        });
+        addedCount++;
+      }
+    });
+  }
+
+  saveStoredPlants(currentList);
+
+  return {
+    addedCount,
+    updatedCount,
+    deletedCount,
+    totalCount: currentList.length
+  };
+}
+
 function clearAllPlantCache() {
   inMemoryPlantsList = null;
   saveToIndexedDB('synced_plants', null);

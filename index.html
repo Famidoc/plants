@@ -18,10 +18,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=16">
-  <link rel="stylesheet" href="./css/gallery.css?v=16">
-  <link rel="stylesheet" href="./css/modal.css?v=16">
-  <link rel="stylesheet" href="./css/quiz.css?v=16">
+  <link rel="stylesheet" href="./css/main.css?v=25">
+  <link rel="stylesheet" href="./css/gallery.css?v=25">
+  <link rel="stylesheet" href="./css/modal.css?v=25">
+  <link rel="stylesheet" href="./css/quiz.css?v=25">
 </head>
 <body>
 
@@ -32,7 +32,7 @@
         <span class="brand-icon">🪴</span>
         <div>
           <span class="brand-title">捻花惹草</span>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗</span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v2.5</small></span>
         </div>
       </a>
 
@@ -287,7 +287,10 @@
     <div class="modal-container" style="max-width: 640px;">
       <button class="modal-close-btn" id="closeSettingsBtn">✕</button>
       <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8e3;">
-        <h3 style="color: var(--primary-dark); font-size: 1.3rem;">⚙️ 雲端同步與資料管理</h3>
+        <h3 style="color: var(--primary-dark); font-size: 1.3rem; display: flex; align-items: center; justify-content: space-between;">
+          <span>⚙️ 雲端同步與資料管理</span>
+          <span style="font-size: 0.78rem; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 12px; font-weight: normal; border: 1px solid #c8e6c9;">v2.6.0 智慧大容量版</span>
+        </h3>
         <p style="font-size: 0.88rem; color: #2d3748; margin-top: 8px; background: #fff8e1; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #f57c00; line-height: 1.5;">
           <span style="color: #b71c1c; font-weight: 900; font-size: 0.92rem; background: #ffebee; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcdd2; margin-right: 6px;">👑 管理員維護專用</span>
           一般讀者進入 App 無需設定此處，即可直接瀏覽完整圖鑑與進行知識測驗。
@@ -298,9 +301,12 @@
         <div class="form-group">
           <label class="form-label" for="gasApiUrlInput">📡 Google Apps Script Web App API 網址</label>
           <input type="url" id="gasApiUrlInput" class="form-input" placeholder="https://script.google.com/macros/s/.../exec">
-          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">
-            填入您的 Google Apps Script 部署 API 網址後，點擊「⚡ 立即連線同步」即可將 Google Drive [捻花惹草] 資料夾最新內容更新發布至 App 中。
-          </p>
+          <div style="font-size: 0.82rem; color: #374151; margin-top: 8px; background: #f0fdf4; padding: 10px 12px; border-radius: 8px; border: 1px solid #bbf7d0; line-height: 1.6;">
+            <strong>🌿 智慧同步指南：</strong><br>
+            • <strong>暫存增修：</strong>若 <code>[增修刪]</code> 資料夾有檔案，點擊下方按鈕將執行「秒速增量同步」，自動合併新增/修改並保留原圖鑑。<br>
+            • <strong>刪除標記：</strong>檔名前加上 <code>[刪除]</code>（如：<code>[刪除]綠蘿.docx</code>）放入 <code>[增修刪]</code>，同步時自動從圖鑑移除。<br>
+            • <strong>全量重讀：</strong>若 <code>[增修刪]</code> 無檔案，自動切換全量掃描 <code>[捻花惹草]</code> 主資料夾。
+          </div>
         </div>
 
         <div style="margin-bottom: 2rem;">
@@ -328,12 +334,12 @@
     <div id="fullScreenPhotoCaption" class="full-screen-photo-caption"></div>
   </div>
 
-  <!-- JavaScript Scripts with ?v=16 Cache Buster -->
-  <script src="./js/data.js?v=16"></script>
-  <script src="./js/sync.js?v=16"></script>
-  <script src="./js/gallery.js?v=16"></script>
-  <script src="./js/quiz.js?v=16"></script>
-  <script src="./js/app.js?v=16"></script>
+  <!-- JavaScript Scripts with ?v=26 Cache Buster -->
+  <script src="./js/data.js?v=26"></script>
+  <script src="./js/sync.js?v=26"></script>
+  <script src="./js/gallery.js?v=26"></script>
+  <script src="./js/quiz.js?v=26"></script>
+  <script src="./js/app.js?v=26"></script>
 
 </body>
 </html>

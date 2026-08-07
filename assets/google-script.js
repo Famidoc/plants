@@ -11,17 +11,23 @@
 function doGet(e) {
   var debugLog = [];
   try {
-    var folder = findTargetFolder();
+    var targetInfo = findTargetFolder();
 
-    if (!folder) {
+    if (!targetInfo || !targetInfo.folder) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "error",
-        error: "在您的 Google Drive 中找不到名為「捻花惹草」或「[捻花惹草]」的資料夾。"
+        error: "在您的 Google Drive 中找不到名為「[增修刪]」或「[捻花惹草]」的資料夾。"
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    var folder = targetInfo.folder;
+    var syncMode = targetInfo.syncMode; // "INCREMENTAL" or "FULL"
+    var folderName = folder.getName();
+    debugLog.push("📁 目標資料夾: " + folderName + " (模式: " + syncMode + ")");
+
     var docs = getAllDocsInFolder(folder);
     var plantList = [];
+    var deletedList = [];
 
     for (var i = 0; i < docs.length; i++) {
       var file = docs[i];
@@ -30,6 +36,22 @@ function doGet(e) {
       var createdDate = file.getDateCreated();
       var formattedDate = Utilities.formatDate(createdDate, "GMT+8", "yyyyMMdd");
       var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').trim();
+
+      // 在增量模式下，檢測檔名是否包含 [刪除] 標籤前綴
+      if (syncMode === "INCREMENTAL" && (/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/.test(fileName) || fileName.indexOf("刪除") !== -1)) {
+        var cleanTargetName = fileName.replace(/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/g, '')
+                                      .replace(/[-_–\s]*植物資料.*/g, '')
+                                      .replace(/\.(docx?|gdoc)$/i, '')
+                                      .trim();
+        if (cleanTargetName) {
+          deletedList.push({
+            name: cleanTargetName,
+            fileName: fileName
+          });
+          debugLog.push("🗑️ 偵測到待刪除檔案: 「" + cleanTargetName + "」 (檔名: " + fileName + ")");
+          continue; // 跳過此檔案的全文解析
+        }
+      }
 
       try {
         var doc = DocumentApp.openById(docId);
@@ -51,11 +73,14 @@ function doGet(e) {
 
     var result = {
       status: "success",
-      folderFound: folder.getName(),
+      syncMode: syncMode,
+      folderFound: folderName,
       count: plantList.length,
+      deletedCount: deletedList.length,
       updatedAt: new Date().toISOString(),
       debugLog: debugLog,
-      plants: plantList
+      plants: plantList,
+      deletedPlants: deletedList
     };
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -163,21 +188,40 @@ function findDriveFolderPhoto(folder, plantName) {
 }
 
 function findTargetFolder() {
-  var candidateNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
+  // 1. 優先尋找「增修刪」資料夾 (若有檔案則執行增量模式)
+  var stagingNames = ["增修刪", "[增修刪]", "【增修刪】"];
+  for (var s = 0; s < stagingNames.length; s++) {
+    var sFolders = DriveApp.getFoldersByName(stagingNames[s]);
+    while (sFolders.hasNext()) {
+      var sf = sFolders.next();
+      var sDocs = getAllDocsInFolder(sf);
+      if (sDocs.length > 0) {
+        return { folder: sf, syncMode: "INCREMENTAL" };
+      }
+    }
+  }
+
+  // 2. 次要尋找「捻花惹草」主資料夾 (若無暫存檔則執行全量模式)
+  var mainNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
   var bestFolder = null;
 
-  for (var i = 0; i < candidateNames.length; i++) {
-    var folders = DriveApp.getFoldersByName(candidateNames[i]);
+  for (var i = 0; i < mainNames.length; i++) {
+    var folders = DriveApp.getFoldersByName(mainNames[i]);
     while (folders.hasNext()) {
       var f = folders.next();
       var docs = getAllDocsInFolder(f);
       if (docs.length > 0) {
-        return f;
+        return { folder: f, syncMode: "FULL" };
       }
       if (!bestFolder) bestFolder = f;
     }
   }
-  return bestFolder;
+
+  if (bestFolder) {
+    return { folder: bestFolder, syncMode: "FULL" };
+  }
+
+  return null;
 }
 
 function getAllDocsInFolder(folder) {
@@ -286,9 +330,6 @@ function extractReferences(text, doc) {
   return refs;
 }
 
-/**
- * 通用形態特徵條列解析器 (支援 1. 株型與莖幹 2. 葉片 3. 花朵/果實 4. 根系 等所有項目)
- */
 function extractMorphologyDetails(text) {
   var details = [];
   var morphMatch = text.match(/形態特徵[\s\S]*?(?=(?:特殊作用|用途|養護|參考資料|$))/i);
@@ -301,7 +342,6 @@ function extractMorphologyDetails(text) {
 
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
-    // 清除開頭編號 (例如 1. 2. - * •)
     var cleaned = line.replace(/^[\d\.\-\*•\s]+/, '').trim();
     if (!cleaned) continue;
 
@@ -366,32 +406,23 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
   };
 }
 
-/**
- * 自動深度擷取文件中的所有照片 (包含內聯圖片與浮動圖片)，歸入「植物圖集」
- */
 function extractGalleryImages(doc, debugLog) {
   var gallery = [];
   if (!doc) return gallery;
 
   try {
     var body = doc.getBody();
-    
-    // 1. 取得所有 InlineImages (內聯圖片)
     var inlineImgs = body.getImages() || [];
-    
-    // 2. 取得所有 PositionedImages (浮動 / 環繞圖片)
     var posImgs = [];
     try {
       posImgs = body.getPositionedImages() || [];
     } catch(ePos) {}
 
-    // 3. 取得所有 InlineDrawings (透過「插入 > 繪圖」或編輯器插入之圖片)
     var drawings = [];
     try {
       drawings = body.getInlineDrawings() || [];
     } catch(eDraw) {}
 
-    // 嘗試尋找「其他附圖」下方的文字作為 Caption 標題
     var captionText = "";
     try {
       var fullText = body.getText();
@@ -400,14 +431,13 @@ function extractGalleryImages(doc, debugLog) {
         var subText = fullText.substring(idx + 4).trim();
         var lines = subText.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
         if (lines.length > 0) {
-          captionText = lines[0]; // 例如：植株 (20260727@九九峰心之芳庭)
+          captionText = lines[0];
         }
       }
     } catch(eCap) {}
 
     var addedUrls = {};
 
-    // A. 處理所有 InlineImages
     for (var i = 0; i < inlineImgs.length; i++) {
       var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
       if (b64_in && !addedUrls[b64_in]) {
@@ -419,7 +449,6 @@ function extractGalleryImages(doc, debugLog) {
       }
     }
 
-    // B. 處理所有 PositionedImages (浮動圖片)
     for (var p = 0; p < posImgs.length; p++) {
       var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
       if (b64_pos && !addedUrls[b64_pos]) {
@@ -431,7 +460,6 @@ function extractGalleryImages(doc, debugLog) {
       }
     }
 
-    // C. 處理所有 InlineDrawings (繪圖圖片)
     for (var d = 0; d < drawings.length; d++) {
       try {
         var b64_draw = compressBlobToBase64(drawings[d].getBlob());

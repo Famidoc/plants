@@ -5,7 +5,7 @@
 let deferredPwaPrompt = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // 1. 初始化圖鑑 (0.0001 秒原生秒刷已儲存之 13 筆花草與照片)
+  // 1. 初始化圖鑑 (0.0001 秒原生秒刷已儲存之花草與照片)
   initGallery();
 
   // 2. 導覽列與 View 切換 (Desktop & Mobile)
@@ -17,10 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. 設定 Modal 與 GAS 同步綁定
   setupSettingsModal();
 
-  // 5. 註冊 PWA Service Worker 與安裝提示
+  // 5. 註冊 PWA Service Worker 與自動版面升級監聽
   registerServiceWorker();
 
-  // 6. 背景靜默自動同步 Google Drive 最新資料 (無需使用者手動點擊)
+  // 6. 安全版背景靜默自動增量同步 (絕對不覆蓋原本圖鑑)
   setTimeout(() => {
     autoBackgroundSyncGAS();
   }, 1500);
@@ -30,9 +30,16 @@ async function autoBackgroundSyncGAS() {
   const url = getSavedGasUrl();
   if (!url) return;
   try {
-    const plants = await fetchLatestDataFromGAS();
-    if (plants && Array.isArray(plants) && plants.length > 0) {
-      saveStoredPlants(plants);
+    const syncRes = await fetchLatestDataFromGAS();
+    if (syncRes) {
+      const { syncMode, plants, deletedPlants } = syncRes;
+      if (syncMode === 'INCREMENTAL') {
+        await mergeAndSaveStoredPlants(plants, deletedPlants);
+      } else {
+        if (plants && Array.isArray(plants) && plants.length > 0) {
+          saveStoredPlants(plants);
+        }
+      }
       const modalBackdrop = document.getElementById('plantModalBackdrop');
       if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
         initGallery();
@@ -135,13 +142,30 @@ function setupSettingsModal() {
         return;
       }
 
-      showToast('📡 嘗試連線同步 Google Drive 最新資料與照片...');
+      showToast('📡 正在連線同步 Google Drive 資料與照片...');
       try {
-        const plants = await fetchLatestDataFromGAS();
-        saveStoredPlants(plants);
-        initGallery();
+        const syncRes = await fetchLatestDataFromGAS();
+        const { syncMode, plants, deletedPlants, folderFound } = syncRes;
 
-        showToast(`✅ 同步成功！已載入 ${plants.length} 筆花草資料與照片。`);
+        let msg = '';
+        if (syncMode === 'INCREMENTAL') {
+          const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
+          initGallery();
+
+          let details = [];
+          if (stats.addedCount > 0) details.push(`新增 ${stats.addedCount} 筆`);
+          if (stats.updatedCount > 0) details.push(`更新 ${stats.updatedCount} 筆`);
+          if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
+          const detailStr = details.length > 0 ? details.join('、') : '無異動項目';
+
+          msg = `✅ [增修刪] 暫存同步成功！${detailStr}（圖鑑共 ${stats.totalCount} 筆）。<br>💡 提示：請記得將 [增修刪] 中處理完的檔案移回 [捻花惹草] 或刪除。`;
+        } else {
+          saveStoredPlants(plants);
+          initGallery();
+          msg = `✅ 全量連線同步成功！已從 [${folderFound}] 載入 ${plants.length} 筆完整花草資料與照片。`;
+        }
+
+        showToast(msg, 6500);
         if (modalBackdrop) modalBackdrop.classList.remove('open');
       } catch (err) {
         showToast(`❌ 同步失敗：${err.message}`, 6500);
@@ -199,22 +223,34 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=16')
+      navigator.serviceWorker.register('./sw.js?v=25')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
+
+          // 自動向伺服器檢查並下載最新版網頁
+          reg.update();
+
           reg.addEventListener('updatefound', () => {
             const newWorker = reg.installing;
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  showToast('✨ App 發現最新更新，正在為您載入最新版面...');
-                  setTimeout(() => window.location.reload(), 1000);
+                  showToast('✨ App 發現最新功能更新，正在自動為您升級版面...', 3000);
+                  setTimeout(() => window.location.reload(), 1200);
                 }
               });
             }
           });
         })
         .catch((err) => console.log('PWA ServiceWorker 註冊失敗:', err));
+    });
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
     });
   }
 
