@@ -183,7 +183,7 @@
   text-overflow: ellipsis;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .modal-container {
     height: 95vh;
     border-radius: 16px;
@@ -206,10 +206,10 @@
     right: 10px;
   }
   .tab-buttons {
-    display: none;
+    display: none !important;
   }
   .modal-tab-select-wrapper {
-    display: block;
+    display: block !important;
   }
   .modal-tabs {
     border-bottom: none;
@@ -566,7 +566,7 @@
   box-shadow: 0 4px 12px rgba(44, 94, 67, 0.3);
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .modal-header-hero { height: 220px; }
   .modal-title { font-size: 1.4rem; }
 }
