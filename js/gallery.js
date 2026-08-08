@@ -304,10 +304,14 @@ function openPlantDetailModal(plant) {
   // 📷 植物圖集 Tab 渲染 (其他附圖)
   const galleryContainer = document.getElementById('modalGalleryContainer');
   const galleryCountBadge = document.getElementById('modalGalleryCountBadge');
+  const galleryOption = document.getElementById('modalGalleryOption');
   const galleryImages = plant.galleryImages || [];
 
   if (galleryCountBadge) {
     galleryCountBadge.textContent = galleryImages.length;
+  }
+  if (galleryOption) {
+    galleryOption.textContent = `📷 植物圖集 (${galleryImages.length})`;
   }
 
   if (galleryContainer) {
@@ -386,9 +390,12 @@ function navigatePlantModal(direction) {
 
   const nextPlant = currentlyRenderedList[nextIndex];
   if (nextPlant) {
-    // 記憶使用者當前停留在哪一個 Tab (基本資料 / 形態特徵 / 養護)
+    // 記憶使用者當前停留在哪一個 Tab
+    const tabSelect = document.getElementById('modalTabSelect');
     const activeTabBtn = document.querySelector('#plantModalContainer .tab-btn.active');
-    const activeTabId = activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'tab-basic';
+    const activeTabId = (tabSelect && tabSelect.offsetParent !== null)
+      ? tabSelect.value
+      : (activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'tab-basic');
     
     openPlantDetailModal(nextPlant);
     
@@ -407,9 +414,18 @@ function switchModalTab(tabId) {
   const modal = document.getElementById('plantModalContainer');
   if (!modal) return;
 
+  // 1. 同步 Desktop Tab 按鈕 active 狀態
   modal.querySelectorAll('.tab-btn').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === tabId);
   });
+
+  // 2. 同步 Mobile 下拉選單選擇值
+  const tabSelect = document.getElementById('modalTabSelect');
+  if (tabSelect && tabSelect.value !== tabId) {
+    tabSelect.value = tabId;
+  }
+
+  // 3. 切換 Tab 內容區塊顯示
   modal.querySelectorAll('.tab-content').forEach(content => {
     content.classList.toggle('active', content.id === tabId);
   });

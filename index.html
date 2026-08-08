@@ -18,10 +18,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=25">
-  <link rel="stylesheet" href="./css/gallery.css?v=25">
-  <link rel="stylesheet" href="./css/modal.css?v=25">
-  <link rel="stylesheet" href="./css/quiz.css?v=25">
+  <link rel="stylesheet" href="./css/main.css?v=30">
+  <link rel="stylesheet" href="./css/gallery.css?v=30">
+  <link rel="stylesheet" href="./css/modal.css?v=30">
+  <link rel="stylesheet" href="./css/quiz.css?v=30">
 </head>
 <body>
 
@@ -192,11 +192,25 @@
 
       <div class="modal-body">
         <div class="modal-tabs">
-          <button class="tab-btn active" data-tab="tab-basic" onclick="switchModalTab('tab-basic')">基本資料</button>
-          <button class="tab-btn" data-tab="tab-morphology" onclick="switchModalTab('tab-morphology')">形態特徵</button>
-          <button class="tab-btn" data-tab="tab-care" onclick="switchModalTab('tab-care')">養護與用途</button>
-          <button class="tab-btn" data-tab="tab-gallery" onclick="switchModalTab('tab-gallery')">📷 植物圖集 <span id="modalGalleryCountBadge" class="gallery-count-badge">0</span></button>
-          <button class="tab-btn" data-tab="tab-references" onclick="switchModalTab('tab-references')">參考資料</button>
+          <!-- 電腦版 Traditional Tab 按鈕 -->
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="tab-basic" onclick="switchModalTab('tab-basic')">基本資料</button>
+            <button class="tab-btn" data-tab="tab-morphology" onclick="switchModalTab('tab-morphology')">形態特徵</button>
+            <button class="tab-btn" data-tab="tab-care" onclick="switchModalTab('tab-care')">養護與用途</button>
+            <button class="tab-btn" data-tab="tab-gallery" onclick="switchModalTab('tab-gallery')">📷 植物圖集 <span id="modalGalleryCountBadge" class="gallery-count-badge">0</span></button>
+            <button class="tab-btn" data-tab="tab-references" onclick="switchModalTab('tab-references')">參考資料</button>
+          </div>
+          <!-- 手機版橫條式下拉選單 (Mobile Tab Dropdown) -->
+          <div class="modal-tab-select-wrapper">
+            <label for="modalTabSelect" class="sr-only">選擇分頁標籤</label>
+            <select id="modalTabSelect" class="modal-tab-select" onchange="switchModalTab(this.value)">
+              <option value="tab-basic">📋 基本資料</option>
+              <option value="tab-morphology">🍃 形態特徵</option>
+              <option value="tab-care">🩺 養護與用途</option>
+              <option value="tab-gallery" id="modalGalleryOption">📷 植物圖集 (0)</option>
+              <option value="tab-references">📚 參考資料</option>
+            </select>
+          </div>
         </div>
 
         <!-- Tab 1: 基本資料 -->
@@ -365,12 +379,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=29 Cache Buster -->
-  <script src="./js/data.js?v=29"></script>
-  <script src="./js/sync.js?v=29"></script>
-  <script src="./js/gallery.js?v=29"></script>
-  <script src="./js/quiz.js?v=29"></script>
-  <script src="./js/app.js?v=29"></script>
+  <!-- JavaScript Scripts with ?v=30 Cache Buster -->
+  <script src="./js/data.js?v=30"></script>
+  <script src="./js/sync.js?v=30"></script>
+  <script src="./js/gallery.js?v=30"></script>
+  <script src="./js/quiz.js?v=30"></script>
+  <script src="./js/app.js?v=30"></script>
 
 </body>
 </html>
