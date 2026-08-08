@@ -120,7 +120,6 @@ function renderGallery() {
       <div class="plant-card" data-id="${plant.id}">
         <div class="plant-image-container">
           <img src="${cleanImageUrl}" alt="${plant.name}" class="plant-card-img">
-          ${index === 0 ? '<span class="newest-tag">最新加入</span>' : ''}
           ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
           ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
         </div>
