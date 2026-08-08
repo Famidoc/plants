@@ -168,9 +168,7 @@ function getStoredPlants() {
 }
 
 async function loadStoredPlantsAsync() {
-  if (inMemoryPlantsList && inMemoryPlantsList.length > 0 && inMemoryPlantsList !== DEFAULT_PLANT_DATA) {
-    return inMemoryPlantsList;
-  }
+  // 1. 優先從 IndexedDB (無 5MB 限制的大容量完整快取) 讀取最新完整資料
   const idbPlants = await getFromIndexedDB('synced_plants');
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
     inMemoryPlantsList = idbPlants;
@@ -192,6 +190,7 @@ function saveStoredPlants(plants) {
     localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(plants));
   } catch (e) {
     console.warn('LocalStorage 容量限制，已改由 IndexedDB 備份。', e);
+    try { localStorage.removeItem(STORAGE_KEYS[0]); } catch(err) {}
   }
 }
 
