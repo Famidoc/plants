@@ -370,6 +370,20 @@ function openPlantDetailModal(plant) {
     switchModalTab('tab-basic');
   }
 
+  // 強制 JS 響應式雙重防護：根據實際螢幕寬度與觸控裝置強制動態切換 Tab 選單顯示
+  const tabBtnsContainer = modalBackdrop.querySelector('.tab-buttons');
+  const tabSelectWrapper = modalBackdrop.querySelector('.modal-tab-select-wrapper');
+  if (tabBtnsContainer && tabSelectWrapper) {
+    const isMobile = (window.innerWidth <= 768) || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) || ('ontouchstart' in window && window.innerWidth <= 1024);
+    if (isMobile) {
+      tabBtnsContainer.style.setProperty('display', 'none', 'important');
+      tabSelectWrapper.style.setProperty('display', 'block', 'important');
+    } else {
+      tabBtnsContainer.style.setProperty('display', 'flex', 'important');
+      tabSelectWrapper.style.setProperty('display', 'none', 'important');
+    }
+  }
+
   modalBackdrop.classList.add('open');
 }
 
