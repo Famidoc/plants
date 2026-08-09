@@ -49,10 +49,15 @@ function renderGallery() {
     sortBtn.textContent = isSortAsc ? '⬆ 正向排序（最舊在上）' : '⬇ 逆向排序（最新在上）';
   }
 
-  // 1. 複製資料庫並執行排序
-  let sorted = [...currentPlantsList].sort((a, b) => {
-    const dateA = a.dateAdded || "0";
-    const dateB = b.dateAdded || "0";
+  // 1. 複製資料庫並過濾無效與損壞項目
+  let rawList = Array.isArray(currentPlantsList) ? currentPlantsList.filter(p => p && typeof p === 'object') : [];
+  if (rawList.length === 0) {
+    rawList = DEFAULT_PLANT_DATA;
+  }
+
+  let sorted = [...rawList].sort((a, b) => {
+    const dateA = String((a && a.dateAdded) || "0");
+    const dateB = String((b && b.dateAdded) || "0");
     return isSortAsc ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
   });
 
@@ -60,12 +65,14 @@ function renderGallery() {
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase().trim();
     sorted = sorted.filter(p => {
-      const matchName = p.name.toLowerCase().includes(q);
-      const matchSci = (p.scientificName || '').toLowerCase().includes(q);
-      const matchAliases = (p.aliases || []).some(a => a.toLowerCase().includes(q));
-      const matchFamily = (p.family || '').toLowerCase().includes(q);
+      if (!p) return false;
+      const nameStr = String(p.name || '').toLowerCase();
+      const matchName = nameStr.includes(q);
+      const matchSci = String(p.scientificName || '').toLowerCase().includes(q);
+      const matchAliases = Array.isArray(p.aliases) ? p.aliases.some(a => String(a || '').toLowerCase().includes(q)) : false;
+      const matchFamily = String(p.family || '').toLowerCase().includes(q);
       const matchCare = JSON.stringify(p.careNotes || {}).toLowerCase().includes(q);
-      const matchLoc = (p.locationNote || '').toLowerCase().includes(q);
+      const matchLoc = String(p.locationNote || '').toLowerCase().includes(q);
       const matchMorph = JSON.stringify(p.morphologyDetails || []).toLowerCase().includes(q);
       return matchName || matchSci || matchAliases || matchFamily || matchCare || matchLoc || matchMorph;
     });
@@ -74,9 +81,9 @@ function renderGallery() {
   // 3. 進行分類 Chips 篩選
   if (activeCategory !== 'ALL') {
     if (activeCategory === 'PET_SAFE') {
-      sorted = sorted.filter(p => p.petFriendly === true);
+      sorted = sorted.filter(p => p && p.petFriendly === true);
     } else {
-      sorted = sorted.filter(p => (p.family || '').includes(activeCategory));
+      sorted = sorted.filter(p => p && String(p.family || '').includes(activeCategory));
     }
   }
 
@@ -85,7 +92,7 @@ function renderGallery() {
 
   // 更新顯示筆數標籤
   if (countBadge) {
-    countBadge.textContent = `共 ${sorted.length} 筆資料 (逆序呈列)`;
+    countBadge.textContent = `共 ${sorted.length} 筆資料 (${isSortAsc ? '正序' : '逆序'}呈列)`;
   }
 
   // 4. 產生卡片 HTML
