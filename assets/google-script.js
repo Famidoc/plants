@@ -560,6 +560,34 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       } catch(eD) {}
     }
 
+    // 掃描表格 (Table) 內部的所有照片
+    try {
+      var tables = body.getTables() || [];
+      for (var t = 0; t < tables.length; t++) {
+        var tbl = tables[t];
+        for (var r = 0; r < tbl.getNumRows(); r++) {
+          var row = tbl.getRow(r);
+          for (var c = 0; c < row.getNumCells(); c++) {
+            var cell = row.getCell(c);
+            var cellImgs = cell.getImages() || [];
+            for (var ci = 0; ci < cellImgs.length; ci++) {
+              try {
+                var b64_tbl = compressBlobToBase64(cellImgs[ci].getBlob());
+                if (b64_tbl && !addedUrls[b64_tbl]) {
+                  addedUrls[b64_tbl] = true;
+                  var capT = (captionLines.length > gallery.length) ? captionLines[gallery.length] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
+                  gallery.push({
+                    caption: capT,
+                    url: b64_tbl
+                  });
+                }
+              } catch(eCi) {}
+            }
+          }
+        }
+      }
+    } catch(eTbl) {}
+
   } catch(e) {
     if (debugLog) debugLog.push("⚠️ 擷取圖集例外: " + e.toString());
   }
