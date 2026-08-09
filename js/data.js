@@ -53,7 +53,7 @@ async function getFromIndexedDB(key) {
   }
 }
 
-// 預設示範花草資料庫 (4 筆預設展示花草)
+// 預設示範花草資料庫 (4 筆預設展示花草 - 使用秒載向量 Placeholder 避免網路卡頓)
 const DEFAULT_PLANT_DATA = [
   {
     id: "plant-1",
@@ -65,7 +65,7 @@ const DEFAULT_PLANT_DATA = [
     genus: "鐵線蕨屬 (Adiantum)",
     dateAdded: "20260727",
     locationNote: "九九峰心之芳庭",
-    imageUrl: "./assets/images/ferns.jpg",
+    imageUrl: DEFAULT_SVG_PLACEHOLDER,
     petFriendly: true,
     bloomPeriod: "無（蕨類植物不開花，靠孢子繁殖）",
     fruitPeriod: "無",
@@ -88,7 +88,7 @@ const DEFAULT_PLANT_DATA = [
     genus: "龜背竹屬 (Monstera)",
     dateAdded: "20260720",
     locationNote: "大坑觀音山步道",
-    imageUrl: "./assets/images/monstera.jpg",
+    imageUrl: DEFAULT_SVG_PLACEHOLDER,
     petFriendly: false,
     bloomPeriod: "夏季",
     fruitPeriod: "秋季",
@@ -111,7 +111,7 @@ const DEFAULT_PLANT_DATA = [
     genus: "黃金葛屬 (Epipremnum)",
     dateAdded: "20260715",
     locationNote: "陽明山花卉試驗中心",
-    imageUrl: "./assets/images/pothos.jpg",
+    imageUrl: DEFAULT_SVG_PLACEHOLDER,
     petFriendly: false,
     bloomPeriod: "極少開花",
     fruitPeriod: "極少結實",
@@ -133,7 +133,7 @@ const DEFAULT_PLANT_DATA = [
     genus: "白鶴芋屬 (Spathiphyllum)",
     dateAdded: "20260710",
     locationNote: "台北典藏植物園特展",
-    imageUrl: "./assets/images/peace_lily.jpg",
+    imageUrl: DEFAULT_SVG_PLACEHOLDER,
     petFriendly: false,
     bloomPeriod: "春夏四季皆有機會開花",
     fruitPeriod: "漿果狀",
