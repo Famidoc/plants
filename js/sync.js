@@ -21,14 +21,21 @@ async function fetchLatestDataFromGAS() {
     throw new Error('未設定 API 網址。請先貼入 Google Apps Script Web App 網址。');
   }
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
+
   let responseText = '';
   try {
-    const response = await fetch(url, { redirect: 'follow' });
+    const response = await fetch(url, { 
+      redirect: 'follow',
+      signal: controller.signal 
+    });
+    clearTimeout(timeoutId);
     responseText = await response.text();
 
     // 如果回傳文字開頭是 HTML，說明 Google Apps Script 還沒完成「首次瀏覽器點擊授權」
     if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
-      throw new Error('Google Apps Script 尚未通過初次存取授權。請先用瀏覽器直接開啟該 API 網址，點擊「進階」並允許授權！');
+      throw new Error('Google Apps Script 尚未通過初次存取授權。請先在手機瀏覽器直接開啟該 API 網址授權！');
     }
 
     const result = JSON.parse(responseText);
@@ -43,21 +50,22 @@ async function fetchLatestDataFromGAS() {
       const syncMode = result.syncMode || 'FULL';
       const folderFound = result.folderFound || 'Google Drive';
 
-      if (plants.length === 0 && deletedPlants.length === 0) {
-        throw new Error(`已成功連線至 Google Drive (${folderFound})，但目前資料夾內未發現任何 Google Doc 檔案。`);
-      }
-
       return {
-        syncMode,
-        plants,
-        deletedPlants,
-        folderFound
+        syncMode: syncMode,
+        folderFound: folderFound,
+        plants: plants,
+        deletedPlants: deletedPlants,
+        debugLog: result.debugLog || []
       };
     } else {
-      throw new Error('回傳 JSON 格式不符合預期 (未包含 plants 陣列)');
+      throw new Error('傳回資料格式不符合預期 (缺少 plants 陣列)');
     }
   } catch (err) {
-    console.error('GAS 同步失敗:', err);
+    clearTimeout(timeoutId);
+    console.error('GAS Fetch 失敗:', err);
+    if (err.name === 'AbortError') {
+      throw new Error('手機連線 Google 雲端逾時 (35秒)。請確認網路穩定後點擊「⚡ 立即連線同步」重試。');
+    }
     if (err.name === 'TypeError' && err.message.includes('fetch')) {
       throw new Error('CORS 權限阻擋：請至 Google 腳本「部署」設定中，將【誰有存取權】改為【所有人 (Anyone)】並發布新版本！');
     }
