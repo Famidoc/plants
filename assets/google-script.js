@@ -425,16 +425,27 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
 
   var dateAdded = defaultDateStr;
   var locationNote = "";
-  var dateMatch = text.match(/\((\d{8})([^\)]*)\)/);
-  if (dateMatch) {
-    dateAdded = dateMatch[1];
-    locationNote = dateMatch[2];
+
+  // 1. 高階比對：包含 (照片拍攝地點與日期：YYYYMMDD@地點) 或 YYYYMMDD@地點 格式
+  var dateLocMatch = text.match(/(?:照片拍攝地點與日期|拍攝地點與日期|拍攝地點|地點|日期)?[：:\s]*(\d{8})\s*@\s*([^\)\n\r\s]+)/);
+  if (dateLocMatch) {
+    dateAdded = dateLocMatch[1];
+    locationNote = "@" + dateLocMatch[2].replace(/[\)\s]/g, '').trim();
+  } else {
+    // 2. 次要比對：一般 (YYYYMMDD) 格式
+    var dateMatch = text.match(/\((\d{8})([^\)]*)\)/) || text.match(/(\d{8})/);
+    if (dateMatch) {
+      dateAdded = dateMatch[1] || dateMatch[2];
+      if (dateMatch[2] && dateMatch[2].includes('@')) {
+        locationNote = dateMatch[2].trim();
+      }
+    }
   }
 
   var defaultDateLocCaption = "";
   if (dateAdded || locationNote) {
-    var locTag = locationNote ? (locationNote.indexOf("@") === 0 ? locationNote : "@" + locationNote) : "";
-    defaultDateLocCaption = "(" + dateAdded + locTag + ")";
+    var locClean = locationNote ? (locationNote.indexOf("@") === 0 ? locationNote : "@" + locationNote) : "";
+    defaultDateLocCaption = "(" + dateAdded + locClean + ")";
   }
 
   var refs = extractReferences(text, doc);
@@ -492,14 +503,19 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       drawings = body.getInlineDrawings() || [];
     } catch(eDraw) {}
 
-    // 掃描 Doc 全文是否有 (日期@地點) 格式標註
+    // 掃描 Doc 全文是否有 (照片拍攝地點與日期：20260722@田中森林公園步道) 或 (20260722@地點) 格式標註
     var captionLines = [];
     try {
       var fullText = body.getText();
-      var matches = fullText.match(/\(\d{4,8}[^\)]*\)/g);
-      if (matches && matches.length > 0) {
-        for (var m = 0; m < matches.length; m++) {
-          captionLines.push(matches[m]);
+      var lines = fullText.split("\n");
+      for (var l = 0; l < lines.length; l++) {
+        var line = lines[l].trim();
+        var mDateLoc = line.match(/(?:照片拍攝地點與日期|拍攝地點與日期|拍攝地點|地點|日期)?[：:\s]*(\d{8})\s*@\s*([^\)\n\r\s]+)/);
+        if (mDateLoc) {
+          captionLines.push("(" + mDateLoc[1] + "@" + mDateLoc[2].replace(/[\)\s]/g, '').trim() + ")");
+        } else if (line.indexOf("其他附圖") !== -1) {
+          var subText = line.replace(/^其他附圖[：:\s]*/, '').trim();
+          if (subText) captionLines.push(subText);
         }
       }
     } catch(eCap) {}
