@@ -119,7 +119,18 @@ function renderGallery() {
         cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
       }
 
-      let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+      let rawLocStr = String(plant.locationNote || '').trim();
+      let cleanLocationNote = '';
+      if (rawLocStr) {
+        let atIdx = rawLocStr.indexOf('@');
+        if (atIdx !== -1) {
+          let subLoc = rawLocStr.substring(atIdx);
+          let matchLoc = subLoc.match(/^@[^\)\n\r\t\s]+/);
+          cleanLocationNote = matchLoc ? matchLoc[0] : subLoc.substring(0, 15);
+        } else {
+          cleanLocationNote = rawLocStr.length > 15 ? rawLocStr.substring(0, 15) : rawLocStr;
+        }
+      }
 
       return `
         <div class="plant-card" data-id="${plant.id}">
@@ -130,7 +141,7 @@ function renderGallery() {
           </div>
           <div class="plant-card-body">
             <h3 class="plant-card-title">${plant.name || '無名花草'}</h3>
-            <div class="plant-card-date">📅 ${dateFormatted} ${plant.locationNote ? `• ${plant.locationNote}` : ''}</div>
+            <div class="plant-card-date">📅 ${dateFormatted} ${cleanLocationNote ? `• ${cleanLocationNote}` : ''}</div>
             <div class="plant-card-sci-name">${plant.scientificName || ''}</div>
             <div class="plant-card-tags">
               ${familyTag}

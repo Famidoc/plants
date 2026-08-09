@@ -415,6 +415,17 @@ function parseDateAndLocationFromLine(line) {
   if (!line) return null;
   var str = line.trim();
 
+  // 若傳入全文，僅取包含 @ 或日期的相關單行
+  if (str.indexOf("\n") !== -1) {
+    var subLines = str.split("\n");
+    for (var sl = 0; sl < subLines.length; sl++) {
+      if (subLines[sl].indexOf("@") !== -1 || /\d{4}/.test(subLines[sl])) {
+        str = subLines[sl].trim();
+        break;
+      }
+    }
+  }
+
   // 1. 抓取日期：支援 2026年07月27日, 2026-07-27, 2026/07/27, 20260727
   var dateStr = "";
   var dMatch = str.match(/(\d{4})[年/-/\.]?\s*(\d{1,2})[月/-/\.]?\s*(\d{1,2})[日]?/);
@@ -425,13 +436,17 @@ function parseDateAndLocationFromLine(line) {
     dateStr = y + m + d;
   }
 
-  // 2. 抓取地點：尋找 @ 後面的地點文字
+  // 2. 抓取地點：尋找 @ 後面的地點文字 (嚴格截斷於空格、括號、換行或欄位標籤)
   var locStr = "";
   var atIdx = str.indexOf("@");
   if (atIdx !== -1) {
-    var rawLoc = str.substring(atIdx + 1).replace(/[\)\s]+/g, ' ').trim();
-    if (rawLoc) {
-      locStr = "@" + rawLoc;
+    var subLoc = str.substring(atIdx + 1);
+    var stopMatch = subLoc.match(/^([^\)\n\r\t\s]+)/);
+    if (stopMatch) {
+      var rawLoc = stopMatch[1].replace(/[\)\s]+/g, '').trim();
+      if (rawLoc) {
+        locStr = "@" + rawLoc;
+      }
     }
   }
 
