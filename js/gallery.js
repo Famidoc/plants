@@ -119,6 +119,8 @@ function renderGallery() {
         cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
       }
 
+      let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+
       let rawLocStr = String(plant.locationNote || '').trim();
       let cleanLocationNote = '';
       if (rawLocStr) {
