@@ -181,6 +181,13 @@ function setupSettingsModal() {
   const clearSyncBtn = document.getElementById('clearCacheAndSyncBtn');
   if (clearSyncBtn) {
     clearSyncBtn.addEventListener('click', async () => {
+      const currentUrl = (gasInput && gasInput.value.trim()) || getSavedGasUrl();
+      if (!currentUrl) {
+        showToast('❌ 請先在上方欄位貼入您的 Google Apps Script API 網址並點擊儲存！', 6500);
+        if (gasInput) gasInput.focus();
+        return;
+      }
+
       if (confirm('確定要清空本機快取的圖鑑資料，並重新連線下載最新資料與照片嗎？')) {
         clearAllPlantCache();
         showToast('🧹 已成功清空本機快取，正在重新下載完整圖鑑與照片...');
