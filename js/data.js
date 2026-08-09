@@ -234,9 +234,20 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
 
       if (existingIdx !== -1) {
         // 更新 (Update)
-        const oldId = currentList[existingIdx].id;
+        const oldPlant = currentList[existingIdx];
+        const oldId = oldPlant.id;
+        const oldImageUrl = oldPlant.imageUrl || '';
+        
+        // 智慧圖片保留保護：若舊資料有實體雲端照片 (data:image)，而新資料無照片，保留原實體照片
+        let finalImageUrl = incomingPlant.imageUrl || '';
+        if ((!finalImageUrl || finalImageUrl === './assets/images/ferns.jpg') && 
+            oldImageUrl && oldImageUrl.startsWith('data:image') && !oldImageUrl.includes('svg+xml')) {
+          finalImageUrl = oldImageUrl;
+        }
+
         currentList[existingIdx] = {
           ...incomingPlant,
+          imageUrl: finalImageUrl,
           id: oldId || incomingPlant.id || `plant-${Date.now()}`
         };
         updatedCount++;

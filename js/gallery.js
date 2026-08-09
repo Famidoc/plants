@@ -101,39 +101,48 @@ function renderGallery() {
   }
 
   gridContainer.innerHTML = sorted.map((plant, index) => {
-    const aliasesTag = (plant.aliases && plant.aliases.length > 0) 
-      ? `<span class="plant-tag">${plant.aliases[0]}</span>` : '';
-    const familyTag = plant.family ? `<span class="plant-tag">${plant.family.split(' ')[0]}</span>` : '';
-    const dateFormatted = plant.dateAdded 
-      ? `${plant.dateAdded.slice(0,4)}/${plant.dateAdded.slice(4,6)}/${plant.dateAdded.slice(6,8)}` 
-      : '最新';
+    try {
+      const aliasesTag = (plant.aliases && Array.isArray(plant.aliases) && plant.aliases.length > 0) 
+        ? `<span class="plant-tag">${plant.aliases[0]}</span>` : '';
 
-    let rawUrl = plant.imageUrl || '';
-    let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
-    if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
-      cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
-    }
+      const familyStr = String(plant.family || '');
+      const familyTag = familyStr ? `<span class="plant-tag">${familyStr.split(' ')[0]}</span>` : '';
 
-    let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+      const dateStr = String(plant.dateAdded || '');
+      const dateFormatted = (dateStr && dateStr.length === 8) 
+        ? `${dateStr.slice(0,4)}/${dateStr.slice(4,6)}/${dateStr.slice(6,8)}` 
+        : (dateStr || '最新');
 
-    return `
-      <div class="plant-card" data-id="${plant.id}">
-        <div class="plant-image-container">
-          <img src="${cleanImageUrl}" alt="${plant.name}" class="plant-card-img">
-          ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
-          ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
-        </div>
-        <div class="plant-card-body">
-          <h3 class="plant-card-title">${plant.name}</h3>
-          <div class="plant-card-date">📅 ${dateFormatted} ${plant.locationNote ? `• ${plant.locationNote}` : ''}</div>
-          <div class="plant-card-sci-name">${plant.scientificName}</div>
-          <div class="plant-card-tags">
-            ${familyTag}
-            ${aliasesTag}
+      let rawUrl = String(plant.imageUrl || '');
+      let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
+      if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
+        cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
+      }
+
+      let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+
+      return `
+        <div class="plant-card" data-id="${plant.id}">
+          <div class="plant-image-container">
+            <img src="${cleanImageUrl}" alt="${plant.name || '花草'}" class="plant-card-img" onerror="this.src='${DEFAULT_SVG_PLACEHOLDER}'">
+            ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
+            ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
+          </div>
+          <div class="plant-card-body">
+            <h3 class="plant-card-title">${plant.name || '無名花草'}</h3>
+            <div class="plant-card-date">📅 ${dateFormatted} ${plant.locationNote ? `• ${plant.locationNote}` : ''}</div>
+            <div class="plant-card-sci-name">${plant.scientificName || ''}</div>
+            <div class="plant-card-tags">
+              ${familyTag}
+              ${aliasesTag}
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
+    } catch (cardErr) {
+      console.error("卡片渲染例外:", cardErr);
+      return '';
+    }
   }).join('');
 
   // 綁定卡片點擊開啟詳細 Modal
@@ -243,11 +252,12 @@ function openPlantDetailModal(plant) {
     }
   }
 
-  const dateFormatted = plant.dateAdded 
-    ? `${plant.dateAdded.slice(0,4)}年${plant.dateAdded.slice(4,6)}月${plant.dateAdded.slice(6,8)}日` 
-    : '';
+  const dateStr = String(plant.dateAdded || '');
+  const dateFormatted = (dateStr && dateStr.length === 8) 
+    ? `${dateStr.slice(0,4)}年${dateStr.slice(4,6)}月${dateStr.slice(6,8)}日` 
+    : dateStr;
 
-  let rawUrl = plant.imageUrl || '';
+  let rawUrl = String(plant.imageUrl || '');
   let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
   if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
     cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;

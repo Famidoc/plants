@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- v35 release update -->
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
@@ -18,10 +19,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=32">
-  <link rel="stylesheet" href="./css/gallery.css?v=32">
-  <link rel="stylesheet" href="./css/modal.css?v=32">
-  <link rel="stylesheet" href="./css/quiz.css?v=32">
+  <link rel="stylesheet" href="./css/main.css?v=35">
+  <link rel="stylesheet" href="./css/gallery.css?v=35">
+  <link rel="stylesheet" href="./css/modal.css?v=35">
+  <link rel="stylesheet" href="./css/quiz.css?v=35">
 </head>
 <body>
 
@@ -331,8 +332,20 @@
           </div>
         </div>
 
-        <div style="margin-bottom: 2rem;">
-          <button id="triggerSyncBtn" class="btn-primary" style="width: 100%; font-size: 1.1rem; padding: 0.85rem;">⚡ 立即連線同步</button>
+        <div style="display: flex; gap: 10px; margin-bottom: 1rem;">
+          <button id="triggerSyncBtn" class="btn-primary" style="flex: 2; font-size: 1.05rem; padding: 0.85rem;">⚡ 立即連線同步</button>
+          <button id="clearCacheAndSyncBtn" class="btn-primary" style="flex: 1; font-size: 0.88rem; padding: 0.85rem; background: linear-gradient(135deg, #fff1f0, #ffccc7); color: #9e1000; border: 1px solid #ffa39e;" title="清空本機快取並強制重新連線全量下載照片">🧹 重置快取同步</button>
+        </div>
+
+        <!-- 🔍 雲端同步診斷日誌 (Debug Log) 面板 -->
+        <div id="syncDebugLogSection" style="display: none; margin-bottom: 1.5rem; background: #f4f8f5; border: 1px solid #c8e6c9; border-radius: 10px; padding: 12px;">
+          <div id="syncDebugLogHeader" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none;">
+            <span style="font-weight: bold; font-size: 0.88rem; color: var(--primary-dark); display: flex; align-items: center; gap: 6px;">
+              <span>📋</span> <span>最新同步診斷日誌 (Debug Log)</span>
+            </span>
+            <span id="syncDebugLogToggleText" style="font-size: 0.78rem; color: #4a5568; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 10px;">點擊展開 ▼</span>
+          </div>
+          <div id="syncDebugLogList" style="display: none; margin-top: 10px; max-height: 220px; overflow-y: auto; font-family: monospace; font-size: 0.78rem; background: #ffffff; border: 1px solid #dcdcdc; padding: 10px; border-radius: 6px; white-space: pre-wrap; color: #2d3748; line-height: 1.6;"></div>
         </div>
 
         <hr style="border: none; border-top: 1px dashed #cccccc; margin: 1.5rem 0;">
@@ -382,12 +395,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=32 Cache Buster -->
-  <script src="./js/data.js?v=32"></script>
-  <script src="./js/sync.js?v=32"></script>
-  <script src="./js/gallery.js?v=32"></script>
-  <script src="./js/quiz.js?v=32"></script>
-  <script src="./js/app.js?v=32"></script>
+  <!-- JavaScript Scripts with ?v=35 Cache Buster -->
+  <script src="./js/data.js?v=35"></script>
+  <script src="./js/sync.js?v=35"></script>
+  <script src="./js/gallery.js?v=35"></script>
+  <script src="./js/quiz.js?v=35"></script>
+  <script src="./js/app.js?v=35"></script>
 
 </body>
 </html>

@@ -96,52 +96,101 @@ function doGet(e) {
 }
 
 function scanDocAndFolderForPhoto(doc, folder, plantName, debugLog, fileName) {
+  if (!doc) return null;
+
+  // 1. 嘗試掃描 InlineImage (內嵌圖片)
   try {
     var body = doc.getBody();
     var inlineImgs = body.getImages();
     if (inlineImgs && inlineImgs.length > 0) {
       for (var i = 0; i < inlineImgs.length; i++) {
-        var res1 = compressBlobToBase64(inlineImgs[i].getBlob());
-        if (res1) {
-          debugLog.push("✅ " + fileName + " 成功從 InlineImage 擷取");
-          return res1;
+        try {
+          var res1 = compressBlobToBase64(inlineImgs[i].getBlob());
+          if (res1) {
+            debugLog.push("✅ " + fileName + " 成功從 InlineImage #" + (i+1) + " 擷取照片");
+            return res1;
+          }
+        } catch(eImg) {
+          debugLog.push("⚠️ " + fileName + " 處理 InlineImage #" + (i+1) + " 例外: " + eImg.toString());
         }
       }
+    } else {
+      debugLog.push("ℹ️ " + fileName + " 的 getImages() 未找到 InlineImage");
     }
-  } catch(eA) {}
+  } catch(eA) {
+    debugLog.push("⚠️ " + fileName + " 掃描 InlineImages 例外: " + eA.toString());
+  }
 
+  // 2. 嘗試掃描 PositionedImage (浮動圖片)
   try {
     var posImgs = doc.getBody().getPositionedImages();
     if (posImgs && posImgs.length > 0) {
-      var resP = compressBlobToBase64(posImgs[0].getBlob());
-      if (resP) {
-        debugLog.push("✅ " + fileName + " 成功從 PositionedImage 擷取");
-        return resP;
+      for (var p = 0; p < posImgs.length; p++) {
+        try {
+          var resP = compressBlobToBase64(posImgs[p].getBlob());
+          if (resP) {
+            debugLog.push("✅ " + fileName + " 成功從 PositionedImage #" + (p+1) + " 擷取照片");
+            return resP;
+          }
+        } catch(ePos) {
+          debugLog.push("⚠️ " + fileName + " 處理 PositionedImage #" + (p+1) + " 例外: " + ePos.toString());
+        }
       }
     }
   } catch(eC) {}
 
+  // 3. 嘗試掃描 InlineDrawing (畫布/繪圖)
   try {
     var drawings = doc.getBody().getInlineDrawings();
     if (drawings && drawings.length > 0) {
       for (var d = 0; d < drawings.length; d++) {
-        var resD = compressBlobToBase64(drawings[d].getBlob());
-        if (resD) {
-          debugLog.push("✅ " + fileName + " 成功從 InlineDrawing 擷取");
-          return resD;
-        }
+        try {
+          var resD = compressBlobToBase64(drawings[d].getBlob());
+          if (resD) {
+            debugLog.push("✅ " + fileName + " 成功從 InlineDrawing #" + (d+1) + " 擷取照片");
+            return resD;
+          }
+        } catch(eDrawItem) {}
       }
     }
   } catch(eDraw) {}
 
+  // 4. 嘗試掃描 Google Doc 表格 (Table) 內圖片
+  try {
+    var tables = doc.getBody().getTables();
+    if (tables && tables.length > 0) {
+      for (var t = 0; t < tables.length; t++) {
+        var table = tables[t];
+        for (var r = 0; r < table.getNumRows(); r++) {
+          var row = table.getRow(r);
+          for (var c = 0; c < row.getNumCells(); c++) {
+            var cell = row.getCell(c);
+            var cellImgs = cell.getImages();
+            for (var ci = 0; ci < cellImgs.length; ci++) {
+              try {
+                var resCell = compressBlobToBase64(cellImgs[ci].getBlob());
+                if (resCell) {
+                  debugLog.push("✅ " + fileName + " 成功從 Table 儲存格擷取照片");
+                  return resCell;
+                }
+              } catch(eCellImg) {}
+            }
+          }
+        }
+      }
+    }
+  } catch(eTable) {}
+
+  // 5. 嘗試從 Drive 資料夾搜尋同名圖片檔
   try {
     var driveImg = findDriveFolderPhoto(folder, plantName);
     if (driveImg) {
-      debugLog.push("✅ " + fileName + " 成功從 Drive 資料夾擷取");
+      debugLog.push("✅ " + fileName + " 成功從 Drive 資料夾同名圖檔擷取照片");
       return driveImg;
     }
   } catch(eD) {}
 
+  debugLog.push("❌ " + fileName + " 內文與資料夾皆未抓到實體照片（改用預備綠葉）");
   return null;
 }
 
@@ -151,6 +200,11 @@ function compressBlobToBase64(blob) {
   try {
     var bytes = blob.getBytes();
     if (!bytes || bytes.length === 0) return null;
+
+    var contentType = blob.getContentType() || "";
+    if (contentType && contentType.indexOf("image/") === -1 && contentType.indexOf("application/octet-stream") === -1) {
+      return null;
+    }
 
     try {
       var resized = ImagesService.makeImage(blob).resize(500, 500).getAs(MimeType.JPEG);
@@ -165,7 +219,7 @@ function compressBlobToBase64(blob) {
     }
     
     var rawBase64_3 = Utilities.base64Encode(bytes);
-    var cType = blob.getContentType() || "image/jpeg";
+    var cType = (contentType && contentType.indexOf("image/") === 0) ? contentType : "image/jpeg";
     return "data:" + cType + ";base64," + rawBase64_3.replace(/[\r\n\s]+/g, "");
   } catch(eFinal) {}
 
