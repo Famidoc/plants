@@ -13,11 +13,9 @@ let currentDetailIndex = -1;
 const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
 
 async function initGallery() {
-  // 1. 先用同步 getStoredPlants() 秒刷畫面 (防止卡在「載入中....」)
-  currentPlantsList = getStoredPlants();
-  if (currentPlantsList && currentPlantsList.length > 0) {
-    renderGallery();
-  }
+  // 1. 無條件第一時間同步秒刷畫面，絕對不允許卡在「載入中...」
+  currentPlantsList = getStoredPlants() || DEFAULT_PLANT_DATA;
+  renderGallery();
 
   // 2. 深度非同步載入 IndexedDB 大容量完整資料庫
   try {
@@ -25,10 +23,9 @@ async function initGallery() {
     if (loadedList && Array.isArray(loadedList) && loadedList.length > 0) {
       currentPlantsList = loadedList;
       renderGallery();
-    } else {
-      renderGallery();
     }
   } catch(e) {
+    console.warn("IndexedDB 載入警告:", e);
     renderGallery();
   }
 
