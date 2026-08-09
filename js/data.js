@@ -4,6 +4,8 @@
 
 let inMemoryPlantsList = null;
 
+const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
+
 const STORAGE_KEYS = [
   'nian_hua_re_cao_synced_v3',
   'nian_hua_re_cao_plants_v2',

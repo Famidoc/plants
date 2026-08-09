@@ -9,8 +9,7 @@ let isSortAsc = false;
 let currentlyRenderedList = [];
 let currentDetailIndex = -1;
 
-// SVG 綠色葉片無圖備援
-const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
+// DEFAULT_SVG_PLACEHOLDER 已在 data.js 中定義
 
 async function initGallery() {
   // 1. 無條件第一時間同步秒刷畫面，絕對不允許卡在「載入中...」
