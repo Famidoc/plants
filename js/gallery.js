@@ -315,7 +315,12 @@ function openPlantDetailModal(plant) {
   const galleryContainer = document.getElementById('modalGalleryContainer');
   const galleryCountBadge = document.getElementById('modalGalleryCountBadge');
   const galleryOption = document.getElementById('modalGalleryOption');
-  const galleryImages = plant.galleryImages || [];
+  let galleryImages = plant.galleryImages || [];
+
+  // 智慧預設：若附圖集為空，但主照片為實體照片，自動將主照片作為特徵照片 1
+  if (galleryImages.length === 0 && cleanImageUrl && cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml')) {
+    galleryImages = [{ url: cleanImageUrl, caption: '特徵照片 1' }];
+  }
 
   if (galleryCountBadge) {
     galleryCountBadge.textContent = galleryImages.length;

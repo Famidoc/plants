@@ -431,8 +431,17 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
     locationNote = dateMatch[2];
   }
 
-  var references = extractReferences(text, doc);
+  var refs = extractReferences(text, doc);
   var morphologyDetails = extractMorphologyDetails(text);
+  var gallery = extractGalleryImages(doc, debugLog);
+
+  // 智慧預設：若無其他附圖，但有擷取到主要照片，自動將主要照片加入特徵照片 1
+  if ((!gallery || gallery.length === 0) && imageUrl && imageUrl.indexOf("data:image") === 0) {
+    gallery = [{
+      caption: "特徵照片 1",
+      url: imageUrl
+    }];
+  }
 
   return {
     id: "plant-" + Math.random().toString(36).substr(2, 9),

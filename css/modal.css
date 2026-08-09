@@ -109,6 +109,25 @@
   transform: rotate(90deg);
 }
 
+/* 白底 Modal 關閉按鈕黑色醒目配色優化 */
+#settingsModalBackdrop .modal-close-btn,
+#qrModalBackdrop .modal-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #1a202c;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  font-weight: bold;
+}
+
+#settingsModalBackdrop .modal-close-btn:hover,
+#qrModalBackdrop .modal-close-btn:hover {
+  background: #cf1322;
+  color: #ffffff;
+  border-color: #cf1322;
+}
+
 /* 上一筆 / 下一筆導覽按鈕 (垂直置中於主圖 50%) */
 .modal-nav-btn {
   position: absolute;
