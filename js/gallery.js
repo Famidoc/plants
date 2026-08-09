@@ -266,8 +266,8 @@ function openPlantDetailModal(plant) {
     };
   }
 
-  document.getElementById('modalTitle').textContent = plant.name;
-  document.getElementById('modalDateLoc').textContent = `📅 記錄於：${dateFormatted} ${plant.locationNote ? `(${plant.locationNote})` : ''}`;
+  const modalTitleEl = document.getElementById('modalTitle');
+  if (modalTitleEl) modalTitleEl.textContent = plant.name;
 
   // 基本資料 Tab
   document.getElementById('modalSciName').textContent = plant.scientificName || '無';

@@ -45,17 +45,57 @@
   to { transform: scale(1) translateY(0); opacity: 1; }
 }
 
-.modal-close-btn {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
+/* 頂部標題與筆數橫幅 Bar (Modal Top Bar) */
+.modal-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  background: #11261c;
   color: #ffffff;
-  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.modal-top-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  margin-right: 12px;
+}
+
+.modal-top-icon {
   font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.modal-top-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.modal-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-size: 1.1rem;
   cursor: pointer;
   z-index: 10;
   display: flex;
@@ -65,14 +105,14 @@
 }
 
 .modal-close-btn:hover {
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.3);
   transform: rotate(90deg);
 }
 
-/* 上一筆 / 下一筆導覽按鈕 */
+/* 上一筆 / 下一筆導覽按鈕 (垂直置中於主圖 50%) */
 .modal-nav-btn {
   position: absolute;
-  top: 85px;
+  top: 50%;
   transform: translateY(-50%);
   background: rgba(15, 32, 23, 0.85);
   color: #ffffff;
@@ -113,10 +153,10 @@
 }
 
 .modal-index-badge {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.35);
-  color: #ffffff;
-  font-size: 0.78rem;
+  color: #afd19e;
+  font-size: 0.82rem;
   font-weight: 700;
   padding: 3px 10px;
   border-radius: var(--radius-pill);
@@ -189,13 +229,14 @@
     border-radius: 16px;
   }
   .modal-header-hero {
-    height: 280px;
+    height: 250px;
   }
   .modal-nav-btn .nav-text {
     display: none;
   }
   .modal-nav-btn {
-    top: 70px;
+    top: 50%;
+    transform: translateY(-50%);
     padding: 0.45rem 0.65rem;
     font-size: 1.05rem;
   }
@@ -213,8 +254,12 @@
   }
   .modal-tabs {
     border-bottom: none;
-    padding-bottom: 0.25rem;
-    margin-bottom: 0.85rem;
+    padding-top: 0;
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.5rem;
+  }
+  .modal-body {
+    padding: 0.75rem 1rem 1rem;
   }
 }
 
@@ -258,33 +303,10 @@
   transform: scale(1.015);
 }
 
-.modal-hero-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 2.5rem 1.5rem 1.2rem;
-  background: linear-gradient(to top, rgba(10, 22, 16, 0.95), rgba(10, 22, 16, 0.6) 65%, transparent);
-  color: #ffffff;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.modal-title {
-  font-size: 1.8rem;
-  font-weight: 700;
-}
-
-.modal-date-loc {
-  font-size: 0.88rem;
-  color: var(--accent-sage);
-  margin-top: 4px;
-}
-
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 1.25rem 1.5rem;
+  padding: 0.85rem 1.5rem 1.25rem;
 }
 
 /* 螢幕閱讀器專用隱藏類別 (Accessibility Helper) */
@@ -307,10 +329,10 @@
   top: 0;
   background: #ffffff;
   z-index: 10;
-  padding-top: 0.25rem;
-  padding-bottom: 0.5rem;
+  padding-top: 0.1rem;
+  padding-bottom: 0.4rem;
   border-bottom: 2px solid #e2e8e3;
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.85rem;
 }
 
 .tab-buttons {
