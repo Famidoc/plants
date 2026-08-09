@@ -4,7 +4,7 @@
 
 let inMemoryPlantsList = null;
 
-const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%231c3629'/><text x='50%25' y='45%25' dominant-baseline='middle' text-anchor='middle' font-size='48' fill='%2388ab8e'>🌿</text><text x='50%25' y='65%25' dominant-baseline='middle' text-anchor='middle' font-size='16' font-weight='bold' fill='%23afd19e'>花草圖鑑照片</text></svg>";
+const DEFAULT_SVG_PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMzAwIiB2aWV3Qm94PSIwIDAgNDAwIDMwMCI+PHJlY3Qgd2lkdGg9IjQwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiMxYzM2MjkiLz48dGV4dCB4PSI1MCUiIHk9IjQ1JSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSI0OCIgZmlsbD0iIzg4YWI4ZSI+🌿PC90ZXh0Pjx0ZXh0IHg9IjUwJSIgeT0iNjUlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LXNpemU9IjE2IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iI2FmZDE5ZSI+花草圖鑑照片</text></svg>";
 
 const STORAGE_KEYS = [
   'nian_hua_re_cao_synced_v3',
