@@ -486,12 +486,53 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
   };
 }
 
+function getAllImagesFromDoc(doc) {
+  var images = [];
+  if (!doc) return images;
+
+  try {
+    var body = doc.getBody();
+    
+    function walkElement(element) {
+      if (!element) return;
+      try {
+        var type = element.getType();
+        if (type === DocumentApp.ElementType.INLINE_IMAGE) {
+          images.push(element.asInlineImage());
+        } else if (type === DocumentApp.ElementType.POSITIONED_IMAGE) {
+          images.push(element.asPositionedImage());
+        } else if (type === DocumentApp.ElementType.INLINE_DRAWING) {
+          images.push(element.asInlineDrawing());
+        } else if (element.getNumChildren && typeof element.getNumChildren === 'function') {
+          var numChildren = element.getNumChildren();
+          for (var i = 0; i < numChildren; i++) {
+            walkElement(element.getChild(i));
+          }
+        }
+      } catch(eWalk) {}
+    }
+
+    walkElement(body);
+
+    try {
+      var directImgs = body.getImages() || [];
+      for (var d = 0; d < directImgs.length; d++) {
+        images.push(directImgs[d]);
+      }
+    } catch(eDirect) {}
+
+  } catch(eAll) {}
+
+  return images;
+}
+
 function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
   var gallery = [];
   if (!doc) return gallery;
 
   try {
     var body = doc.getBody();
+    var allDocImages = getAllImagesFromDoc(doc);
     var inlineImgs = body.getImages() || [];
     var posImgs = [];
     try {
@@ -522,11 +563,28 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
 
     var addedUrls = {};
 
+    // 1. 先處理全文件遞迴掃描到的所有圖片
+    for (var a = 0; a < allDocImages.length; a++) {
+      try {
+        var blobA = allDocImages[a].getBlob();
+        var b64_a = compressBlobToBase64(blobA);
+        if (b64_a && !addedUrls[b64_a]) {
+          addedUrls[b64_a] = true;
+          var capA = (captionLines.length > gallery.length) ? captionLines[gallery.length] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
+          gallery.push({
+            caption: capA,
+            url: b64_a
+          });
+        }
+      } catch(eBlobA) {}
+    }
+
+    // 2. 備援處理 InlineImages
     for (var i = 0; i < inlineImgs.length; i++) {
       var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
       if (b64_in && !addedUrls[b64_in]) {
         addedUrls[b64_in] = true;
-        var cap = (captionLines.length > i) ? captionLines[i] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
+        var cap = (captionLines.length > gallery.length) ? captionLines[gallery.length] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
         gallery.push({
           caption: cap,
           url: b64_in
@@ -534,6 +592,7 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       }
     }
 
+    // 3. 備援處理 PositionedImages
     for (var p = 0; p < posImgs.length; p++) {
       var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
       if (b64_pos && !addedUrls[b64_pos]) {
@@ -546,6 +605,7 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       }
     }
 
+    // 4. 備援處理 Drawings
     for (var d = 0; d < drawings.length; d++) {
       try {
         var b64_draw = compressBlobToBase64(drawings[d].getBlob());
@@ -560,7 +620,7 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       } catch(eD) {}
     }
 
-    // 掃描表格 (Table) 內部的所有照片
+    // 5. 備援處理 Table Cells
     try {
       var tables = body.getTables() || [];
       for (var t = 0; t < tables.length; t++) {
