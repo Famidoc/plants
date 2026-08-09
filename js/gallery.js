@@ -317,9 +317,29 @@ function openPlantDetailModal(plant) {
   const galleryOption = document.getElementById('modalGalleryOption');
   let galleryImages = plant.galleryImages || [];
 
-  // 智慧預設：若附圖集為空，但主照片為實體照片，自動將主照片作為特徵照片 1
+  // 智慧解析：構建預設 (時間@地點) 標註文字
+  const rawDateStr = String(plant.dateAdded || '');
+  const rawLocNote = String(plant.locationNote || '').trim();
+  let defaultDateLocCaption = '';
+  if (rawDateStr || rawLocNote) {
+    let locTag = rawLocNote ? (rawLocNote.startsWith('@') ? rawLocNote : '@' + rawLocNote) : '';
+    defaultDateLocCaption = `(${rawDateStr}${locTag})`;
+  }
+
+  // 智慧預設：若附圖集為空，但主照片為實體照片，自動將主照片作為附圖加入
   if (galleryImages.length === 0 && cleanImageUrl && cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml')) {
-    galleryImages = [{ url: cleanImageUrl, caption: '特徵照片 1' }];
+    galleryImages = [{ url: cleanImageUrl, caption: defaultDateLocCaption || '特徵照片 1' }];
+  } else {
+    // 智慧修復：若附圖標題為通用「特徵照片 X」，自動帶入 (時間@地點) 標註
+    galleryImages = galleryImages.map((img, idx) => {
+      let cap = String(img.caption || '').trim();
+      if (!cap || cap.startsWith('特徵照片') || cap.startsWith('特徵繪圖照片')) {
+        if (defaultDateLocCaption) {
+          return { ...img, caption: defaultDateLocCaption };
+        }
+      }
+      return img;
+    });
   }
 
   if (galleryCountBadge) {

@@ -431,14 +431,20 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
     locationNote = dateMatch[2];
   }
 
+  var defaultDateLocCaption = "";
+  if (dateAdded || locationNote) {
+    var locTag = locationNote ? (locationNote.indexOf("@") === 0 ? locationNote : "@" + locationNote) : "";
+    defaultDateLocCaption = "(" + dateAdded + locTag + ")";
+  }
+
   var refs = extractReferences(text, doc);
   var morphologyDetails = extractMorphologyDetails(text);
-  var gallery = extractGalleryImages(doc, debugLog);
+  var gallery = extractGalleryImages(doc, debugLog, defaultDateLocCaption);
 
-  // 智慧預設：若無其他附圖，但有擷取到主要照片，自動將主要照片加入特徵照片 1
+  // 智慧預設：若無其他附圖，但有擷取到主要照片，自動將主要照片加入特徵照片 1 (帶入時間地點標註)
   if ((!gallery || gallery.length === 0) && imageUrl && imageUrl.indexOf("data:image") === 0) {
     gallery = [{
-      caption: "特徵照片 1",
+      caption: defaultDateLocCaption || "特徵照片 1",
       url: imageUrl
     }];
   }
@@ -464,12 +470,12 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
       humidity: getField(/(?:水分與濕度|濕度)[：:\s]+([^\n]+)/),
       waterQuality: getField(/(?:水質)[：:\s]+([^\n]+)/)
     },
-    references: references,
-    galleryImages: extractGalleryImages(doc, debugLog)
+    references: refs,
+    galleryImages: gallery
   };
 }
 
-function extractGalleryImages(doc, debugLog) {
+function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
   var gallery = [];
   if (!doc) return gallery;
 
@@ -486,15 +492,14 @@ function extractGalleryImages(doc, debugLog) {
       drawings = body.getInlineDrawings() || [];
     } catch(eDraw) {}
 
-    var captionText = "";
+    // 掃描 Doc 全文是否有 (日期@地點) 格式標註
+    var captionLines = [];
     try {
       var fullText = body.getText();
-      var idx = fullText.indexOf("其他附圖");
-      if (idx !== -1) {
-        var subText = fullText.substring(idx + 4).trim();
-        var lines = subText.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
-        if (lines.length > 0) {
-          captionText = lines[0];
+      var matches = fullText.match(/\(\d{4,8}[^\)]*\)/g);
+      if (matches && matches.length > 0) {
+        for (var m = 0; m < matches.length; m++) {
+          captionLines.push(matches[m]);
         }
       }
     } catch(eCap) {}
@@ -505,8 +510,9 @@ function extractGalleryImages(doc, debugLog) {
       var b64_in = compressBlobToBase64(inlineImgs[i].getBlob());
       if (b64_in && !addedUrls[b64_in]) {
         addedUrls[b64_in] = true;
+        var cap = (captionLines.length > i) ? captionLines[i] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
         gallery.push({
-          caption: (captionText && i === inlineImgs.length - 1) ? captionText : (captionText || ("特徵照片 " + (gallery.length + 1))),
+          caption: cap,
           url: b64_in
         });
       }
@@ -516,8 +522,9 @@ function extractGalleryImages(doc, debugLog) {
       var b64_pos = compressBlobToBase64(posImgs[p].getBlob());
       if (b64_pos && !addedUrls[b64_pos]) {
         addedUrls[b64_pos] = true;
+        var capP = (captionLines.length > gallery.length) ? captionLines[gallery.length] : (defaultDateLocCaption || ("特徵照片 " + (gallery.length + 1)));
         gallery.push({
-          caption: captionText || ("特徵照片 " + (gallery.length + 1)),
+          caption: capP,
           url: b64_pos
         });
       }
@@ -528,8 +535,9 @@ function extractGalleryImages(doc, debugLog) {
         var b64_draw = compressBlobToBase64(drawings[d].getBlob());
         if (b64_draw && !addedUrls[b64_draw]) {
           addedUrls[b64_draw] = true;
+          var capD = defaultDateLocCaption || ("特徵繪圖照片 " + (gallery.length + 1));
           gallery.push({
-            caption: captionText || ("特徵繪圖照片 " + (gallery.length + 1)),
+            caption: capD,
             url: b64_draw
           });
         }
