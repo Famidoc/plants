@@ -411,6 +411,41 @@ function extractMorphologyDetails(text) {
   return details;
 }
 
+function parseDateAndLocationFromLine(line) {
+  if (!line) return null;
+  var str = line.trim();
+
+  // 1. 抓取日期：支援 2026年07月27日, 2026-07-27, 2026/07/27, 20260727
+  var dateStr = "";
+  var dMatch = str.match(/(\d{4})[年/-/\.]?\s*(\d{1,2})[月/-/\.]?\s*(\d{1,2})[日]?/);
+  if (dMatch) {
+    var y = dMatch[1];
+    var m = dMatch[2].length === 1 ? '0' + dMatch[2] : dMatch[2];
+    var d = dMatch[3].length === 1 ? '0' + dMatch[3] : dMatch[3];
+    dateStr = y + m + d;
+  }
+
+  // 2. 抓取地點：尋找 @ 後面的地點文字
+  var locStr = "";
+  var atIdx = str.indexOf("@");
+  if (atIdx !== -1) {
+    var rawLoc = str.substring(atIdx + 1).replace(/[\)\s]+/g, ' ').trim();
+    if (rawLoc) {
+      locStr = "@" + rawLoc;
+    }
+  }
+
+  if (dateStr || locStr) {
+    return {
+      dateAdded: dateStr,
+      locationNote: locStr,
+      formattedCaption: "(" + (dateStr || "") + locStr + ")"
+    };
+  }
+
+  return null;
+}
+
 function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
   function getField(pattern) {
     var m = text.match(pattern);
@@ -426,20 +461,10 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, doc, debugLog) {
   var dateAdded = defaultDateStr;
   var locationNote = "";
 
-  // 1. 高階比對：包含 (照片拍攝地點與日期：YYYYMMDD@地點) 或 YYYYMMDD@地點 格式
-  var dateLocMatch = text.match(/(?:照片拍攝地點與日期|拍攝地點與日期|拍攝地點|地點|日期)?[：:\s]*(\d{8})\s*@\s*([^\)\n\r\s]+)/);
-  if (dateLocMatch) {
-    dateAdded = dateLocMatch[1];
-    locationNote = "@" + dateLocMatch[2].replace(/[\)\s]/g, '').trim();
-  } else {
-    // 2. 次要比對：一般 (YYYYMMDD) 格式
-    var dateMatch = text.match(/\((\d{8})([^\)]*)\)/) || text.match(/(\d{8})/);
-    if (dateMatch) {
-      dateAdded = dateMatch[1] || dateMatch[2];
-      if (dateMatch[2] && dateMatch[2].includes('@')) {
-        locationNote = dateMatch[2].trim();
-      }
-    }
+  var parsedDl = parseDateAndLocationFromLine(text);
+  if (parsedDl) {
+    if (parsedDl.dateAdded) dateAdded = parsedDl.dateAdded;
+    if (parsedDl.locationNote) locationNote = parsedDl.locationNote;
   }
 
   var defaultDateLocCaption = "";
@@ -544,16 +569,16 @@ function extractGalleryImages(doc, debugLog, defaultDateLocCaption) {
       drawings = body.getInlineDrawings() || [];
     } catch(eDraw) {}
 
-    // 掃描 Doc 全文是否有 (照片拍攝地點與日期：20260722@田中森林公園步道) 或 (20260722@地點) 格式標註
+    // 掃描 Doc 全文是否有 (照片拍攝日期：2026年07月27日 @ 九九峰心之芳庭) 等各式日期地點標註
     var captionLines = [];
     try {
       var fullText = body.getText();
       var lines = fullText.split("\n");
       for (var l = 0; l < lines.length; l++) {
         var line = lines[l].trim();
-        var mDateLoc = line.match(/(?:照片拍攝地點與日期|拍攝地點與日期|拍攝地點|地點|日期)?[：:\s]*(\d{8})\s*@\s*([^\)\n\r\s]+)/);
-        if (mDateLoc) {
-          captionLines.push("(" + mDateLoc[1] + "@" + mDateLoc[2].replace(/[\)\s]/g, '').trim() + ")");
+        var itemDl = parseDateAndLocationFromLine(line);
+        if (itemDl && itemDl.formattedCaption) {
+          captionLines.push(itemDl.formattedCaption);
         } else if (line.indexOf("其他附圖") !== -1) {
           var subText = line.replace(/^其他附圖[：:\s]*/, '').trim();
           if (subText) captionLines.push(subText);

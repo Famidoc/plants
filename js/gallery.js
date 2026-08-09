@@ -318,8 +318,18 @@ function openPlantDetailModal(plant) {
   let galleryImages = plant.galleryImages || [];
 
   // 智慧解析：構建預設 (時間@地點) 標註文字
-  const rawDateStr = String(plant.dateAdded || '');
-  const rawLocNote = String(plant.locationNote || '').trim();
+  let rawDateStr = String(plant.dateAdded || '').trim();
+  let rawLocNote = String(plant.locationNote || '').trim();
+
+  // 格式化 2026年07月27日 為 20260727
+  const dMatch = rawDateStr.match(/(\d{4})[年/-/\.]?\s*(\d{1,2})[月/-/\.]?\s*(\d{1,2})[日]?/);
+  if (dMatch) {
+    const y = dMatch[1];
+    const m = dMatch[2].length === 1 ? '0' + dMatch[2] : dMatch[2];
+    const d = dMatch[3].length === 1 ? '0' + dMatch[3] : dMatch[3];
+    rawDateStr = y + m + d;
+  }
+
   let defaultDateLocCaption = '';
   if (rawDateStr || rawLocNote) {
     let locTag = rawLocNote ? (rawLocNote.startsWith('@') ? rawLocNote : '@' + rawLocNote) : '';
