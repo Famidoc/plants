@@ -1,17 +1,17 @@
-const CACHE_NAME = 'nian-hua-re-cao-v61';
+const CACHE_NAME = 'nian-hua-re-cao-v65';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/main.css?v=61',
-  './css/gallery.css?v=61',
-  './css/modal.css?v=61',
-  './css/quiz.css?v=61',
-  './js/app.js?v=61',
-  './js/data.js?v=61',
-  './js/sync.js?v=61',
-  './js/gallery.js?v=61',
-  './js/quiz.js?v=61'
+  './css/main.css?v=65',
+  './css/gallery.css?v=65',
+  './css/modal.css?v=65',
+  './css/quiz.css?v=65',
+  './js/app.js?v=65',
+  './js/data.js?v=65',
+  './js/sync.js?v=65',
+  './js/gallery.js?v=65',
+  './js/quiz.js?v=65'
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,8 +41,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
-  // ⚡ 關鍵修復：完全繞過 Google Apps Script API 請求，避免 Service Worker 攔截 302 轉址引發手機端卡死
+  // ⚡ 關鍵修復：GAS API 請求必須直接走網路，絕不快取，避免 Service Worker 攔截 302 轉址引發手機端卡死
   if (event.request.url.includes('script.google.com') || event.request.url.includes('script.googleusercontent.com')) {
+    event.respondWith(fetch(event.request, { redirect: 'follow' }));
     return;
   }
   

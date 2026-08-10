@@ -37,7 +37,7 @@ async function getFromIndexedDB(key) {
   try {
     const db = await Promise.race([
       dbPromise,
-      new Promise(resolve => setTimeout(() => resolve(null), 1000))
+      new Promise(resolve => setTimeout(() => resolve(null), 4000))
     ]);
     if (!db) return null;
     return new Promise((resolve) => {
@@ -110,7 +110,25 @@ function saveStoredPlants(plants) {
     });
     localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(lightweight));
   } catch (e) {
-    console.warn('LocalStorage 備份容量限制，全量備份已由 IndexedDB 保留。', e);
+    console.warn('LocalStorage 備份容量限制，嘗試二次極簡化壓縮寫入...', e);
+    try {
+      // 超級極簡備份 (僅保留核心文字欄位)
+      const ultraLight = plants.map(p => ({
+        id: p.id,
+        name: p.name,
+        scientificName: p.scientificName,
+        englishName: p.englishName,
+        family: p.family,
+        aliases: p.aliases,
+        dateAdded: p.dateAdded,
+        locationNote: p.locationNote,
+        petFriendly: p.petFriendly,
+        imageUrl: DEFAULT_SVG_PLACEHOLDER
+      }));
+      localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(ultraLight));
+    } catch (err2) {
+      console.error('LocalStorage 寫入完全失敗 (請依賴 IndexedDB):', err2);
+    }
   }
 }
 

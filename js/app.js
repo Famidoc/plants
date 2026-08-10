@@ -42,9 +42,13 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function autoBackgroundSyncGAS() {
-  const url = getSavedGasUrl();
-  if (!url) return;
+  const url = await getSavedGasUrlAsync();
+  if (!url) {
+    console.log('[背景同步] 尚未設定 API URL，跳過自動同步');
+    return;
+  }
   try {
+    console.log('[背景同步] 開始自動同步...', url.substring(0, 50) + '...');
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
       const { syncMode, plants, deletedPlants } = syncRes;
@@ -59,8 +63,11 @@ async function autoBackgroundSyncGAS() {
       if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
         initGallery();
       }
+      console.log('[背景同步] 自動同步完成，共 ' + (syncRes.plants || []).length + ' 筆');
     }
-  } catch(e) {}
+  } catch(e) {
+    console.warn('[背景同步] 自動同步失敗:', e.message || e);
+  }
 }
 
 function setupNavigation() {
@@ -111,13 +118,19 @@ function setupQuizControls() {
   }
 }
 
-function openSettingsModal() {
+async function openSettingsModal() {
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
   const gasInput = document.getElementById('gasApiUrlInput');
   if (gasInput) {
+    // 第一層：同步立即讀 localStorage (毫秒級)
     try {
-      const savedUrl = typeof getSavedGasUrl === 'function' ? getSavedGasUrl() : '';
-      if (savedUrl) gasInput.value = savedUrl;
+      const syncUrl = getSavedGasUrl();
+      if (syncUrl) gasInput.value = syncUrl;
+    } catch(e) {}
+    // 第二層：異步深度讀 IndexedDB (百毫秒級)
+    try {
+      const asyncUrl = await getSavedGasUrlAsync();
+      if (asyncUrl) gasInput.value = asyncUrl;
     } catch(e) {}
   }
   if (modalBackdrop) modalBackdrop.classList.add('open');
@@ -182,19 +195,34 @@ function setupSettingsModal() {
   }
 
   if (gasInput) {
-    // 只要輸入、貼上或離開欄位，0 秒立即自動存入 LocalStorage，刷新絕不遺失！
-    gasInput.addEventListener('input', () => saveGasUrl(gasInput.value));
-    gasInput.addEventListener('change', () => saveGasUrl(gasInput.value));
-    gasInput.addEventListener('blur', () => saveGasUrl(gasInput.value));
+    // 開局立即填入已儲存的 API 網址
+    (async () => {
+      try {
+        const savedUrl = typeof getSavedGasUrlAsync === 'function' ? (await getSavedGasUrlAsync()) : getSavedGasUrl();
+        if (savedUrl) gasInput.value = savedUrl;
+      } catch(e) {}
+    })();
+
+    const handleInputSave = () => {
+      const val = gasInput.value.trim();
+      if (val && val.length > 10 && val.startsWith('http')) {
+        saveGasUrl(val);
+      }
+    };
+
+    gasInput.addEventListener('input', handleInputSave);
+    gasInput.addEventListener('change', handleInputSave);
+    gasInput.addEventListener('paste', () => setTimeout(handleInputSave, 50));
   }
 
   if (saveGasBtn && gasInput) {
     saveGasBtn.addEventListener('click', () => {
-      if (!gasInput.value.trim()) {
-        showToast('請先輸入有效的 API 網址！');
+      const val = gasInput.value.trim();
+      if (!val || val.length <= 10 || !val.startsWith('http')) {
+        showToast('請先輸入有效的 Google Apps Script API 網址！');
         return;
       }
-      saveGasUrl(gasInput.value);
+      saveGasUrl(val);
       showToast('💾 已成功儲存 Google Apps Script API 網址！');
     });
   }
@@ -205,13 +233,14 @@ function setupSettingsModal() {
         saveGasUrl(gasInput.value);
       }
 
-      const currentUrl = getSavedGasUrl();
+      // 使用 async 版本確保 IndexedDB fallback 也能被讀取
+      const currentUrl = await getSavedGasUrlAsync();
       if (!currentUrl) {
-        showToast('❌ 請先在上方欄位貼入您的 Google Apps Script API 網址！');
+        showToast('❌ 請先在上方欄位貼入您的 Google Apps Script API 網址！', 5000);
         return;
       }
 
-      showToast('📡 正在連線同步 Google Drive 資料與照片...');
+      showToast('📡 正在連線同步 Google Drive 資料與照片（手機端可能需要 30-60 秒）...', 5000);
       try {
         const syncRes = await fetchLatestDataFromGAS();
         const { syncMode, plants, deletedPlants, folderFound, debugLog } = syncRes;
@@ -399,7 +428,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=30')
+      navigator.serviceWorker.register('./sw.js?v=65')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 
@@ -411,8 +440,13 @@ function registerServiceWorker() {
             if (newWorker) {
               newWorker.addEventListener('statechange', () => {
                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  // 升級前先備份 GAS URL 到 sessionStorage，防止 reload 後遺失
+                  try {
+                    const backupUrl = getSavedGasUrl();
+                    if (backupUrl) sessionStorage.setItem(GAS_SYNC_URL_KEY, backupUrl);
+                  } catch(e) {}
                   showToast('✨ App 發現最新功能更新，正在自動為您升級版面...', 3000);
-                  setTimeout(() => window.location.reload(), 1200);
+                  setTimeout(() => window.location.reload(), 1500);
                 }
               });
             }
@@ -425,6 +459,11 @@ function registerServiceWorker() {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       if (!refreshing) {
         refreshing = true;
+        // 備份 GAS URL 後再 reload
+        try {
+          const backupUrl = getSavedGasUrl();
+          if (backupUrl) sessionStorage.setItem(GAS_SYNC_URL_KEY, backupUrl);
+        } catch(e) {}
         window.location.reload();
       }
     });
