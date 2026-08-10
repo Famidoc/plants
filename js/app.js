@@ -145,6 +145,13 @@ function setupSettingsModal() {
     });
   }
 
+  if (gasInput) {
+    // 只要輸入、貼上或離開欄位，0 秒立即自動存入 LocalStorage，刷新絕不遺失！
+    gasInput.addEventListener('input', () => saveGasUrl(gasInput.value));
+    gasInput.addEventListener('change', () => saveGasUrl(gasInput.value));
+    gasInput.addEventListener('blur', () => saveGasUrl(gasInput.value));
+  }
+
   if (saveGasBtn && gasInput) {
     saveGasBtn.addEventListener('click', () => {
       if (!gasInput.value.trim()) {
@@ -196,7 +203,8 @@ function setupSettingsModal() {
 
         showToast(msg, 6500);
       } catch (err) {
-        showToast(`❌ 同步失敗：${err.message}`, 6500);
+        showToast(`❌ 同步失敗：${err.message}`, 8000);
+        alert(`❌ 同步連線失敗：${err.message}`);
       }
     });
   }
