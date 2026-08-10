@@ -5,17 +5,17 @@
 function cleanGasUrl(raw) {
   if (!raw) return '';
   let str = String(raw).trim();
-  // 去除首尾的單引號、雙引號、全形引號與多餘空白
-  str = str.replace(/^['"’‘“"「\s]+|['"’‘“"」\s]+$/g, '').trim();
+  
+  // 安全地清理所有首尾引號與符號 (不用複雜 Regex，確保 100% 跨平台不報錯)
+  while (str.length > 0 && (str.startsWith("'") || str.startsWith('"') || str.startsWith('「') || str.startsWith('’') || str.startsWith('“'))) {
+    str = str.substring(1).trim();
+  }
+  while (str.length > 0 && (str.endsWith("'") || str.endsWith('"') || str.endsWith('」') || str.endsWith('’') || str.endsWith('”'))) {
+    str = str.substring(0, str.length - 1).trim();
+  }
 
-  // 若開頭缺少 https://script.google.com/macros/s/，自動補充完美 URL
   if (str && !str.startsWith('http://') && !str.startsWith('https://')) {
-    if (str.startsWith('AKfycb') || str.includes('/exec') || str.includes('macros/s/')) {
-      const cleanPath = str.replace(/^macros\/s\//, '').replace(/^\/macros\/s\//, '');
-      str = 'https://script.google.com/macros/s/' + cleanPath;
-    } else {
-      str = 'https://' + str;
-    }
+    str = 'https://' + str;
   }
   return str;
 }

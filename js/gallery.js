@@ -107,7 +107,7 @@ function renderGallery() {
           ${hasSearch ? '請嘗試清除搜尋關鍵字或切換分類標籤' : '請確認已填入 API 網址並點擊「⚡ 立即連線同步」連線載入您的 48 筆圖資與照片。'}
         </p>
         ${!hasSearch ? `
-          <button onclick="document.getElementById('openSettingsBtn').click();" class="btn-primary" style="display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem;">
+          <button onclick="openSettingsModal()" class="btn-primary" style="display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem;">
             ⚙️ 前往連線同步
           </button>
         ` : ''}

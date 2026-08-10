@@ -111,6 +111,18 @@ function setupQuizControls() {
   }
 }
 
+function openSettingsModal() {
+  const modalBackdrop = document.getElementById('settingsModalBackdrop');
+  const gasInput = document.getElementById('gasApiUrlInput');
+  if (gasInput) {
+    try { gasInput.value = getSavedGasUrl(); } catch(e) {}
+  }
+  if (modalBackdrop) {
+    modalBackdrop.classList.add('open');
+  }
+}
+window.openSettingsModal = openSettingsModal;
+
 function setupSettingsModal() {
   const openSettingsBtn = document.getElementById('openSettingsBtn');
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
@@ -121,10 +133,9 @@ function setupSettingsModal() {
   const pasteDocBtn = document.getElementById('pasteDocParseBtn');
   const rawDocInput = document.getElementById('rawDocInput');
 
-  if (openSettingsBtn && modalBackdrop) {
+  if (openSettingsBtn) {
     openSettingsBtn.addEventListener('click', () => {
-      if (gasInput) gasInput.value = getSavedGasUrl();
-      modalBackdrop.classList.add('open');
+      openSettingsModal();
     });
   }
 
