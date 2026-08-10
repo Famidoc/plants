@@ -98,11 +98,19 @@ function renderGallery() {
 
   // 4. 產生卡片 HTML
   if (sorted.length === 0) {
+    const hasSearch = searchQuery.trim() || activeCategory !== 'ALL';
     gridContainer.innerHTML = `
-      <div class="empty-gallery-state" style="grid-column: 1 / -1;">
-        <div class="empty-icon">🌿</div>
-        <h3>未找到符合條件的花草</h3>
-        <p>請嘗試清除搜尋關鍵字或切換分類標籤</p>
+      <div class="empty-gallery-state" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
+        <div class="empty-icon" style="font-size: 3.5rem; margin-bottom: 1rem;">🌿</div>
+        <h3 style="color: var(--primary-dark); font-size: 1.25rem; margin-bottom: 0.6rem;">${hasSearch ? '未找到符合條件的花草' : '尚未載入雲端花草圖鑑'}</h3>
+        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.6;">
+          ${hasSearch ? '請嘗試清除搜尋關鍵字或切換分類標籤' : '請確認已填入 API 網址並點擊「⚡ 立即連線同步」連線載入您的 48 筆圖資與照片。'}
+        </p>
+        ${!hasSearch ? `
+          <button onclick="document.getElementById('openSettingsBtn').click();" class="btn-primary" style="display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem;">
+            ⚙️ 前往連線同步
+          </button>
+        ` : ''}
       </div>
     `;
     return;
