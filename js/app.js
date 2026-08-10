@@ -115,16 +115,49 @@ function openSettingsModal() {
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
   const gasInput = document.getElementById('gasApiUrlInput');
   if (gasInput) {
-    const savedUrl = getSavedGasUrl();
-    if (savedUrl) {
-      gasInput.value = savedUrl;
-    }
+    try {
+      const savedUrl = typeof getSavedGasUrl === 'function' ? getSavedGasUrl() : '';
+      if (savedUrl) gasInput.value = savedUrl;
+    } catch(e) {}
   }
-  if (modalBackdrop) {
-    modalBackdrop.classList.add('open');
-  }
+  if (modalBackdrop) modalBackdrop.classList.add('open');
 }
+
+function closeSettingsModal() {
+  const modalBackdrop = document.getElementById('settingsModalBackdrop');
+  if (modalBackdrop) modalBackdrop.classList.remove('open');
+}
+
+function openQrModal() {
+  const qrModalBackdrop = document.getElementById('qrModalBackdrop');
+  if (!qrModalBackdrop) return;
+  try {
+    const currentGasUrl = typeof getSavedGasUrl === 'function' ? getSavedGasUrl() : '';
+    const qrImg = qrModalBackdrop.querySelector('img');
+    const qrText = qrModalBackdrop.querySelector('p:last-of-type');
+
+    if (currentGasUrl) {
+      const fullShareUrl = `https://famidoc.github.io/plants/?gas_url=${encodeURIComponent(currentGasUrl)}`;
+      if (qrImg) {
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullShareUrl)}`;
+      }
+      if (qrText) {
+        qrText.textContent = `📱 掃碼全自動同步網址：\n${fullShareUrl}`;
+      }
+    }
+  } catch(e) {}
+  qrModalBackdrop.classList.add('open');
+}
+
+function closeQrModal() {
+  const qrModalBackdrop = document.getElementById('qrModalBackdrop');
+  if (qrModalBackdrop) qrModalBackdrop.classList.remove('open');
+}
+
 window.openSettingsModal = openSettingsModal;
+window.closeSettingsModal = closeSettingsModal;
+window.openQrModal = openQrModal;
+window.closeQrModal = closeQrModal;
 
 function setupSettingsModal() {
   const openSettingsBtn = document.getElementById('openSettingsBtn');
