@@ -1,17 +1,17 @@
-const CACHE_NAME = 'nian-hua-re-cao-v53';
+const CACHE_NAME = 'nian-hua-re-cao-v54';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/main.css?v=53',
-  './css/gallery.css?v=53',
-  './css/modal.css?v=53',
-  './css/quiz.css?v=53',
-  './js/app.js?v=53',
-  './js/data.js?v=53',
-  './js/sync.js?v=53',
-  './js/gallery.js?v=53',
-  './js/quiz.js?v=53'
+  './css/main.css?v=54',
+  './css/gallery.css?v=54',
+  './css/modal.css?v=54',
+  './css/quiz.css?v=54',
+  './js/app.js?v=54',
+  './js/data.js?v=54',
+  './js/sync.js?v=54',
+  './js/gallery.js?v=54',
+  './js/quiz.js?v=54'
 ];
 
 self.addEventListener('install', (event) => {

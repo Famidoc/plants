@@ -5,6 +5,18 @@
 let deferredPwaPrompt = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // 0. 檢測 URL 是否帶有 ?gas_url=... (一鍵掃碼全自動同步全套設定與圖資)
+  const urlParams = new URLSearchParams(window.location.search);
+  const gasUrlParam = urlParams.get('gas_url');
+  if (gasUrlParam && gasUrlParam.trim()) {
+    saveGasUrl(gasUrlParam.trim());
+    showToast('⚡ 已自動從連結匯入 API 網址，正在為您下載 48 筆圖資與照片...', 6000);
+    setTimeout(() => {
+      const triggerBtn = document.getElementById('triggerSyncBtn');
+      if (triggerBtn) triggerBtn.click();
+    }, 600);
+  }
+
   // 1. 初始化圖鑑 (0.0001 秒原生秒刷已儲存之花草與照片)
   initGallery();
 
@@ -268,6 +280,22 @@ function setupQrModal() {
         e.preventDefault();
         e.stopPropagation();
       }
+
+      // 動態產生帶有 API 網址的「一鍵掃碼全自動同步」QR Code
+      const currentGasUrl = getSavedGasUrl();
+      const qrImg = qrModalBackdrop.querySelector('img');
+      const qrText = qrModalBackdrop.querySelector('p:last-of-type');
+
+      if (currentGasUrl) {
+        const fullShareUrl = `https://famidoc.github.io/plants/?gas_url=${encodeURIComponent(currentGasUrl)}`;
+        if (qrImg) {
+          qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullShareUrl)}`;
+        }
+        if (qrText) {
+          qrText.textContent = `📱 掃碼全自動同步網址：\n${fullShareUrl}`;
+        }
+      }
+
       qrModalBackdrop.classList.add('open');
     });
   }
