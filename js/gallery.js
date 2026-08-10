@@ -9,7 +9,12 @@ let isSortAsc = false;
 let currentlyRenderedList = [];
 let currentDetailIndex = -1;
 
-// DEFAULT_SVG_PLACEHOLDER 已在 data.js 中定義
+function handleImageError(imgEl) {
+  if (imgEl) {
+    imgEl.onerror = null;
+    imgEl.src = DEFAULT_SVG_PLACEHOLDER;
+  }
+}
 
 async function initGallery() {
   // 1. 無條件第一時間同步秒刷畫面，絕對不允許卡在「載入中...」
@@ -140,7 +145,7 @@ function renderGallery() {
       return `
         <div class="plant-card" data-id="${plant.id}">
           <div class="plant-image-container">
-            <img src="${cleanImageUrl}" alt="${plant.name || '花草'}" class="plant-card-img" onerror="this.src='${DEFAULT_SVG_PLACEHOLDER}'">
+            <img src="${cleanImageUrl}" alt="${plant.name || '花草'}" class="plant-card-img" onerror="handleImageError(this)">
             ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
             ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
           </div>

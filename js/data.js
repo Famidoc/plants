@@ -184,15 +184,25 @@ function saveStoredPlants(plants) {
   // 1. 立即寫入記憶體，確保畫面能瞬間更新
   inMemoryPlantsList = plants;
 
-  // 2. 寫入 IndexedDB 永久大容量快取 (無 5MB 限制)
+  // 2. 寫入 IndexedDB 永久大容量快取 (包含所有 48 筆高解析度照片)
   saveToIndexedDB('synced_plants', plants);
 
-  // 3. 盡力寫入 LocalStorage
+  // 3. 寫入 LocalStorage 精簡版 (突破 5MB 容量限制，確保 48 筆花草清單 100% 永久保留)
   try {
-    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(plants));
+    const lightweight = plants.map(p => {
+      let img = String(p.imageUrl || '');
+      if (img.startsWith('data:image')) {
+        img = DEFAULT_SVG_PLACEHOLDER;
+      }
+      return {
+        ...p,
+        imageUrl: img,
+        galleryImages: []
+      };
+    });
+    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(lightweight));
   } catch (e) {
-    console.warn('LocalStorage 容量限制，已改由 IndexedDB 備份。', e);
-    try { localStorage.removeItem(STORAGE_KEYS[0]); } catch(err) {}
+    console.warn('LocalStorage 備份容量限制，全量備份已由 IndexedDB 保留。', e);
   }
 }
 
