@@ -115,7 +115,10 @@ function openSettingsModal() {
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
   const gasInput = document.getElementById('gasApiUrlInput');
   if (gasInput) {
-    try { gasInput.value = getSavedGasUrl(); } catch(e) {}
+    const savedUrl = getSavedGasUrl();
+    if (savedUrl) {
+      gasInput.value = savedUrl;
+    }
   }
   if (modalBackdrop) {
     modalBackdrop.classList.add('open');
