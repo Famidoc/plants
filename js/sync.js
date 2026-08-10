@@ -2,14 +2,34 @@
  * Google Drive [捻花惹草] 資料夾自動同步與 GAS API 介接模組
  */
 
-const GAS_SYNC_URL_KEY = 'nian_hua_re_cao_gas_url';
+function cleanGasUrl(raw) {
+  if (!raw) return '';
+  let str = String(raw).trim();
+  // 去除首尾的單引號、雙引號、全形引號與多餘空白
+  str = str.replace(/^['"’‘“"「\s]+|['"’‘“"」\s]+$/g, '').trim();
+
+  // 若開頭缺少 https://script.google.com/macros/s/，自動補充完美 URL
+  if (str && !str.startsWith('http://') && !str.startsWith('https://')) {
+    if (str.startsWith('AKfycb') || str.includes('/exec') || str.includes('macros/s/')) {
+      const cleanPath = str.replace(/^macros\/s\//, '').replace(/^\/macros\/s\//, '');
+      str = 'https://script.google.com/macros/s/' + cleanPath;
+    } else {
+      str = 'https://' + str;
+    }
+  }
+  return str;
+}
 
 function getSavedGasUrl() {
-  return localStorage.getItem(GAS_SYNC_URL_KEY) || '';
+  const raw = localStorage.getItem(GAS_SYNC_URL_KEY) || '';
+  return cleanGasUrl(raw);
 }
 
 function saveGasUrl(url) {
-  localStorage.setItem(GAS_SYNC_URL_KEY, url.trim());
+  const cleaned = cleanGasUrl(url);
+  if (cleaned) {
+    localStorage.setItem(GAS_SYNC_URL_KEY, cleaned);
+  }
 }
 
 /**
