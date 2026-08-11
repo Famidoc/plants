@@ -6,6 +6,8 @@ let currentPlantsList = [];
 let activeCategory = 'ALL';
 let searchQuery = '';
 let isSortAsc = false;
+let sortMode = 'DESC'; // 'DESC', 'ASC', 'RANDOM'
+let randomShuffledList = null;
 let currentlyRenderedList = [];
 let currentDetailIndex = -1;
 
@@ -14,6 +16,18 @@ function handleImageError(imgEl) {
     imgEl.onerror = null;
     imgEl.src = DEFAULT_SVG_PLACEHOLDER;
   }
+}
+
+/**
+ * Fisher-Yates 隨機洗牌演算法
+ */
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 async function initGallery() {
@@ -37,35 +51,35 @@ async function initGallery() {
 }
 
 /**
- * 核心渲染函式：包含正/逆向排序 (後加入者在最上面 或 最舊者在最上面)
+ * 核心渲染函式：包含正向、逆向與隨機打亂排序
  */
 function renderGallery() {
   const gridContainer = document.getElementById('plantGridContainer');
   const countBadge = document.getElementById('plantCountBadge');
   const sortBtn = document.getElementById('sortOrderToggleBtn');
+  const randomSortBtn = document.getElementById('randomSortBtn');
   if (!gridContainer) return;
 
   // 更新排序按鈕 UI
   if (sortBtn) {
-    sortBtn.textContent = isSortAsc ? '⬆ 正向排序（最舊在上）' : '⬇ 逆向排序（最新在上）';
+    sortBtn.textContent = (sortMode === 'ASC') ? '⬆ 正向排序（最舊在上）' : '⬇ 逆向排序（最新在上）';
+    sortBtn.classList.toggle('active-mode', sortMode !== 'RANDOM');
+  }
+  if (randomSortBtn) {
+    randomSortBtn.classList.toggle('active-mode', sortMode === 'RANDOM');
   }
 
-  // 1. 複製資料庫並過濾無效與損壞項目
+  // 1. 複製資料庫與過濾無效項目
   let rawList = Array.isArray(currentPlantsList) ? currentPlantsList.filter(p => p && typeof p === 'object') : [];
   if (rawList.length === 0) {
     rawList = DEFAULT_PLANT_DATA;
   }
 
-  let sorted = [...rawList].sort((a, b) => {
-    const dateA = String((a && a.dateAdded) || "0");
-    const dateB = String((b && b.dateAdded) || "0");
-    return isSortAsc ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
-  });
-
   // 2. 進行搜尋過濾
+  let filtered = [...rawList];
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase().trim();
-    sorted = sorted.filter(p => {
+    filtered = filtered.filter(p => {
       if (!p) return false;
       const nameStr = String(p.name || '').toLowerCase();
       const matchName = nameStr.includes(q);
@@ -79,13 +93,29 @@ function renderGallery() {
     });
   }
 
-  // 3. 進行分類 Chips 篩選
+  // 3. 進行分類 Chips 篩選 (取得當前分頁內容)
   if (activeCategory !== 'ALL') {
     if (activeCategory === 'PET_SAFE') {
-      sorted = sorted.filter(p => p && p.petFriendly === true);
+      filtered = filtered.filter(p => p && p.petFriendly === true);
     } else {
-      sorted = sorted.filter(p => p && String(p.family || '').includes(activeCategory));
+      filtered = filtered.filter(p => p && String(p.family || '').includes(activeCategory));
     }
+  }
+
+  // 4. 執行排序邏輯 (正向 / 逆向 / 隨機排序)
+  let sorted = [];
+  if (sortMode === 'RANDOM') {
+    if (!randomShuffledList || randomShuffledList.length !== filtered.length) {
+      randomShuffledList = shuffleArray(filtered);
+    }
+    sorted = randomShuffledList;
+  } else {
+    randomShuffledList = null;
+    sorted = [...filtered].sort((a, b) => {
+      const dateA = String((a && a.dateAdded) || "0");
+      const dateB = String((b && b.dateAdded) || "0");
+      return (sortMode === 'ASC') ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
+    });
   }
 
   // 儲存目前呈列的清單，供 Modal [上一筆][下一筆] 切換
@@ -93,7 +123,10 @@ function renderGallery() {
 
   // 更新顯示筆數標籤
   if (countBadge) {
-    countBadge.textContent = `共 ${sorted.length} 筆資料 (${isSortAsc ? '正序' : '逆序'}呈列)`;
+    let modeText = '逆序';
+    if (sortMode === 'ASC') modeText = '正序';
+    if (sortMode === 'RANDOM') modeText = '🎲隨機洗牌';
+    countBadge.textContent = `共 ${sorted.length} 筆資料 (${modeText}呈列)`;
   }
 
   // 4. 產生卡片 HTML
@@ -211,13 +244,50 @@ function setupGalleryEventListeners() {
     });
   }
 
-  // 排序切換按鈕點擊
+  // 排序切換按鈕點擊 (正序 ↔ 逆序)
   const sortBtn = document.getElementById('sortOrderToggleBtn');
   if (sortBtn && !sortBtn.dataset.bound) {
     sortBtn.dataset.bound = 'true';
     sortBtn.addEventListener('click', () => {
-      isSortAsc = !isSortAsc;
+      if (sortMode === 'DESC') {
+        sortMode = 'ASC';
+      } else {
+        sortMode = 'DESC';
+      }
       renderGallery();
+    });
+  }
+
+  // 🎲 隨機排序按鈕點擊 (隨機打亂當前分頁內容)
+  const randomSortBtn = document.getElementById('randomSortBtn');
+  if (randomSortBtn && !randomSortBtn.dataset.bound) {
+    randomSortBtn.dataset.bound = 'true';
+    randomSortBtn.addEventListener('click', () => {
+      sortMode = 'RANDOM';
+      let rawList = Array.isArray(currentPlantsList) ? currentPlantsList.filter(p => p && typeof p === 'object') : [];
+      let filtered = [...rawList];
+      if (activeCategory !== 'ALL') {
+        if (activeCategory === 'PET_SAFE') {
+          filtered = filtered.filter(p => p && p.petFriendly === true);
+        } else {
+          filtered = filtered.filter(p => p && String(p.family || '').includes(activeCategory));
+        }
+      }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        filtered = filtered.filter(p => {
+          if (!p) return false;
+          return String(p.name || '').toLowerCase().includes(q) ||
+                 String(p.scientificName || '').toLowerCase().includes(q) ||
+                 String(p.family || '').toLowerCase().includes(q);
+        });
+      }
+      randomShuffledList = shuffleArray(filtered);
+      renderGallery();
+      const tabName = activeCategory === 'ALL' ? '全部花草' : activeCategory;
+      if (typeof showToast === 'function') {
+        showToast(`🎲 已成功將當前分頁「${tabName}」的 ${filtered.length} 筆內容隨機排序！`);
+      }
     });
   }
 
