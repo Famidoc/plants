@@ -21,6 +21,25 @@ function handleImageError(imgEl) {
 }
 
 /**
+ * ⚡ 關鍵工具：將 Google Drive 各種網址格式（含 uc?export=view）轉成通用全相容的 1000px 縮圖 URL
+ * 避免瀏覽器防盜連/CORS政策導致跨域圖片顯示空白
+ */
+function formatDriveImageUrl(url) {
+  if (!url || typeof url !== 'string') return DEFAULT_SVG_PLACEHOLDER;
+  const clean = url.trim().replace(/[\r\n\s]+/g, '');
+  if (!clean || clean === './assets/images/ferns.jpg') {
+    return DEFAULT_SVG_PLACEHOLDER;
+  }
+  if (clean.includes('drive.google.com') || clean.includes('googleusercontent.com')) {
+    const match = clean.match(/id=([a-zA-Z0-9_-]+)/) || clean.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      return `https://drive.google.com/thumbnail?id=${match[1]}&sz=w1000`;
+    }
+  }
+  return clean;
+}
+
+/**
  * Fisher-Yates 隨機洗牌演算法
  */
 function shuffleArray(array) {
@@ -169,12 +188,9 @@ function renderGallery() {
         : (dateStr || '最新');
 
       let rawUrl = String(plant.imageUrl || '');
-      let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
-      if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
-        cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
-      }
+      let cleanImageUrl = formatDriveImageUrl(rawUrl);
 
-      let isCloudPhoto = cleanImageUrl.startsWith('https://drive.google.com') ||
+      let isCloudPhoto = cleanImageUrl.includes('drive.google.com') ||
                          (cleanImageUrl.startsWith('https://') && !cleanImageUrl.includes('svg+xml'));
 
       let rawLocStr = String(plant.locationNote || '').trim();
@@ -399,10 +415,7 @@ function openPlantDetailModal(plant) {
     : dateStr;
 
   let rawUrl = String(plant.imageUrl || '');
-  let cleanImageUrl = rawUrl.trim().replace(/[\r\n\s]+/g, '');
-  if (!cleanImageUrl || cleanImageUrl === './assets/images/ferns.jpg') {
-    cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
-  }
+  let cleanImageUrl = formatDriveImageUrl(rawUrl);
 
   // 填入資料
   const heroImg = document.getElementById('modalHeroImg');
@@ -502,12 +515,15 @@ function openPlantDetailModal(plant) {
 
   if (galleryContainer) {
     if (galleryImages.length > 0) {
-      galleryContainer.innerHTML = galleryImages.map((img, idx) => `
-        <div class="gallery-item-card" data-url="${img.url}" data-caption="${img.caption || `特徵照片 ${idx + 1}`}">
-          <img src="${img.url}" alt="${img.caption || '特徵照片'}" class="gallery-item-img">
-          <div class="gallery-item-caption">${img.caption || `特徵照片 ${idx + 1}`}</div>
-        </div>
-      `).join('');
+      galleryContainer.innerHTML = galleryImages.map((img, idx) => {
+        const itemUrl = formatDriveImageUrl(img.url);
+        return `
+          <div class="gallery-item-card" data-url="${itemUrl}" data-caption="${img.caption || `特徵照片 ${idx + 1}`}">
+            <img src="${itemUrl}" alt="${img.caption || '特徵照片'}" class="gallery-item-img" loading="lazy">
+            <div class="gallery-item-caption">${img.caption || `特徵照片 ${idx + 1}`}</div>
+          </div>
+        `;
+      }).join('');
 
       // 點擊縮圖：將主圖 (Hero Photo) 放大替換顯示該特徵照片
       galleryContainer.querySelectorAll('.gallery-item-card').forEach(card => {
