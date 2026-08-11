@@ -20,13 +20,13 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
-          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=72')) {
+          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=73')) {
             console.log('[SW清理] 偵測到舊版 SW，強制卸載:', reg.active.scriptURL);
             reg.unregister().then(function() {
               if ('caches' in window) {
                 caches.keys().then(function(names) {
                   names.forEach(function(name) {
-                    if (!name.includes('v72')) caches.delete(name);
+                    if (!name.includes('v73')) caches.delete(name);
                   });
                 });
               }
@@ -44,10 +44,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=72">
-  <link rel="stylesheet" href="./css/gallery.css?v=72">
-  <link rel="stylesheet" href="./css/modal.css?v=72">
-  <link rel="stylesheet" href="./css/quiz.css?v=72">
+  <link rel="stylesheet" href="./css/main.css?v=73">
+  <link rel="stylesheet" href="./css/gallery.css?v=73">
+  <link rel="stylesheet" href="./css/modal.css?v=73">
+  <link rel="stylesheet" href="./css/quiz.css?v=73">
 </head>
 <body>
 
@@ -63,7 +63,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v72</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v73</small></span>
         </div>
       </div>
 
@@ -427,12 +427,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=72 Cache Buster -->
-  <script src="./js/data.js?v=72"></script>
-  <script src="./js/sync.js?v=72"></script>
-  <script src="./js/gallery.js?v=72"></script>
-  <script src="./js/quiz.js?v=72"></script>
-  <script src="./js/app.js?v=72"></script>
+  <!-- JavaScript Scripts with ?v=73 Cache Buster -->
+  <script src="./js/data.js?v=73"></script>
+  <script src="./js/sync.js?v=73"></script>
+  <script src="./js/gallery.js?v=73"></script>
+  <script src="./js/quiz.js?v=73"></script>
+  <script src="./js/app.js?v=73"></script>
 
 </body>
 </html>

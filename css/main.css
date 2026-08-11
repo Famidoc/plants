@@ -245,15 +245,6 @@ body {
   to { transform: translateX(0); opacity: 1; }
 }
 
-/* 響應式調整 */
-@media (max-width: 768px) {
-  .nav-links { display: none; }
-  .mobile-bottom-nav { display: flex; }
-  body { padding-bottom: 74px; }
-  .app-header { padding: 0.75rem 1rem; }
-  .scroll-to-top-btn { bottom: 85px; right: 16px; width: 44px; height: 44px; font-size: 1.15rem; }
-}
-
 /* ⬆ 回到最上頭懸浮按鈕 */
 .scroll-to-top-btn {
   position: fixed;
@@ -290,4 +281,19 @@ body {
   color: #0f2017;
   transform: translateY(-4px) scale(1.08);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* 響應式調整 (置於下方確保優先順序覆蓋) */
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+  .mobile-bottom-nav { display: flex; }
+  body { padding-bottom: 74px; }
+  .app-header { padding: 0.75rem 1rem; }
+  .scroll-to-top-btn {
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 18px !important;
+    width: 46px;
+    height: 46px;
+    font-size: 1.2rem;
+  }
 }
