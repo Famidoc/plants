@@ -428,7 +428,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=71')
+      navigator.serviceWorker.register('./sw.js?v=72')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 
@@ -485,6 +485,7 @@ function registerServiceWorker() {
           deferredPwaPrompt = null;
         });
       });
+    }
   });
 
   // ⬆ 監聽滾動以控制「回到最上頭」按鈕顯示與隱藏
