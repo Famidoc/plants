@@ -21,7 +21,7 @@
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
           // 如果已註冊的 SW 網址不是最新版本 v67，強制卸載再重新註冊
-          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=68')) {
+          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=69')) {
             console.log('[SW清理] 偵測到舊版 SW，強制卸載:', reg.active.scriptURL);
             reg.unregister().then(function() {
               console.log('[SW清理] 舊版 SW 已卸載，即將重新載入最新版...');
@@ -51,10 +51,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=68">
-  <link rel="stylesheet" href="./css/gallery.css?v=68">
-  <link rel="stylesheet" href="./css/modal.css?v=68">
-  <link rel="stylesheet" href="./css/quiz.css?v=68">
+  <link rel="stylesheet" href="./css/main.css?v=69">
+  <link rel="stylesheet" href="./css/gallery.css?v=69">
+  <link rel="stylesheet" href="./css/modal.css?v=69">
+  <link rel="stylesheet" href="./css/quiz.css?v=69">
 </head>
 <body>
 
@@ -70,7 +70,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v68</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v69</small></span>
         </div>
       </div>
 
@@ -428,12 +428,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=68 Cache Buster -->
-  <script src="./js/data.js?v=68"></script>
-  <script src="./js/sync.js?v=68"></script>
-  <script src="./js/gallery.js?v=68"></script>
-  <script src="./js/quiz.js?v=68"></script>
-  <script src="./js/app.js?v=68"></script>
+  <!-- JavaScript Scripts with ?v=69 Cache Buster -->
+  <script src="./js/data.js?v=69"></script>
+  <script src="./js/sync.js?v=69"></script>
+  <script src="./js/gallery.js?v=69"></script>
+  <script src="./js/quiz.js?v=69"></script>
+  <script src="./js/app.js?v=69"></script>
 
 </body>
 </html>

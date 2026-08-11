@@ -97,7 +97,7 @@ async function fetchLatestDataFromGAS() {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 120000);
+  const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 分鐘超時 (300秒)
 
   let responseText = '';
   try {
@@ -143,7 +143,7 @@ async function fetchLatestDataFromGAS() {
     clearTimeout(timeoutId);
     console.error('[GAS Fetch] 失敗:', err.name, err.message);
     if (err.name === 'AbortError') {
-      throw new Error('Google 雲端處理 48 筆檔案耗時較長 (超過 2 分鐘)。請確認網路連線後，點擊「⚡ 立即連線同步」重試。');
+      throw new Error('Google 雲端處理 48 筆檔案耗時較長 (超過 5 分鐘)。請確認網路連線後，點擊「⚡ 立即連線同步」重試。');
     }
     if (err.name === 'TypeError') {
       // 顯示真實錯誤訊息幫助診斷，不再一律歸咎 CORS
