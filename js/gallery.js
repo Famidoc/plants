@@ -529,8 +529,12 @@ function openPlantDetailModal(plant) {
       galleryContainer.querySelectorAll('.gallery-item-card').forEach(card => {
         card.addEventListener('click', () => {
           const targetUrl = card.getAttribute('data-url');
+          const targetCap = card.getAttribute('data-caption');
           if (targetUrl) {
-            if (heroImg) heroImg.src = targetUrl;
+            if (heroImg) {
+              heroImg.src = targetUrl;
+              heroImg.onclick = () => openFullScreenPhoto(targetUrl, targetCap || plant.name);
+            }
             if (heroBgBlur) heroBgBlur.src = targetUrl;
             galleryContainer.querySelectorAll('.gallery-item-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');

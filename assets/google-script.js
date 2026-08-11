@@ -1,13 +1,12 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v70 高速 Drive 縮圖快取版
+ * Google Apps Script (GAS) 自動掃描腳本 - v71 完美圖片快取與草稿保護版
  * 
- * 重大修復：
- * 1. 圖片網址統一採用 https://drive.google.com/thumbnail?id=FILE_ID&sz=w1000
- *    徹底解決 Google Drive 防盜連與 CORS 政策導致在 App 顯示空白的問題！
- * 2. 徹底消除 images/ 資料夾圖片重複產生問題：
- *    - 優先讀取 images/ 資料夾中已存在的 {植物名稱}_0.jpg, {植物名稱}_1.jpg 快取
- *    - 若尚未快取，單次走訪 Doc 全文提取圖片並依序命名，絕不上傳重複檔案。
+ * 重大修復與升級：
+ * 1. 徹底消除圖片重複產生與雙重讀取 Bug (解決一張圖變兩張、舊圖新圖各變兩張問題)
+ * 2. 智慧增量快取：當 Doc 中新增照片時，自動精確補抓新照片並存入 images/ 資料夾
+ * 3. 逐圖時間地點解析：自動辨識每張照片下方/附近的獨立拍攝時間與地點 (如 20260707@大坑四號步道)
+ * 4. 草稿防護機制：自動忽略名稱含有 [草稿]、(編輯中)、Draft 的檔案，防止整理資料時影響使用者
  * ==========================================================================
  */
 
@@ -28,8 +27,9 @@ function doGet(e) {
     var folderName = folder.getName();
     debugLog.push("📁 目標資料夾: " + folderName + " (模式: " + syncMode + ")");
 
-    var imagesFolder = getOrCreateImagesFolder(folder);
-    debugLog.push("📂 圖片快取資料夾: images/ (ID: " + imagesFolder.getId() + ")");
+    var mainFolder = getMainFolder() || folder;
+    var imagesFolder = getOrCreateImagesFolder(mainFolder);
+    debugLog.push("📂 圖片快取資料夾: " + mainFolder.getName() + "/images/ (ID: " + imagesFolder.getId() + ")");
 
     var docs = getAllDocsInFolder(folder);
     var plantList = [];
@@ -39,6 +39,13 @@ function doGet(e) {
       var file = docs[i];
       var docId = file.getId();
       var fileName = file.getName();
+
+      // 🛡️ 草稿保護：若檔名包含 [草稿]、(編輯中)、Draft，自動跳過不安裝到正式庫
+      if (/[\(\[\【]?(草稿|編輯中|Draft|temp)[\)\]\】]?/i.test(fileName)) {
+        debugLog.push("🛡️ 忽略草稿檔案: 「" + fileName + "」");
+        continue;
+      }
+
       var createdDate = file.getDateCreated();
       var formattedDate = Utilities.formatDate(createdDate, "GMT+8", "yyyyMMdd");
       var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').trim();
@@ -59,11 +66,11 @@ function doGet(e) {
         var doc = DocumentApp.openById(docId);
         var text = doc.getBody().getText();
 
-        // ⚡ v70：一次性獲取圖片 URL 清單 (已排重 & 有限快取)
-        var photoUrls = getPlantImagesFromDriveOrDoc(doc, folder, plantNameOnly, imagesFolder, debugLog);
-        var primaryImageUrl = photoUrls.length > 0 ? photoUrls[0] : "";
+        // ⚡ v71：逐圖解析圖片網址與獨立標題 (已排重 & 正確擴充快取)
+        var galleryItems = getPlantGalleryFromDoc(doc, folder, plantNameOnly, imagesFolder, text, formattedDate, debugLog);
+        var primaryImageUrl = galleryItems.length > 0 ? galleryItems[0].url : "";
 
-        var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, photoUrls, doc, debugLog, plantNameOnly);
+        var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, galleryItems, doc, debugLog, plantNameOnly);
         plantList.push(parsedPlant);
       } catch (docErr) {
         debugLog.push("❌ 讀取 Doc 異常 (" + fileName + "): " + docErr.toString());
@@ -99,7 +106,7 @@ function doGet(e) {
 }
 
 // ==========================================================================
-// ⚡ v70 新增：Drive images/ 資料夾管理與單次除重圖片處理
+// ⚡ v71 新增：Drive images/ 資料夾管理與精確單次圖片處理
 // ==========================================================================
 
 function getOrCreateImagesFolder(parentFolder) {
@@ -110,80 +117,166 @@ function getOrCreateImagesFolder(parentFolder) {
   return newFolder;
 }
 
-/**
- * ⚡ v70 關鍵修復：取得 Google Drive 縮圖網址 (跨域載入 100% 成功且絕不空白)
- */
 function getDriveThumbnailUrl(fileId) {
   return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
 }
 
 /**
- * ⚡ v70 核心：除重與快取圖片處理 (確保 images/ 不重複產生檔案)
+ * ⚡ v71 核心：解析 Doc 內的所有圖片與對應獨立標題 (時間地點)
  */
-function getPlantImagesFromDriveOrDoc(doc, folder, plantName, imagesFolder, debugLog) {
-  var urls = [];
+function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocText, defaultDateStr, debugLog) {
+  var galleryItems = [];
+  if (!doc) return galleryItems;
 
-  // 1. 優先檢查 images/ 快取資料夾中已有該植物照片 (例如 九芎_0.jpg, 九芎_1.jpg)
+  var docImages = getDocImagesWithNearbyText(doc);
+  if (docImages.length === 0) {
+    // 若 Doc 無內嵌圖片，嘗試搜尋 Drive 同名圖檔
+    try {
+      var driveUrl = findDriveFolderPhoto(folder, plantName, imagesFolder);
+      if (driveUrl) {
+        galleryItems.push({
+          url: driveUrl,
+          caption: "(" + defaultDateStr + ")"
+        });
+      }
+    } catch(eD) {}
+    return galleryItems;
+  }
+
+  // 先讀取 images/ 中已存在的快取檔案對照表
+  var existingFilesMap = {};
   try {
     var files = imagesFolder.getFiles();
-    var cachedFiles = [];
     var prefix = plantName + '_';
     while (files.hasNext()) {
       var f = files.next();
       var fn = f.getName();
       if (fn.indexOf(prefix) === 0) {
-        cachedFiles.push(f);
+        existingFilesMap[fn] = getDriveThumbnailUrl(f.getId());
       }
-    }
-    if (cachedFiles.length > 0) {
-      cachedFiles.sort(function(a, b) {
-        return a.getName().localeCompare(b.getName());
-      });
-      for (var c = 0; c < cachedFiles.length; c++) {
-        urls.push(getDriveThumbnailUrl(cachedFiles[c].getId()));
-      }
-      debugLog.push("⚡ " + plantName + " 從 images/ 快取的 " + urls.length + " 張照片讀取成功");
-      return urls;
     }
   } catch(eCache) {}
 
-  // 2. 若無快取，從 Doc 提取所有圖片，序號為 0, 1, 2...
-  if (!doc) return urls;
+  var seenBlobKeys = {};
+  var defaultDocCaption = parseDefaultCaptionFromText(fullDocText, defaultDateStr);
 
-  try {
-    var allDocImages = getAllImagesFromDoc(doc);
-    var seenBlobs = {};
-
-    for (var i = 0; i < allDocImages.length; i++) {
-      try {
-        var blob = allDocImages[i].getBlob();
-        if (!blob) continue;
-        var bytesLength = blob.getBytes().length;
-        if (bytesLength < 200) continue; // 過濾過小佔位圖
-
-        var blobKey = bytesLength + '_' + blob.getContentType();
-        if (seenBlobs[blobKey]) continue;
-        seenBlobs[blobKey] = true;
-
-        var saveName = plantName + '_' + urls.length + '.jpg';
-        var url = saveBlobToDriveAndGetUrl(blob, imagesFolder, saveName);
-        if (url) {
-          urls.push(url);
-        }
-      } catch(eBlob) {}
-    }
-    debugLog.push("✅ " + plantName + " 成功從 Doc 提取 " + urls.length + " 張照片並存入 Drive");
-  } catch(eScan) {}
-
-  // 3. 若 Doc 亦無圖片，搜尋 Drive 資料夾同名圖檔
-  if (urls.length === 0) {
+  for (var i = 0; i < docImages.length; i++) {
     try {
-      var driveUrl = findDriveFolderPhoto(folder, plantName, imagesFolder);
-      if (driveUrl) urls.push(driveUrl);
-    } catch(eD) {}
+      var item = docImages[i];
+      var blob = item.image.getBlob();
+      if (!blob) continue;
+      
+      var bytesLen = blob.getBytes().length;
+      if (bytesLen < 200) continue; // 過濾小於 200 bytes 的佔位小圖
+
+      var blobKey = bytesLen + '_' + (blob.getContentType() || '');
+      if (seenBlobKeys[blobKey]) continue; // 避免同一文章內完全重複的 Blob 圖片
+      seenBlobKeys[blobKey] = true;
+
+      var imgIndex = galleryItems.length;
+      var saveName = plantName + '_' + imgIndex + '.jpg';
+      var imgUrl = "";
+
+      if (existingFilesMap[saveName]) {
+        imgUrl = existingFilesMap[saveName];
+      } else {
+        imgUrl = saveBlobToDriveAndGetUrl(blob, imagesFolder, saveName);
+      }
+
+      if (imgUrl) {
+        // 解析該張照片專屬的拍攝時間與地點標題
+        var specificCaption = parseSpecificCaptionFromNearbyText(item.nearbyText) || defaultDocCaption || ("特徵照片 " + (imgIndex + 1));
+        galleryItems.push({
+          url: imgUrl,
+          caption: specificCaption
+        });
+      }
+    } catch(eImg) {
+      debugLog.push("⚠️ 處理圖片 " + i + " 異常: " + eImg.toString());
+    }
   }
 
-  return urls;
+  debugLog.push("✅ " + plantName + " 成功解析 " + galleryItems.length + " 張獨立照片與標題");
+  return galleryItems;
+}
+
+/**
+ * ⚡ v71 修復：單次精確走訪 Doc 中的圖片及其下方/附近說明文字 (絕不重複走訪)
+ */
+function getDocImagesWithNearbyText(doc) {
+  var results = [];
+  if (!doc) return results;
+
+  try {
+    var body = doc.getBody();
+    var numChildren = body.getNumChildren();
+
+    for (var i = 0; i < numChildren; i++) {
+      var child = body.getChild(i);
+      var type = child.getType();
+
+      if (type === DocumentApp.ElementType.PARAGRAPH) {
+        var para = child.asParagraph();
+        var numParaChildren = para.getNumChildren();
+        
+        for (var j = 0; j < numParaChildren; j++) {
+          var pChild = para.getChild(j);
+          if (pChild.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
+            var img = pChild.asInlineImage();
+            // 抓取照片附近的說明文字：包含同段落文字與後續 2 個段落
+            var nearbyText = para.getText() || "";
+            if (i + 1 < numChildren && body.getChild(i + 1).getType() === DocumentApp.ElementType.PARAGRAPH) {
+              nearbyText += "\n" + body.getChild(i + 1).asParagraph().getText();
+            }
+            if (i + 2 < numChildren && body.getChild(i + 2).getType() === DocumentApp.ElementType.PARAGRAPH) {
+              nearbyText += "\n" + body.getChild(i + 2).asParagraph().getText();
+            }
+            results.push({ image: img, nearbyText: nearbyText });
+          }
+        }
+      } else if (type === DocumentApp.ElementType.INLINE_IMAGE) {
+        results.push({ image: child.asInlineImage(), nearbyText: "" });
+      }
+    }
+  } catch(e) {}
+
+  return results;
+}
+
+/**
+ * 解析照片附近專屬的時間與地點標題 (如：20260707@大坑四號步道)
+ */
+function parseSpecificCaptionFromNearbyText(text) {
+  if (!text) return null;
+
+  // 1. 優先尋找完整標註格式：(照片拍攝地點與日期：20260707@大坑四號步道 - 盛開的紫茉莉) 或 (20260707@大坑四號步道)
+  var matchDateLoc = text.match(/(?:照片拍攝地點與日期[：:\s]*)?\(?(\d{4}[年\-\/\.]?\s*\d{1,2}[月\-\/\.]?\s*\d{1,2}[日]?)\s*@\s*([^\)\n\r\t]+)\)?/);
+  if (matchDateLoc) {
+    var rawDate = matchDateLoc[1];
+    var rawLoc = matchDateLoc[2].trim();
+
+    var dMatch = rawDate.match(/(\d{4})[年\-\/\.]?\s*(\d{1,2})[月\-\/\.]?\s*(\d{1,2})[日]?/);
+    var dateClean = dMatch 
+      ? dMatch[1] + (dMatch[2].length === 1 ? '0' + dMatch[2] : dMatch[2]) + (dMatch[3].length === 1 ? '0' + dMatch[3] : dMatch[3])
+      : rawDate.replace(/[^\d]/g, '');
+
+    // 清理地點說明中可能夾帶的後續描述
+    var locClean = rawLoc.split(/[-–—]/)[0].replace(/[\)\s]+/g, '').trim();
+    if (locClean && !locClean.startsWith('@')) locClean = '@' + locClean;
+
+    return "(" + dateClean + locClean + ")";
+  }
+
+  return null;
+}
+
+function parseDefaultCaptionFromText(text, defaultDateStr) {
+  var parsed = parseDateAndLocationFromLine(text);
+  if (parsed && (parsed.dateAdded || parsed.locationNote)) {
+    var locClean = parsed.locationNote ? (parsed.locationNote.indexOf("@") === 0 ? parsed.locationNote : "@" + parsed.locationNote) : "";
+    return "(" + (parsed.dateAdded || defaultDateStr) + locClean + ")";
+  }
+  return "(" + defaultDateStr + ")";
 }
 
 function saveBlobToDriveAndGetUrl(blob, imagesFolder, fileName) {
@@ -247,6 +340,15 @@ function findDriveFolderPhoto(folder, plantName, imagesFolder) {
 // 全文圖片走訪與資料解析
 // ==========================================================================
 
+function getMainFolder() {
+  var mainNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
+  for (var i = 0; i < mainNames.length; i++) {
+    var folders = DriveApp.getFoldersByName(mainNames[i]);
+    if (folders.hasNext()) return folders.next();
+  }
+  return null;
+}
+
 function findTargetFolder() {
   var stagingNames = ["增修刪", "[增修刪]", "【增修刪】"];
   for (var s = 0; s < stagingNames.length; s++) {
@@ -293,28 +395,6 @@ function getAllDocsInFolder(folder) {
   }
   searchIn(folder);
   return docs;
-}
-
-function getAllImagesFromDoc(doc) {
-  var images = [];
-  if (!doc) return images;
-  try {
-    function walkElement(element) {
-      if (!element) return;
-      try {
-        var type = element.getType();
-        if (type === DocumentApp.ElementType.INLINE_IMAGE) images.push(element.asInlineImage());
-        else if (type === DocumentApp.ElementType.POSITIONED_IMAGE) images.push(element.asPositionedImage());
-        else if (type === DocumentApp.ElementType.INLINE_DRAWING) images.push(element.asInlineDrawing());
-        else if (element.getNumChildren && typeof element.getNumChildren === 'function') {
-          for (var i = 0; i < element.getNumChildren(); i++) walkElement(element.getChild(i));
-        }
-      } catch(e) {}
-    }
-    walkElement(doc.getBody());
-    try { var di = doc.getBody().getImages() || []; for (var d = 0; d < di.length; d++) images.push(di[d]); } catch(e) {}
-  } catch(e) {}
-  return images;
 }
 
 function extractReferences(text, doc) {
@@ -393,7 +473,7 @@ function parseDateAndLocationFromLine(line) {
   return null;
 }
 
-function parseDocText(text, fileName, defaultDateStr, imageUrl, photoUrls, doc, debugLog, plantName) {
+function parseDocText(text, fileName, defaultDateStr, imageUrl, galleryItems, doc, debugLog, plantName) {
   function getField(pattern) { var m = text.match(pattern); return m ? m[1].trim() : ''; }
 
   var name = plantName || fileName.replace(/[-_–\s]*植物資料.*/g, '').trim();
@@ -403,18 +483,6 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, photoUrls, doc, 
   if (parsedDl) {
     if (parsedDl.dateAdded) dateAdded = parsedDl.dateAdded;
     if (parsedDl.locationNote) locationNote = parsedDl.locationNote;
-  }
-  var locClean = locationNote ? (locationNote.indexOf("@") === 0 ? locationNote : "@" + locationNote) : "";
-  var defaultDateLocCaption = (dateAdded || locationNote) ? ("(" + dateAdded + locClean + ")") : "";
-
-  // 整理圖集：將所有網址包裝為帶標題的物件
-  var gallery = [];
-  var urlsToUse = (photoUrls && photoUrls.length > 0) ? photoUrls : (imageUrl ? [imageUrl] : []);
-  for (var u = 0; u < urlsToUse.length; u++) {
-    gallery.push({
-      caption: defaultDateLocCaption || ("特徵照片 " + (u + 1)),
-      url: urlsToUse[u]
-    });
   }
 
   return {
@@ -439,6 +507,7 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, photoUrls, doc, 
       waterQuality: getField(/(?:水質)[：:\s]+([^\n]+)/)
     },
     references: extractReferences(text, doc),
-    galleryImages: gallery
+    galleryImages: galleryItems || []
   };
 }
+

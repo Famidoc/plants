@@ -20,8 +20,8 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
-          // 如果已註冊的 SW 網址不是最新版本 v67，強制卸載再重新註冊
-          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=70')) {
+          // 如果已註冊的 SW 網址不是最新版本 v71，強制卸載再重新註冊
+          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=71')) {
             console.log('[SW清理] 偵測到舊版 SW，強制卸載:', reg.active.scriptURL);
             reg.unregister().then(function() {
               console.log('[SW清理] 舊版 SW 已卸載，即將重新載入最新版...');
@@ -29,7 +29,7 @@
               if ('caches' in window) {
                 caches.keys().then(function(names) {
                   names.forEach(function(name) {
-                    if (!name.includes('v67')) {
+                    if (!name.includes('v71')) {
                       caches.delete(name);
                       console.log('[SW清理] 已刪除舊快取:', name);
                     }
@@ -361,6 +361,7 @@
             <strong>🌿 智慧同步指南：</strong><br>
             • <strong>暫存增修：</strong>若 <code>[增修刪]</code> 資料夾有檔案，點擊下方按鈕將執行「秒速增量同步」，自動合併新增/修改並保留原圖鑑。<br>
             • <strong>刪除標記：</strong>檔名前加上 <code>[刪除]</code>（如：<code>[刪除]綠蘿.docx</code>）放入 <code>[增修刪]</code>，同步時自動從圖鑑移除。<br>
+            • <strong>草稿防護：</strong>檔名含 <code>[草稿]</code> 或 <code>(編輯中)</code> 的檔案會自動跳過同步，可安心於雲端整理校對。<br>
             • <strong>全量重讀：</strong>若 <code>[增修刪]</code> 無檔案，自動切換全量掃描 <code>[捻花惹草]</code> 主資料夾。
           </div>
         </div>
@@ -428,12 +429,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=70 Cache Buster -->
-  <script src="./js/data.js?v=70"></script>
-  <script src="./js/sync.js?v=70"></script>
-  <script src="./js/gallery.js?v=70"></script>
-  <script src="./js/quiz.js?v=70"></script>
-  <script src="./js/app.js?v=70"></script>
+  <!-- JavaScript Scripts with ?v=71 Cache Buster -->
+  <script src="./js/data.js?v=71"></script>
+  <script src="./js/sync.js?v=71"></script>
+  <script src="./js/gallery.js?v=71"></script>
+  <script src="./js/quiz.js?v=71"></script>
+  <script src="./js/app.js?v=71"></script>
 
 </body>
 </html>
