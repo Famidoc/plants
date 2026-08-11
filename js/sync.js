@@ -101,16 +101,20 @@ async function fetchLatestDataFromGAS() {
 
   let responseText = '';
   try {
+    console.log('[GAS Fetch] 開始請求:', url.substring(0, 60) + '...');
     const response = await fetch(url, { 
+      method: 'GET',
       redirect: 'follow',
+      mode: 'cors',
       signal: controller.signal 
     });
     clearTimeout(timeoutId);
+    console.log('[GAS Fetch] 收到回應, status:', response.status, 'type:', response.type);
     responseText = await response.text();
 
     // 如果回傳文字開頭是 HTML，說明 Google Apps Script 還沒完成「首次瀏覽器點擊授權」
     if (responseText.trim().startsWith('<') || responseText.includes('<!DOCTYPE html>')) {
-      throw new Error('Google Apps Script 尚未通過初次存取授權。請在手機瀏覽器開啟該 API 網址授權！');
+      throw new Error('Google Apps Script 尚未通過初次存取授權。請在手機瀏覽器直接開啟該 API 網址，完成 Google 授權後再回來同步。');
     }
 
     const result = JSON.parse(responseText);
@@ -137,12 +141,13 @@ async function fetchLatestDataFromGAS() {
     }
   } catch (err) {
     clearTimeout(timeoutId);
-    console.error('GAS Fetch 失敗:', err);
+    console.error('[GAS Fetch] 失敗:', err.name, err.message);
     if (err.name === 'AbortError') {
-      throw new Error('Google 雲端處理 48 筆檔案耗時較長 (超過 2 分鐘)。請點擊「⚡ 立即連線同步」重試。');
+      throw new Error('Google 雲端處理 48 筆檔案耗時較長 (超過 2 分鐘)。請確認網路連線後，點擊「⚡ 立即連線同步」重試。');
     }
-    if (err.name === 'TypeError' && err.message.includes('fetch')) {
-      throw new Error('CORS 權限阻擋：請至 Google 腳本「部署」設定中，將【誰有存取權】改為【所有人 (Anyone)】並發布新版本！');
+    if (err.name === 'TypeError') {
+      // 顯示真實錯誤訊息幫助診斷，不再一律歸咎 CORS
+      throw new Error(`連線失敗 (${err.message})。可能原因：\n① 手機網路不穩或中斷\n② GAS 部署的「誰有存取權」需設為「所有人 (Anyone)」\n③ 請嘗試在手機瀏覽器直接開啟 API 網址確認可存取`);
     }
     throw err;
   }

@@ -1,17 +1,17 @@
-const CACHE_NAME = 'nian-hua-re-cao-v65';
+const CACHE_NAME = 'nian-hua-re-cao-v66';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './css/main.css?v=65',
-  './css/gallery.css?v=65',
-  './css/modal.css?v=65',
-  './css/quiz.css?v=65',
-  './js/app.js?v=65',
-  './js/data.js?v=65',
-  './js/sync.js?v=65',
-  './js/gallery.js?v=65',
-  './js/quiz.js?v=65'
+  './css/main.css?v=66',
+  './css/gallery.css?v=66',
+  './css/modal.css?v=66',
+  './css/quiz.css?v=66',
+  './js/app.js?v=66',
+  './js/data.js?v=66',
+  './js/sync.js?v=66',
+  './js/gallery.js?v=66',
+  './js/quiz.js?v=66'
 ];
 
 self.addEventListener('install', (event) => {
@@ -41,10 +41,9 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
-  // ⚡ 關鍵修復：GAS API 請求必須直接走網路，絕不快取，避免 Service Worker 攔截 302 轉址引發手機端卡死
+  // ⚡ GAS API 請求完全不經過 SW，讓瀏覽器原生處理跨域 302 轉址，避免 SW 上下文中 CORS 失敗
   if (event.request.url.includes('script.google.com') || event.request.url.includes('script.googleusercontent.com')) {
-    event.respondWith(fetch(event.request, { redirect: 'follow' }));
-    return;
+    return; // 不呼叫 event.respondWith，完全繞過 SW
   }
   
   event.respondWith(
