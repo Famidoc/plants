@@ -485,6 +485,24 @@ function registerServiceWorker() {
           deferredPwaPrompt = null;
         });
       });
-    }
+  });
+
+  // ⬆ 監聽滾動以控制「回到最上頭」按鈕顯示與隱藏
+  const scrollBtn = document.getElementById('scrollToTopBtn');
+  if (scrollBtn) {
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 300) {
+        scrollBtn.classList.add('visible');
+      } else {
+        scrollBtn.classList.remove('visible');
+      }
+    });
+  }
+}
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
   });
 }

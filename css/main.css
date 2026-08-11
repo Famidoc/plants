@@ -83,17 +83,17 @@ body {
   justify-content: space-between;
 }
 
-.brand-logo {
+.brand, .brand-logo {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   text-decoration: none;
-  color: var(--text-light);
+  color: #ffffff;
 }
 
 .brand-icon {
   font-size: 1.8rem;
-  background: linear-gradient(135deg, var(--accent-mint), var(--accent-sage));
+  background: linear-gradient(135deg, var(--accent-mint, #afd19e), #ffffff);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
@@ -101,13 +101,15 @@ body {
 
 .brand-title {
   font-size: 1.35rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.5px;
+  color: #ffffff !important;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
 
 .brand-subtitle {
   font-size: 0.75rem;
-  color: var(--accent-sage);
+  color: var(--accent-sage, #afd19e);
   display: block;
 }
 
@@ -249,4 +251,43 @@ body {
   .mobile-bottom-nav { display: flex; }
   body { padding-bottom: 74px; }
   .app-header { padding: 0.75rem 1rem; }
+  .scroll-to-top-btn { bottom: 85px; right: 16px; width: 44px; height: 44px; font-size: 1.15rem; }
+}
+
+/* ⬆ 回到最上頭懸浮按鈕 */
+.scroll-to-top-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1b3b2b, #2d5a42);
+  color: #afd19e;
+  border: 1.5px solid #afd19e;
+  font-size: 1.3rem;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 99;
+}
+
+.scroll-to-top-btn.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.scroll-to-top-btn:hover, .scroll-to-top-btn:active {
+  background: #afd19e;
+  color: #0f2017;
+  transform: translateY(-4px) scale(1.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
 }
