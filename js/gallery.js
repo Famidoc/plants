@@ -10,6 +10,8 @@ let sortMode = 'DESC'; // 'DESC', 'ASC', 'RANDOM'
 let randomShuffledList = null;
 let currentlyRenderedList = [];
 let currentDetailIndex = -1;
+let currentPage = 1;       // 分頁狀態
+const PAGE_SIZE = 24;      // 每頁顯示筆數
 
 function handleImageError(imgEl) {
   if (imgEl) {
@@ -129,8 +131,12 @@ function renderGallery() {
     countBadge.textContent = `共 ${sorted.length} 筆資料 (${modeText}呈列)`;
   }
 
+  // 分頁顯示：取前 N 筆
+  const pagedSorted = sorted.slice(0, currentPage * PAGE_SIZE);
+  const hasMore = sorted.length > pagedSorted.length;
+
   // 4. 產生卡片 HTML
-  if (sorted.length === 0) {
+  if (pagedSorted.length === 0) {
     const hasSearch = searchQuery.trim() || activeCategory !== 'ALL';
     gridContainer.innerHTML = `
       <div class="empty-gallery-state" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
@@ -149,7 +155,7 @@ function renderGallery() {
     return;
   }
 
-  gridContainer.innerHTML = sorted.map((plant, index) => {
+  gridContainer.innerHTML = pagedSorted.map((plant, index) => {
     try {
       const aliasesTag = (plant.aliases && Array.isArray(plant.aliases) && plant.aliases.length > 0) 
         ? `<span class="plant-tag">${plant.aliases[0]}</span>` : '';
@@ -168,7 +174,8 @@ function renderGallery() {
         cleanImageUrl = DEFAULT_SVG_PLACEHOLDER;
       }
 
-      let isCloudPhoto = cleanImageUrl.startsWith('data:image') && !cleanImageUrl.includes('svg+xml');
+      let isCloudPhoto = cleanImageUrl.startsWith('https://drive.google.com') ||
+                         (cleanImageUrl.startsWith('https://') && !cleanImageUrl.includes('svg+xml'));
 
       let rawLocStr = String(plant.locationNote || '').trim();
       let cleanLocationNote = '';
@@ -186,7 +193,7 @@ function renderGallery() {
       return `
         <div class="plant-card" data-id="${plant.id}">
           <div class="plant-image-container">
-            <img src="${cleanImageUrl}" alt="${plant.name || '花草'}" class="plant-card-img" onerror="handleImageError(this)">
+            <img src="${cleanImageUrl}" alt="${plant.name || '花草'}" class="plant-card-img" loading="lazy" onerror="handleImageError(this)">
             ${plant.petFriendly ? '<span class="pet-friendly-tag">🐾 寵物友善</span>' : ''}
             ${isCloudPhoto ? '<span style="position:absolute; bottom:8px; right:8px; background:rgba(15,32,23,0.85); color:#afd19e; font-size:0.75rem; font-weight:700; padding:2px 8px; border-radius:10px; border:1px solid #afd19e;">📷 雲端照片</span>' : ''}
           </div>
@@ -217,6 +224,42 @@ function renderGallery() {
       }
     });
   });
+
+  // 載入更多按鈕
+  const existingLoadMore = document.getElementById('loadMoreBtn');
+  if (existingLoadMore) existingLoadMore.remove();
+
+  if (hasMore) {
+    const loadMoreBtn = document.createElement('div');
+    loadMoreBtn.id = 'loadMoreBtn';
+    loadMoreBtn.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 1.5rem 0 2rem;';
+    loadMoreBtn.innerHTML = `
+      <button onclick="loadMorePlants()" style="
+        background: var(--primary-dark, #1a3a2a);
+        color: var(--primary-light, #afd19e);
+        border: 1.5px solid var(--primary-light, #afd19e);
+        border-radius: 2rem;
+        padding: 0.6rem 2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      " onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+        ▼ 載入更多 (${pagedSorted.length} / ${sorted.length} 筆)
+      </button>
+    `;
+    gridContainer.appendChild(loadMoreBtn);
+  }
+}
+
+function loadMorePlants() {
+  currentPage += 1;
+  renderGallery();
+  // 平滑滾動到新塗片第一張
+  const cards = document.querySelectorAll('.plant-card');
+  if (cards.length > (currentPage - 1) * PAGE_SIZE) {
+    cards[(currentPage - 1) * PAGE_SIZE].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function setupGalleryEventListeners() {
@@ -227,9 +270,8 @@ function setupGalleryEventListeners() {
     searchInput.dataset.bound = 'true';
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
-      if (clearBtn) {
-        clearBtn.classList.toggle('visible', searchQuery.length > 0);
-      }
+      if (clearBtn) clearBtn.classList.toggle('visible', searchQuery.length > 0);
+      currentPage = 1; // 搜尋變更從第一頁開始
       renderGallery();
     });
   }
@@ -240,6 +282,7 @@ function setupGalleryEventListeners() {
       if (searchInput) searchInput.value = '';
       searchQuery = '';
       clearBtn.classList.remove('visible');
+      currentPage = 1; // 清除搜尋從第一頁開始
       renderGallery();
     });
   }
@@ -249,11 +292,8 @@ function setupGalleryEventListeners() {
   if (sortBtn && !sortBtn.dataset.bound) {
     sortBtn.dataset.bound = 'true';
     sortBtn.addEventListener('click', () => {
-      if (sortMode === 'DESC') {
-        sortMode = 'ASC';
-      } else {
-        sortMode = 'DESC';
-      }
+      if (sortMode === 'DESC') { sortMode = 'ASC'; } else { sortMode = 'DESC'; }
+      currentPage = 1; // 排序變更從第一頁開始
       renderGallery();
     });
   }
@@ -264,6 +304,7 @@ function setupGalleryEventListeners() {
     randomSortBtn.dataset.bound = 'true';
     randomSortBtn.addEventListener('click', () => {
       sortMode = 'RANDOM';
+      currentPage = 1; // 隨機排序從第一頁開始
       let rawList = Array.isArray(currentPlantsList) ? currentPlantsList.filter(p => p && typeof p === 'object') : [];
       let filtered = [...rawList];
       if (activeCategory !== 'ALL') {
@@ -302,6 +343,7 @@ function setupGalleryEventListeners() {
       chipContainer.querySelectorAll('.chip-btn').forEach(c => c.classList.remove('active'));
       chip.classList.add('active');
       activeCategory = chip.getAttribute('data-category') || 'ALL';
+      currentPage = 1; // 分類變更從第一頁開始
       renderGallery();
     });
   }

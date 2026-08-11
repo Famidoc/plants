@@ -92,27 +92,16 @@ function saveStoredPlants(plants) {
   // 1. 立即寫入記憶體，確保畫面能瞬間更新
   inMemoryPlantsList = plants;
 
-  // 2. 寫入 IndexedDB 永久大容量快取 (包含所有 48 筆高解析度照片)
+  // 2. 寫入 IndexedDB 永久大容量快取 (圖片已是 Drive URL，體積極小)
   saveToIndexedDB('synced_plants', plants);
 
-  // 3. 寫入 LocalStorage 精簡版 (突破 5MB 容量限制，確保 48 筆花草清單 100% 永久保留)
+  // 3. 寫入 LocalStorage（圖片已是 Drive URL，體積極小，可完整存入）
   try {
-    const lightweight = plants.map(p => {
-      let img = String(p.imageUrl || '');
-      if (img.startsWith('data:image')) {
-        img = DEFAULT_SVG_PLACEHOLDER;
-      }
-      return {
-        ...p,
-        imageUrl: img,
-        galleryImages: []
-      };
-    });
-    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(lightweight));
+    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(plants));
   } catch (e) {
-    console.warn('LocalStorage 備份容量限制，嘗試二次極簡化壓縮寫入...', e);
+    console.warn('LocalStorage 備份失敗，嘗試精簡版...', e);
     try {
-      // 超級極簡備份 (僅保留核心文字欄位)
+      // 超級極簡備份（僅保留核心文字欄位）
       const ultraLight = plants.map(p => ({
         id: p.id,
         name: p.name,
@@ -123,7 +112,7 @@ function saveStoredPlants(plants) {
         dateAdded: p.dateAdded,
         locationNote: p.locationNote,
         petFriendly: p.petFriendly,
-        imageUrl: DEFAULT_SVG_PLACEHOLDER
+        imageUrl: p.imageUrl || DEFAULT_SVG_PLACEHOLDER
       }));
       localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(ultraLight));
     } catch (err2) {
