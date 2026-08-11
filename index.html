@@ -14,29 +14,22 @@
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
 
 
-  <!-- ⚡ 關鍵內嵌腳本：強制清理與版本 v66 不符的舊版 Service Worker，破解死鎖與快取 -->
+  <!-- ⚡ 關鍵內嵌腳本：清理舊版 Service Worker 與舊版快取，破解死鎖與快取 -->
   <script>
   (function() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
-          // 如果已註冊的 SW 網址不是最新版本 v71，強制卸載再重新註冊
           if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=71')) {
             console.log('[SW清理] 偵測到舊版 SW，強制卸載:', reg.active.scriptURL);
             reg.unregister().then(function() {
-              console.log('[SW清理] 舊版 SW 已卸載，即將重新載入最新版...');
-              // 清理所有舊快取
               if ('caches' in window) {
                 caches.keys().then(function(names) {
                   names.forEach(function(name) {
-                    if (!name.includes('v71')) {
-                      caches.delete(name);
-                      console.log('[SW清理] 已刪除舊快取:', name);
-                    }
+                    if (!name.includes('v71')) caches.delete(name);
                   });
                 });
               }
-              window.location.reload();
             });
           }
         });
@@ -51,17 +44,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=70">
-  <link rel="stylesheet" href="./css/gallery.css?v=70">
-  <link rel="stylesheet" href="./css/modal.css?v=70">
-  <link rel="stylesheet" href="./css/quiz.css?v=70">
+  <link rel="stylesheet" href="./css/main.css?v=71">
+  <link rel="stylesheet" href="./css/gallery.css?v=71">
+  <link rel="stylesheet" href="./css/modal.css?v=71">
+  <link rel="stylesheet" href="./css/quiz.css?v=71">
 </head>
 <body>
 
   <!-- 頂部導覽列 (Header) -->
   <header class="app-header">
     <div class="header-container">
-      <div class="brand-logo" style="cursor: default;">
+      <div class="brand">
         <span class="brand-icon">🪴</span>
         <div>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -70,7 +63,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v70</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v71</small></span>
         </div>
       </div>
 
