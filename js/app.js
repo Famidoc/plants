@@ -48,41 +48,36 @@ async function autoBackgroundSyncGAS() {
     return;
   }
   try {
-    console.log('[背景同步] 開始自動同步...', url.substring(0, 50) + '...');
-    showSyncProgressBanner('loading', '🔄 自動同步中..... 正在檢查雲端圖資與照片');
+    console.log('[背景同步] 開始自動檢查...', url.substring(0, 50) + '...');
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
       const { syncMode, plants, deletedPlants } = syncRes;
-      let syncBannerText = '';
 
       if (syncMode === 'INCREMENTAL') {
         const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
+        // ⚡ 僅當確實有異動項目時才彈出提示橫幅，平常 [增修刪] 為空時 100% 靜默無打擾！
         if (stats.addedCount > 0 || stats.updatedCount > 0 || stats.deletedCount > 0) {
-          syncBannerText = `✅ 自動增修完成！更新了 ${stats.addedCount + stats.updatedCount} 筆圖資`;
-        } else {
-          syncBannerText = '✅ 自動同步完成！花草圖鑑已為最新狀態';
+          let details = [];
+          if (stats.addedCount > 0) details.push(`新增 ${stats.addedCount} 筆`);
+          if (stats.updatedCount > 0) details.push(`更新 ${stats.updatedCount} 筆`);
+          if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
+          showSyncProgressBanner('success', `✅ 自動增修完成！${details.join('、')}`, 3500);
         }
       } else {
         if (plants && Array.isArray(plants) && plants.length > 0) {
           saveStoredPlants(plants);
-          syncBannerText = `✅ 全量同步完成！共載入 ${plants.length} 筆完整花草圖鑑`;
+          showSyncProgressBanner('success', `✅ 自動同步完成！共載入 ${plants.length} 筆完整花草圖鑑`, 3000);
         }
       }
-
-      showSyncProgressBanner('success', syncBannerText || '✅ 同步完成！', 3000);
 
       const modalBackdrop = document.getElementById('plantModalBackdrop');
       if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
         initGallery();
       }
-      console.log('[背景同步] 自動同步完成，共 ' + (syncRes.plants || []).length + ' 筆');
+      console.log('[背景同步] 檢查完成');
     }
   } catch(e) {
-    console.warn('[背景同步] 自動同步失敗:', e.message || e);
-    const banner = document.getElementById('syncStatusBanner');
-    if (banner && banner.classList.contains('status-loading')) {
-      banner.classList.remove('visible');
-    }
+    console.warn('[背景同步] 檢查失敗:', e.message || e);
   }
 }
 
@@ -460,7 +455,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=74')
+      navigator.serviceWorker.register('./sw.js?v=75')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 

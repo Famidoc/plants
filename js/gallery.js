@@ -158,16 +158,23 @@ function renderGallery() {
   if (pagedSorted.length === 0) {
     const hasSearch = searchQuery.trim() || activeCategory !== 'ALL';
     gridContainer.innerHTML = `
-      <div class="empty-gallery-state" style="grid-column: 1 / -1; text-align: center; padding: 3rem 1rem;">
-        <div class="empty-icon" style="font-size: 3.5rem; margin-bottom: 1rem;">🌿</div>
-        <h3 style="color: var(--primary-dark); font-size: 1.25rem; margin-bottom: 0.6rem;">${hasSearch ? '未找到符合條件的花草' : '尚未載入雲端花草圖鑑'}</h3>
-        <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem; line-height: 1.6;">
-          ${hasSearch ? '請嘗試清除搜尋關鍵字或切換分類標籤' : '請確認已填入 API 網址並點擊「⚡ 立即連線同步」連線載入您的 48 筆圖資與照片。'}
+      <div class="empty-gallery-state" style="grid-column: 1 / -1; text-align: center; padding: 3.5rem 1.5rem; background: rgba(255,255,255,0.7); border-radius: 20px; border: 1.5px dashed #a3c9b0; backdrop-filter: blur(10px); margin: 1rem 0;">
+        <div class="empty-icon" style="font-size: 3.8rem; margin-bottom: 0.8rem;">🪴</div>
+        <h3 style="color: var(--primary-dark); font-size: 1.35rem; font-weight: 800; margin-bottom: 0.8rem;">
+          ${hasSearch ? '未找到符合條件的花草' : '歡迎使用《捻花惹草》花草圖鑑！'}
+        </h3>
+        <p style="color: var(--text-muted); font-size: 0.98rem; margin-bottom: 1.8rem; line-height: 1.7; max-width: 520px; margin-left: auto; margin-right: auto;">
+          ${hasSearch ? '請嘗試清除搜尋關鍵字或切換分類標籤。' : '初次使用或清空本機快取時，請點擊下方按鈕進行第一次雲端連線同步，載入 50+ 筆完整花草圖資與照片。'}
         </p>
         ${!hasSearch ? `
-          <button onclick="openSettingsModal()" class="btn-primary" style="display: inline-block; padding: 0.75rem 1.5rem; font-size: 1rem;">
-            ⚙️ 前往連線同步
-          </button>
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button onclick="triggerFullInitialSync()" class="btn-primary" style="padding: 0.85rem 2rem; font-size: 1.05rem; border-radius: 2rem; box-shadow: 0 4px 15px rgba(27,59,43,0.3);">
+              ⚡ 開始初次連線同步圖鑑
+            </button>
+            <button onclick="openSettingsModal()" class="btn-primary" style="padding: 0.85rem 1.5rem; font-size: 1rem; border-radius: 2rem; background: rgba(27,59,43,0.1); color: var(--primary-dark); border: 1px solid var(--primary-dark);">
+              ⚙️ 同步設定
+            </button>
+          </div>
         ` : ''}
       </div>
     `;
@@ -651,14 +658,49 @@ function switchModalTab(tabId) {
   });
 }
 
-function openFullScreenPhoto(url, caption) {
+function closeFullScreenPhoto() {
   const modal = document.getElementById('fullScreenPhotoModal');
-  const img = document.getElementById('fullScreenPhotoImg');
-  const cap = document.getElementById('fullScreenPhotoCaption');
-  if (modal && img) {
-    img.src = url;
-    if (cap) cap.textContent = caption || '';
-    modal.classList.add('open');
+  if (modal) modal.classList.remove('open');
+}
+
+/**
+ * ⚡ 初次安裝/無資料使用者一鍵全量同步圖鑑
+ */
+async function triggerFullInitialSync() {
+  const url = typeof getSavedGasUrlAsync === 'function' ? (await getSavedGasUrlAsync()) : getSavedGasUrl();
+  if (!url) {
+    if (typeof showToast === 'function') {
+      showToast('💡 初次使用請先貼入您的 Google Apps Script API 網址！', 5000);
+    }
+    if (typeof openSettingsModal === 'function') {
+      openSettingsModal();
+    }
+    return;
+  }
+
+  if (typeof showSyncProgressBanner === 'function') {
+    showSyncProgressBanner('loading', '🔄 初次全量連線同步中..... 正在下載雲端 50+ 筆花草圖資與照片');
+  }
+
+  try {
+    const syncRes = await fetchLatestDataFromGAS();
+    if (syncRes && syncRes.plants) {
+      saveStoredPlants(syncRes.plants);
+      initGallery();
+      if (typeof showSyncProgressBanner === 'function') {
+        showSyncProgressBanner('success', `✅ 初次同步完成！成功載入 ${syncRes.plants.length} 筆完整花草圖鑑`, 3500);
+      }
+      if (typeof showToast === 'function') {
+        showToast(`✅ 歡迎使用！已成功載入 ${syncRes.plants.length} 筆花草圖鑑。`, 5000);
+      }
+    }
+  } catch(err) {
+    if (typeof showSyncProgressBanner === 'function') {
+      showSyncProgressBanner('error', `⚠️ 同步失敗：${err.message}`, 6000);
+    }
+    if (typeof openSettingsModal === 'function') {
+      openSettingsModal();
+    }
   }
 }
 

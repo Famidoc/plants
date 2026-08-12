@@ -1,12 +1,13 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v71 完美圖片快取與草稿保護版
+ * Google Apps Script (GAS) 自動掃描腳本 - v75 聰明增量與零等待保護版
  * 
  * 重大修復與升級：
- * 1. 徹底消除圖片重複產生與雙重讀取 Bug (解決一張圖變兩張、舊圖新圖各變兩張問題)
- * 2. 智慧增量快取：當 Doc 中新增照片時，自動精確補抓新照片並存入 images/ 資料夾
- * 3. 逐圖時間地點解析：自動辨識每張照片下方/附近的獨立拍攝時間與地點 (如 20260707@大坑四號步道)
- * 4. 草稿防護機制：自動忽略名稱含有 [草稿]、(編輯中)、Draft 的檔案，防止整理資料時影響使用者
+ * 1. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動，絕不白跑全量掃描
+ * 2. 徹底消除圖片重複產生與雙重讀取 Bug
+ * 3. 智慧增量快取：當 Doc 中新增照片時，自動精確補抓新照片並存入 images/ 主資料夾
+ * 4. 逐圖時間地點解析：自動辨識每張照片下方/附近的獨立拍攝時間與地點 (如 20260707@大坑四號步道)
+ * 5. 草稿防護機制：自動忽略名稱含有 [草稿]、(編輯中)、Draft 的檔案
  * ==========================================================================
  */
 
@@ -353,9 +354,10 @@ function findTargetFolder() {
   var stagingNames = ["增修刪", "[增修刪]", "【增修刪】"];
   for (var s = 0; s < stagingNames.length; s++) {
     var sFolders = DriveApp.getFoldersByName(stagingNames[s]);
-    while (sFolders.hasNext()) {
-      var sf = sFolders.next();
-      if (getAllDocsInFolder(sf).length > 0) return { folder: sf, syncMode: "INCREMENTAL" };
+    if (sFolders.hasNext()) {
+      // ⚡ v75 重大優化：只要發現名為 [增修刪] 的資料夾，即鎖定增量模式 (INCREMENTAL)
+      // 若資料夾為空，0.1秒直接回傳 0 筆異動，絕不下墜白跑全量主資料夾掃描！
+      return { folder: sFolders.next(), syncMode: "INCREMENTAL" };
     }
   }
   var mainNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
