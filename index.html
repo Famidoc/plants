@@ -20,13 +20,13 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         regs.forEach(function(reg) {
-          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=77')) {
+          if (reg.active && reg.active.scriptURL && !reg.active.scriptURL.includes('v=78')) {
             console.log('[SW清理] 偵測到舊版 SW，強制卸載:', reg.active.scriptURL);
             reg.unregister().then(function() {
               if ('caches' in window) {
                 caches.keys().then(function(names) {
                   names.forEach(function(name) {
-                    if (!name.includes('v=77')) caches.delete(name);
+                    if (!name.includes('v=78')) caches.delete(name);
                   });
                 });
               }
@@ -44,10 +44,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=77">
-  <link rel="stylesheet" href="./css/gallery.css?v=77">
-  <link rel="stylesheet" href="./css/modal.css?v=77">
-  <link rel="stylesheet" href="./css/quiz.css?v=77">
+  <link rel="stylesheet" href="./css/main.css?v=78">
+  <link rel="stylesheet" href="./css/gallery.css?v=78">
+  <link rel="stylesheet" href="./css/modal.css?v=78">
+  <link rel="stylesheet" href="./css/quiz.css?v=78">
 </head>
 <body>
 
@@ -63,7 +63,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v77</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v78</small></span>
         </div>
       </div>
 
@@ -207,7 +207,7 @@
       </div>
       
       <!-- 主圖區塊 (Hero Image Area) - 100% 淨空全顯，導覽按鈕置於中間兩側 -->
-      <div class="modal-header-hero">
+      <div class="modal-header-hero" onclick="openCurrentHeroPhotoFullScreen(event)">
         <!-- 上一筆 / 下一筆導覽按鈕 (垂直置中於主圖) -->
         <button class="modal-nav-btn modal-nav-prev" id="modalPrevBtn" title="上一筆 (鍵盤 ❮ 鍵)" onclick="navigatePlantModal(-1);">
           <span>❮</span> <span class="nav-text">上一筆</span>
@@ -218,6 +218,11 @@
 
         <img id="modalHeroBgBlur" src="" alt="" class="modal-hero-bg-blur">
         <img id="modalHeroImg" src="" alt="花草大圖" class="modal-hero-img" title="點擊檢視全螢幕大圖">
+
+        <!-- 🔍 顯眼醒目的放大提示 Badge -->
+        <div class="modal-hero-zoom-badge" title="點擊檢視全螢幕大圖">
+          <span>🔍</span> <span>點擊放大</span>
+        </div>
       </div>
 
       <div class="modal-body">
@@ -433,12 +438,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=77 Cache Buster -->
-  <script src="./js/data.js?v=77"></script>
-  <script src="./js/sync.js?v=77"></script>
-  <script src="./js/gallery.js?v=77"></script>
-  <script src="./js/quiz.js?v=77"></script>
-  <script src="./js/app.js?v=77"></script>
+  <!-- JavaScript Scripts with ?v=78 Cache Buster -->
+  <script src="./js/data.js?v=78"></script>
+  <script src="./js/sync.js?v=78"></script>
+  <script src="./js/gallery.js?v=78"></script>
+  <script src="./js/quiz.js?v=78"></script>
+  <script src="./js/app.js?v=78"></script>
 
 </body>
 </html>

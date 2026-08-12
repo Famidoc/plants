@@ -709,7 +709,36 @@ async function triggerFullInitialSync() {
   }
 }
 
+function openFullScreenPhoto(url, caption) {
+  const modal = document.getElementById('fullScreenPhotoModal');
+  const img = document.getElementById('fullScreenPhotoImg');
+  const cap = document.getElementById('fullScreenPhotoCaption');
+  if (modal && img) {
+    img.src = url;
+    if (cap) cap.textContent = caption || '';
+    modal.classList.add('open');
+  }
+}
+
 function closeFullScreenPhoto() {
   const modal = document.getElementById('fullScreenPhotoModal');
   if (modal) modal.classList.remove('open');
 }
+
+/**
+ * ⚡ 全域安全無障礙：點擊燈箱主圖區域任何地方放大照片
+ */
+window.openCurrentHeroPhotoFullScreen = function(e) {
+  if (e && e.target && e.target.closest('.modal-nav-btn')) {
+    return; // 避開上一筆/下一筆按鈕
+  }
+  if (e) e.stopPropagation();
+  const heroImg = document.getElementById('modalHeroImg');
+  const modalTitle = document.getElementById('modalTitle');
+  if (heroImg && heroImg.src) {
+    openFullScreenPhoto(heroImg.src, (modalTitle ? modalTitle.textContent : '花草大圖'));
+  }
+};
+
+window.openFullScreenPhoto = openFullScreenPhoto;
+window.closeFullScreenPhoto = closeFullScreenPhoto;

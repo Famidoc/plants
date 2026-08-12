@@ -324,6 +324,35 @@
   filter: brightness(1.05);
 }
 
+.modal-hero-zoom-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(15, 32, 23, 0.85);
+  color: #afd19e;
+  border: 1px solid rgba(175, 209, 158, 0.4);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  z-index: 10;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.modal-header-hero:hover .modal-hero-zoom-badge {
+  background: #afd19e;
+  color: #0f2017;
+  transform: scale(1.06);
+}
+
 .modal-body {
   flex: 1;
   overflow-y: auto;
