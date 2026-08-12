@@ -49,24 +49,29 @@ async function autoBackgroundSyncGAS() {
   }
   try {
     console.log('[背景同步] 開始自動檢查...', url.substring(0, 50) + '...');
+    showSyncProgressBanner('loading', '🔄 雲端資料增修中..... 正在檢查與解析 [增修刪] 圖資與照片');
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
       const { syncMode, plants, deletedPlants } = syncRes;
 
       if (syncMode === 'INCREMENTAL') {
         const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
-        // ⚡ 僅當確實有異動項目時才彈出提示橫幅，平常 [增修刪] 為空時 100% 靜默無打擾！
         if (stats.addedCount > 0 || stats.updatedCount > 0 || stats.deletedCount > 0) {
           let details = [];
           if (stats.addedCount > 0) details.push(`新增 ${stats.addedCount} 筆`);
           if (stats.updatedCount > 0) details.push(`更新 ${stats.updatedCount} 筆`);
           if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
           showSyncProgressBanner('success', `✅ 自動增修完成！${details.join('、')}`, 3500);
+        } else {
+          // 若 [增修刪] 為空無異動，瞬間隱藏橫幅 (0.1秒)，達到完全靜默無打擾！
+          hideSyncProgressBanner();
         }
       } else {
         if (plants && Array.isArray(plants) && plants.length > 0) {
           saveStoredPlants(plants);
           showSyncProgressBanner('success', `✅ 自動同步完成！共載入 ${plants.length} 筆完整花草圖鑑`, 3000);
+        } else {
+          hideSyncProgressBanner();
         }
       }
 
@@ -75,9 +80,12 @@ async function autoBackgroundSyncGAS() {
         initGallery();
       }
       console.log('[背景同步] 檢查完成');
+    } else {
+      hideSyncProgressBanner();
     }
   } catch(e) {
     console.warn('[背景同步] 檢查失敗:', e.message || e);
+    hideSyncProgressBanner();
   }
 }
 
@@ -463,7 +471,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=76')
+      navigator.serviceWorker.register('./sw.js?v=77')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 
