@@ -259,6 +259,8 @@ function setupSettingsModal() {
       const originalText = triggerSyncBtn.textContent;
       triggerSyncBtn.textContent = '⏳ 同步處理中...';
 
+      const startTime = Date.now();
+
       try {
         const syncRes = await fetchLatestDataFromGAS();
         const { syncMode, plants, deletedPlants, folderFound, debugLog } = syncRes;
@@ -286,6 +288,12 @@ function setupSettingsModal() {
           initGallery();
           bannerText = `✅ [全量掃描] 同步完成！共載入 ${plants.length} 筆完整圖鑑`;
           msg = `✅ 全量連線同步成功！已從 [${folderFound}] 載入 ${plants.length} 筆完整花草資料與照片。`;
+        }
+
+        // ⚡ 平滑體驗加強：確保 [同步中...] 載入橫幅至少展示 800ms，讓肉眼能清晰確認轉圈動畫
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 800) {
+          await new Promise(r => setTimeout(r, 800 - elapsed));
         }
 
         showSyncProgressBanner('success', bannerText, 3500);
