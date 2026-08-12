@@ -49,16 +49,28 @@ async function autoBackgroundSyncGAS() {
   }
   try {
     console.log('[背景同步] 開始自動同步...', url.substring(0, 50) + '...');
+    showSyncProgressBanner('loading', '🔄 自動同步中..... 正在檢查雲端圖資與照片');
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
       const { syncMode, plants, deletedPlants } = syncRes;
+      let syncBannerText = '';
+
       if (syncMode === 'INCREMENTAL') {
-        await mergeAndSaveStoredPlants(plants, deletedPlants);
+        const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
+        if (stats.addedCount > 0 || stats.updatedCount > 0 || stats.deletedCount > 0) {
+          syncBannerText = `✅ 自動增修完成！更新了 ${stats.addedCount + stats.updatedCount} 筆圖資`;
+        } else {
+          syncBannerText = '✅ 自動同步完成！花草圖鑑已為最新狀態';
+        }
       } else {
         if (plants && Array.isArray(plants) && plants.length > 0) {
           saveStoredPlants(plants);
+          syncBannerText = `✅ 全量同步完成！共載入 ${plants.length} 筆完整花草圖鑑`;
         }
       }
+
+      showSyncProgressBanner('success', syncBannerText || '✅ 同步完成！', 3000);
+
       const modalBackdrop = document.getElementById('plantModalBackdrop');
       if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
         initGallery();
@@ -67,6 +79,10 @@ async function autoBackgroundSyncGAS() {
     }
   } catch(e) {
     console.warn('[背景同步] 自動同步失敗:', e.message || e);
+    const banner = document.getElementById('syncStatusBanner');
+    if (banner && banner.classList.contains('status-loading')) {
+      banner.classList.remove('visible');
+    }
   }
 }
 
@@ -240,7 +256,14 @@ function setupSettingsModal() {
         return;
       }
 
-      showToast('📡 正在連線同步 Google Drive 資料與照片（手機端可能需要 30-60 秒）...', 5000);
+      showSyncProgressBanner('loading', '🔄 資料增修中..... 正在連線讀取雲端圖資與照片');
+      showToast('📡 正在連線同步 Google Drive 資料與照片...', 4000);
+      
+      triggerSyncBtn.disabled = true;
+      triggerSyncBtn.style.opacity = '0.7';
+      const originalText = triggerSyncBtn.textContent;
+      triggerSyncBtn.textContent = '⏳ 同步處理中...';
+
       try {
         const syncRes = await fetchLatestDataFromGAS();
         const { syncMode, plants, deletedPlants, folderFound, debugLog } = syncRes;
@@ -249,6 +272,8 @@ function setupSettingsModal() {
         renderDebugLog(debugLog);
 
         let msg = '';
+        let bannerText = '';
+
         if (syncMode === 'INCREMENTAL') {
           const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
           initGallery();
@@ -259,17 +284,24 @@ function setupSettingsModal() {
           if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
           const detailStr = details.length > 0 ? details.join('、') : '無異動項目';
 
+          bannerText = `✅ [增量增修] 同步完成！${detailStr}`;
           msg = `✅ [增修刪] 暫存同步成功！${detailStr}（圖鑑共 ${stats.totalCount} 筆）。<br>💡 提示：可展開下方診斷日誌確認照片擷取細節。`;
         } else {
           saveStoredPlants(plants);
           initGallery();
+          bannerText = `✅ [全量掃描] 同步完成！共載入 ${plants.length} 筆完整圖鑑`;
           msg = `✅ 全量連線同步成功！已從 [${folderFound}] 載入 ${plants.length} 筆完整花草資料與照片。`;
         }
 
+        showSyncProgressBanner('success', bannerText, 3500);
         showToast(msg, 6500);
       } catch (err) {
+        showSyncProgressBanner('error', `⚠️ 同步失敗：${err.message}`, 6000);
         showToast(`❌ 同步失敗：${err.message}`, 8000);
-        alert(`❌ 同步連線失敗：${err.message}`);
+      } finally {
+        triggerSyncBtn.disabled = false;
+        triggerSyncBtn.style.opacity = '1';
+        triggerSyncBtn.textContent = originalText || '⚡ 立即連線同步';
       }
     });
   }
@@ -428,7 +460,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=73')
+      navigator.serviceWorker.register('./sw.js?v=74')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 
@@ -506,4 +538,53 @@ function scrollToTop() {
     top: 0,
     behavior: 'smooth'
   });
+}
+
+/**
+ * 🔄 全域雲端動態同步進度與狀態提示橫幅
+ */
+function showSyncProgressBanner(type, message, autoHideMs = 0) {
+  const banner = document.getElementById('syncStatusBanner');
+  const icon = document.getElementById('syncStatusIcon');
+  const text = document.getElementById('syncStatusText');
+  if (!banner || !icon || !text) return;
+
+  if (window.syncBannerTimer) {
+    clearTimeout(window.syncBannerTimer);
+    window.syncBannerTimer = null;
+  }
+
+  banner.className = 'sync-status-banner visible';
+
+  if (type === 'loading') {
+    banner.classList.add('status-loading');
+    icon.className = 'sync-status-icon sync-spinner-icon';
+    icon.textContent = '🔄';
+    text.textContent = message || '資料增修中..... 請稍候';
+  } else if (type === 'success') {
+    banner.classList.add('status-success');
+    icon.className = 'sync-status-icon';
+    icon.textContent = '✅';
+    text.textContent = message || '同步完成！';
+
+    const timeout = autoHideMs || 3500;
+    window.syncBannerTimer = setTimeout(() => {
+      banner.classList.remove('visible');
+    }, timeout);
+  } else if (type === 'error') {
+    banner.classList.add('status-error');
+    icon.className = 'sync-status-icon';
+    icon.textContent = '⚠️';
+    text.textContent = message || '同步發生異常';
+
+    const timeout = autoHideMs || 6000;
+    window.syncBannerTimer = setTimeout(() => {
+      banner.classList.remove('visible');
+    }, timeout);
+  }
+}
+
+function hideSyncProgressBanner() {
+  const banner = document.getElementById('syncStatusBanner');
+  if (banner) banner.classList.remove('visible');
 }
