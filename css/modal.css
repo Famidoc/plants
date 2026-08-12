@@ -292,6 +292,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: zoom-in !important;
 }
 
 .modal-hero-bg-blur {
@@ -314,12 +315,13 @@
   height: 100%;
   object-fit: contain;
   z-index: 2;
-  transition: transform 0.25s ease;
-  cursor: zoom-in;
+  transition: transform 0.25s ease, filter 0.25s ease;
+  cursor: zoom-in !important;
 }
 
-.modal-hero-img:hover {
-  transform: scale(1.015);
+.modal-header-hero:hover .modal-hero-img {
+  transform: scale(1.02);
+  filter: brightness(1.05);
 }
 
 .modal-body {

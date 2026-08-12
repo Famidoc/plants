@@ -425,17 +425,23 @@ function openPlantDetailModal(plant) {
   let cleanImageUrl = formatDriveImageUrl(rawUrl);
 
   // 填入資料
+  const heroContainer = document.querySelector('.modal-header-hero');
   const heroImg = document.getElementById('modalHeroImg');
   const heroBgBlur = document.getElementById('modalHeroBgBlur');
   if (heroImg) heroImg.src = cleanImageUrl;
   if (heroBgBlur) heroBgBlur.src = cleanImageUrl;
 
-  // 點擊主圖可查看無遮擋全螢幕大圖
-  if (heroImg) {
-    heroImg.onclick = () => {
-      openFullScreenPhoto(heroImg.src, plant.name);
-    };
-  }
+  // 點擊主圖區域或主圖照片，均可查看無遮擋全螢幕大圖
+  let activeHeroPhotoUrl = cleanImageUrl;
+  let activeHeroPhotoCaption = plant.name;
+
+  const handleHeroClick = (e) => {
+    if (e && e.target && e.target.closest('.modal-nav-btn')) return;
+    openFullScreenPhoto(activeHeroPhotoUrl || cleanImageUrl, activeHeroPhotoCaption || plant.name);
+  };
+
+  if (heroContainer) heroContainer.onclick = handleHeroClick;
+  if (heroImg) heroImg.onclick = handleHeroClick;
 
   const modalTitleEl = document.getElementById('modalTitle');
   if (modalTitleEl) modalTitleEl.textContent = plant.name;
@@ -538,10 +544,9 @@ function openPlantDetailModal(plant) {
           const targetUrl = card.getAttribute('data-url');
           const targetCap = card.getAttribute('data-caption');
           if (targetUrl) {
-            if (heroImg) {
-              heroImg.src = targetUrl;
-              heroImg.onclick = () => openFullScreenPhoto(targetUrl, targetCap || plant.name);
-            }
+            activeHeroPhotoUrl = targetUrl;
+            activeHeroPhotoCaption = targetCap || plant.name;
+            if (heroImg) heroImg.src = targetUrl;
             if (heroBgBlur) heroBgBlur.src = targetUrl;
             galleryContainer.querySelectorAll('.gallery-item-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');

@@ -455,7 +455,7 @@ function showToast(message, duration = 3500) {
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js?v=75')
+      navigator.serviceWorker.register('./sw.js?v=76')
         .then((reg) => {
           console.log('PWA ServiceWorker 註冊成功:', reg.scope);
 
