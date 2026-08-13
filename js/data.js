@@ -205,6 +205,9 @@ function clearAllPlantCache() {
   try {
     STORAGE_KEYS.forEach(k => localStorage.removeItem(k));
   } catch(e) {}
+  if (typeof clearLastSyncedTime === 'function') {
+    clearLastSyncedTime();
+  }
 }
 
 // 解析純文字

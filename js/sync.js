@@ -25,6 +25,31 @@ function cleanGasUrl(raw) {
   return str;
 }
 
+const GAS_LAST_SYNC_TIME_KEY = 'nian_hua_re_cao_last_synced_time';
+
+function getLastSyncedTime() {
+  try {
+    return localStorage.getItem(GAS_LAST_SYNC_TIME_KEY) || '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function saveLastSyncedTime(timeStr) {
+  if (!timeStr) return;
+  try {
+    localStorage.setItem(GAS_LAST_SYNC_TIME_KEY, timeStr);
+  } catch (e) {
+    console.error('儲存同步時間失敗:', e);
+  }
+}
+
+function clearLastSyncedTime() {
+  try {
+    localStorage.removeItem(GAS_LAST_SYNC_TIME_KEY);
+  } catch (e) {}
+}
+
 function getSavedGasUrl() {
   try {
     let raw = localStorage.getItem(GAS_SYNC_URL_KEY) || '';
@@ -96,13 +121,43 @@ async function fetchLatestDataFromGAS() {
     throw new Error('未設定 API 網址。請先貼入 Google Apps Script Web App 網址。');
   }
 
+  // 取得本機的最後同步時間與植物總筆數
+  const lastSynced = getLastSyncedTime();
+  let plantCount = -1;
+  if (typeof getStoredPlants === 'function') {
+    try {
+      const currentPlants = getStoredPlants() || [];
+      plantCount = currentPlants.length;
+    } catch (e) {}
+  }
+
+  // 組裝 URL 參數，並加上隨機數以避免瀏覽器/PWA 快取 GET 請求
+  let requestUrl = url;
+  try {
+    const parsedUrl = new URL(url);
+    if (lastSynced) {
+      parsedUrl.searchParams.set('last_synced', lastSynced);
+    }
+    if (plantCount !== -1) {
+      parsedUrl.searchParams.set('plant_count', plantCount.toString());
+    }
+    parsedUrl.searchParams.set('t', Date.now().toString());
+    requestUrl = parsedUrl.toString();
+  } catch (urlErr) {
+    // 備用簡單拼接方式
+    const separator = url.indexOf('?') === -1 ? '?' : '&';
+    requestUrl = url + separator + 't=' + Date.now();
+    if (lastSynced) requestUrl += '&last_synced=' + encodeURIComponent(lastSynced);
+    if (plantCount !== -1) requestUrl += '&plant_count=' + plantCount;
+  }
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 分鐘超時 (300秒)
 
   let responseText = '';
   try {
-    console.log('[GAS Fetch] 開始請求:', url.substring(0, 60) + '...');
-    const response = await fetch(url, { 
+    console.log('[GAS Fetch] 開始請求:', requestUrl.substring(0, 80) + '...');
+    const response = await fetch(requestUrl, { 
       method: 'GET',
       redirect: 'follow',
       mode: 'cors',
@@ -128,6 +183,9 @@ async function fetchLatestDataFromGAS() {
       const deletedPlants = result.deletedPlants || [];
       const syncMode = result.syncMode || 'FULL';
       const folderFound = result.folderFound || 'Google Drive';
+
+      // 儲存本次成功同步的時間戳記
+      saveLastSyncedTime(result.updatedAt || new Date().toISOString());
 
       return {
         syncMode: syncMode,

@@ -33,6 +33,53 @@ function doGet(e) {
     debugLog.push("📂 圖片快取資料夾: " + mainFolder.getName() + "/images/ (ID: " + imagesFolder.getId() + ")");
 
     var docs = getAllDocsInFolder(folder);
+
+    // ⚡ v79 智慧增量 fallback 全量機制
+    if (syncMode === "INCREMENTAL" && docs.length === 0) {
+      var realMainFolder = getMainFolder();
+      if (realMainFolder) {
+        var mainDocs = getAllDocsInFolder(realMainFolder);
+        var hasChanges = false;
+        var reason = "";
+
+        // 解析傳入的本機狀態參數
+        var lastSynced = e && e.parameter && e.parameter.last_synced ? e.parameter.last_synced : "";
+        var plantCount = e && e.parameter && e.parameter.plant_count ? parseInt(e.parameter.plant_count, 10) : -1;
+
+        if (plantCount !== -1 && mainDocs.length !== plantCount) {
+          hasChanges = true;
+          reason = "雲端檔案數量 (" + mainDocs.length + ") 與本機數量 (" + plantCount + ") 不一致";
+        } else if (lastSynced) {
+          var lastSyncedTime = isNaN(lastSynced) ? new Date(lastSynced).getTime() : parseInt(lastSynced, 10);
+          if (!isNaN(lastSyncedTime)) {
+            for (var d = 0; d < mainDocs.length; d++) {
+              if (mainDocs[d].getLastUpdated().getTime() > lastSyncedTime) {
+                hasChanges = true;
+                reason = "發現檔案在上次同步後有更新: " + mainDocs[d].getName();
+                break;
+              }
+            }
+          } else {
+            hasChanges = true;
+            reason = "無效的 last_synced 格式: " + lastSynced;
+          }
+        } else {
+          hasChanges = true;
+          reason = "未提供 last_synced 參數";
+        }
+
+        if (hasChanges) {
+          debugLog.push("🔄 [增修刪] 為空，但偵測到雲端主資料夾有更新 (" + reason + ")，自動切換為全量同步");
+          folder = realMainFolder;
+          folderName = folder.getName();
+          syncMode = "FULL";
+          docs = mainDocs;
+        } else {
+          debugLog.push("⚡ [增修刪] 為空且雲端無更新，0.1秒直接回傳 0 筆異動");
+        }
+      }
+    }
+
     var plantList = [];
     var deletedList = [];
 
