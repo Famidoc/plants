@@ -426,7 +426,9 @@ function openPlantDetailModal(plant) {
   const indexBadge = document.getElementById('modalIndexBadge');
   if (indexBadge) {
     if (currentlyRenderedList.length > 0 && currentDetailIndex !== -1) {
-      indexBadge.textContent = `第 ${currentDetailIndex + 1} / ${currentlyRenderedList.length} 筆`;
+      const curNum = currentDetailIndex + 1;
+      const totalNum = currentlyRenderedList.length;
+      indexBadge.innerHTML = `<span class="badge-text-full">第 ${curNum} / ${totalNum} 筆</span><span class="badge-text-short">${curNum}/${totalNum}</span>`;
     } else {
       indexBadge.textContent = '';
     }
@@ -828,12 +830,16 @@ async function copyPlantShareLink(event) {
   if (success) {
     if (btn) {
       btn.classList.add('copied');
+      const iconEl = btn.querySelector('.share-icon');
       const fullTextEl = btn.querySelector('.share-text-full');
       const shortTextEl = btn.querySelector('.share-text-short');
+      const origIcon = iconEl ? iconEl.textContent : '🔗';
+      if (iconEl) iconEl.textContent = '✅';
       if (fullTextEl) fullTextEl.textContent = '已複製連結！';
       if (shortTextEl) shortTextEl.textContent = '已複製';
       setTimeout(() => {
         btn.classList.remove('copied');
+        if (iconEl) iconEl.textContent = origIcon;
         if (fullTextEl) fullTextEl.textContent = '複製分享連結';
         if (shortTextEl) shortTextEl.textContent = '分享';
       }, 2000);

@@ -56,6 +56,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   z-index: 20;
   flex-shrink: 0;
+  gap: 8px;
 }
 
 .modal-top-title-group {
@@ -63,7 +64,8 @@
   align-items: center;
   gap: 8px;
   overflow: hidden;
-  margin-right: 12px;
+  flex: 1;
+  min-width: 0;
 }
 
 .modal-top-icon {
@@ -79,6 +81,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
+  min-width: 0;
 }
 
 .modal-top-actions {
@@ -86,6 +89,13 @@
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+
+.badge-text-short {
+  display: none;
+}
+.badge-text-full {
+  display: inline;
 }
 
 /* 燈箱頂部「複製分享連結」按鈕 */
@@ -727,18 +737,51 @@
 }
 
 @media (max-width: 768px) {
+  .modal-top-bar {
+    padding: 0.65rem 0.85rem;
+    gap: 6px;
+  }
+  .modal-top-title-group {
+    gap: 6px;
+  }
+  .modal-top-title {
+    font-size: 1.18rem;
+  }
+  .modal-top-actions {
+    gap: 5px;
+  }
+  .modal-share-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+  .modal-share-btn .share-text-full,
+  .modal-share-btn .share-text-short {
+    display: none !important;
+  }
+  .modal-share-btn .share-icon {
+    font-size: 1rem;
+    line-height: 1;
+    margin: 0;
+  }
+  .badge-text-full {
+    display: none !important;
+  }
+  .badge-text-short {
+    display: inline !important;
+    font-size: 0.78rem;
+    font-weight: 700;
+  }
+  .modal-index-badge {
+    padding: 2px 7px;
+    font-size: 0.78rem;
+  }
   .modal-header-hero { height: 220px; }
   .modal-title { font-size: 1.4rem; }
-  .modal-share-btn {
-    padding: 0.35rem 0.6rem;
-    font-size: 0.82rem;
-  }
-  .modal-share-btn .share-text-full {
-    display: none;
-  }
-  .modal-share-btn .share-text-short {
-    display: inline;
-  }
   .full-screen-share-btn {
     top: 16px;
     right: 68px;
