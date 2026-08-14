@@ -10,6 +10,7 @@ let sortMode = 'DESC'; // 'DESC', 'ASC', 'RANDOM'
 let randomShuffledList = null;
 let currentlyRenderedList = [];
 let currentDetailIndex = -1;
+let currentActivePlant = null; // 當前在燈箱中檢視的花草物件
 let currentPage = 1;       // 分頁狀態
 const PAGE_SIZE = 24;      // 每頁顯示筆數
 
@@ -55,6 +56,7 @@ async function initGallery() {
   // 1. 無條件第一時間同步秒刷畫面，絕對不允許卡在「載入中...」
   currentPlantsList = getStoredPlants() || DEFAULT_PLANT_DATA;
   renderGallery();
+  checkAndOpenUrlPlant();
 
   // 2. 深度非同步載入 IndexedDB 大容量完整資料庫
   try {
@@ -62,6 +64,7 @@ async function initGallery() {
     if (loadedList && Array.isArray(loadedList) && loadedList.length > 0) {
       currentPlantsList = loadedList;
       renderGallery();
+      checkAndOpenUrlPlant();
     }
   } catch(e) {
     console.warn("IndexedDB 載入警告:", e);
@@ -397,7 +400,20 @@ function setupGalleryEventListeners() {
  */
 function openPlantDetailModal(plant) {
   const modalBackdrop = document.getElementById('plantModalBackdrop');
-  if (!modalBackdrop) return;
+  if (!modalBackdrop || !plant) return;
+
+  currentActivePlant = plant;
+
+  // 支援 Deep Link：在瀏覽器網址列同步更新 ?plant=... (不刷新頁面)
+  try {
+    if (window.history && window.history.replaceState) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('plant', plant.name);
+      window.history.replaceState(null, '', currentUrl.toString());
+    }
+  } catch (err) {
+    console.debug('更新網址參數失敗:', err);
+  }
 
   // 計算當前筆數位置
   if (currentlyRenderedList.length > 0) {
@@ -640,6 +656,18 @@ function navigatePlantModal(direction) {
 function closePlantDetailModal() {
   const modalBackdrop = document.getElementById('plantModalBackdrop');
   if (modalBackdrop) modalBackdrop.classList.remove('open');
+
+  // 關閉燈箱時還原乾淨的網址列（移除 ?plant 參數）
+  try {
+    if (window.history && window.history.replaceState) {
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('plant');
+      currentUrl.searchParams.delete('id');
+      window.history.replaceState(null, '', currentUrl.pathname + (currentUrl.search ? currentUrl.search : ''));
+    }
+  } catch (err) {
+    console.debug('還原網址失敗:', err);
+  }
 }
 
 function switchModalTab(tabId) {
@@ -740,5 +768,187 @@ window.openCurrentHeroPhotoFullScreen = function(e) {
   }
 };
 
+/**
+ * 剪貼簿複製通用 Helper（支援現代 Clipboard API 與降級 execCommand）
+ */
+async function copyTextToClipboard(text) {
+  if (!text) return false;
+  if (navigator.clipboard && window.isSecureContext) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (err) {
+      console.warn('navigator.clipboard 失敗，嘗試 execCommand fallback:', err);
+    }
+  }
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    textArea.setAttribute('readonly', '');
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const success = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return success;
+  } catch (err) {
+    console.error('execCommand 複製失敗:', err);
+    return false;
+  }
+}
+
+/**
+ * 產生植物專屬分享連結 URL
+ */
+function generatePlantShareUrl(plant) {
+  if (!plant) return window.location.href;
+  const baseUrl = window.location.origin + window.location.pathname;
+  return `${baseUrl}?plant=${encodeURIComponent(plant.name || plant.id)}`;
+}
+
+/**
+ * 複製花草詳細頁分享連結
+ */
+async function copyPlantShareLink(event) {
+  if (event) event.stopPropagation();
+  if (!currentActivePlant) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ 未能取得花草資料', 2000);
+    }
+    return;
+  }
+
+  const shareUrl = generatePlantShareUrl(currentActivePlant);
+  const btn = document.getElementById('modalShareBtn');
+  const success = await copyTextToClipboard(shareUrl);
+
+  if (success) {
+    if (btn) {
+      btn.classList.add('copied');
+      const fullTextEl = btn.querySelector('.share-text-full');
+      const shortTextEl = btn.querySelector('.share-text-short');
+      if (fullTextEl) fullTextEl.textContent = '已複製連結！';
+      if (shortTextEl) shortTextEl.textContent = '已複製';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        if (fullTextEl) fullTextEl.textContent = '複製分享連結';
+        if (shortTextEl) shortTextEl.textContent = '分享';
+      }, 2000);
+    }
+    if (typeof showToast === 'function') {
+      showToast(`🔗 已成功複製《${currentActivePlant.name}》專屬分享連結！`, 3500);
+    }
+  } else {
+    prompt('請手動複製以下分享網址：', shareUrl);
+  }
+}
+
+/**
+ * 複製全螢幕相片分享連結
+ */
+async function copyFullScreenPhotoShareLink(event) {
+  if (event) event.stopPropagation();
+  if (!currentActivePlant) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ 未能取得花草資料', 2000);
+    }
+    return;
+  }
+
+  const shareUrl = generatePlantShareUrl(currentActivePlant);
+  const btn = document.getElementById('fullScreenShareBtn');
+  const success = await copyTextToClipboard(shareUrl);
+
+  if (success) {
+    if (btn) {
+      btn.classList.add('copied');
+      const fullTextEl = btn.querySelector('.share-text-full');
+      const shortTextEl = btn.querySelector('.share-text-short');
+      if (fullTextEl) fullTextEl.textContent = '已複製連結！';
+      if (shortTextEl) shortTextEl.textContent = '已複製';
+      setTimeout(() => {
+        btn.classList.remove('copied');
+        if (fullTextEl) fullTextEl.textContent = '複製分享連結';
+        if (shortTextEl) shortTextEl.textContent = '分享';
+      }, 2000);
+    }
+    if (typeof showToast === 'function') {
+      showToast(`🔗 已成功複製《${currentActivePlant.name}》專屬分享連結！`, 3500);
+    }
+  } else {
+    prompt('請手動複製以下分享網址：', shareUrl);
+  }
+}
+
+/**
+ * 複製 App 首頁網址 (供 QR Code 彈窗使用)
+ */
+async function copyAppUrl(event) {
+  if (event) event.stopPropagation();
+  const appUrl = window.location.origin + window.location.pathname;
+  const btn = document.getElementById('copyQrAppUrlBtn');
+  const success = await copyTextToClipboard(appUrl);
+
+  if (success) {
+    if (btn) {
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '<span>✅ 已成功複製 App 網址！</span>';
+      setTimeout(() => {
+        btn.innerHTML = origHtml;
+      }, 2000);
+    }
+    if (typeof showToast === 'function') {
+      showToast('📋 已複製《捻花惹草》App 網址！', 3000);
+    }
+  } else {
+    prompt('請手動複製以下 App 網址：', appUrl);
+  }
+}
+
+/**
+ * 檢查網址列是否有 ?plant=... 或 ?id=... 並自動彈出詳細燈箱
+ */
+function checkAndOpenUrlPlant() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('plant') || params.get('id');
+    if (!target || !target.trim()) return false;
+
+    const query = decodeURIComponent(target).trim().toLowerCase();
+    const list = Array.isArray(currentPlantsList) && currentPlantsList.length > 0
+      ? currentPlantsList
+      : (getStoredPlants() || DEFAULT_PLANT_DATA);
+
+    const matched = list.find(p => {
+      if (!p) return false;
+      if (p.name && p.name.toLowerCase() === query) return true;
+      if (p.id && String(p.id).toLowerCase() === query) return true;
+      if (p.scientificName && p.scientificName.toLowerCase() === query) return true;
+      if (p.aliases && Array.isArray(p.aliases) && p.aliases.some(a => String(a).toLowerCase() === query)) return true;
+      return false;
+    });
+
+    if (matched) {
+      // 若非圖鑑主畫面，切換回圖鑑
+      const galleryNavBtn = document.querySelector('[data-target-view="viewGallery"]');
+      if (galleryNavBtn && !galleryNavBtn.classList.contains('active')) {
+        galleryNavBtn.click();
+      }
+      openPlantDetailModal(matched);
+      return true;
+    }
+  } catch(e) {
+    console.warn("解析網址植物參數失敗:", e);
+  }
+  return false;
+}
+
 window.openFullScreenPhoto = openFullScreenPhoto;
 window.closeFullScreenPhoto = closeFullScreenPhoto;
+window.copyPlantShareLink = copyPlantShareLink;
+window.copyFullScreenPhotoShareLink = copyFullScreenPhotoShareLink;
+window.copyAppUrl = copyAppUrl;
+window.checkAndOpenUrlPlant = checkAndOpenUrlPlant;

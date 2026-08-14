@@ -44,10 +44,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=78">
-  <link rel="stylesheet" href="./css/gallery.css?v=78">
-  <link rel="stylesheet" href="./css/modal.css?v=78">
-  <link rel="stylesheet" href="./css/quiz.css?v=78">
+  <link rel="stylesheet" href="./css/main.css?v=80">
+  <link rel="stylesheet" href="./css/gallery.css?v=80">
+  <link rel="stylesheet" href="./css/modal.css?v=80">
+  <link rel="stylesheet" href="./css/quiz.css?v=80">
 </head>
 <body>
 
@@ -201,6 +201,11 @@
           <h2 id="modalTitle" class="modal-top-title">花草名稱</h2>
         </div>
         <div class="modal-top-actions">
+          <button id="modalShareBtn" class="modal-share-btn" onclick="copyPlantShareLink(event)" title="複製此花草專屬分享連結">
+            <span class="share-icon">🔗</span>
+            <span class="share-text-full">複製分享連結</span>
+            <span class="share-text-short">分享</span>
+          </button>
           <span id="modalIndexBadge" class="modal-index-badge">第 1 筆</span>
           <button class="modal-close-btn" onclick="closePlantDetailModal();" title="關閉 (Esc)">✕</button>
         </div>
@@ -395,7 +400,10 @@
 
   <!-- 全螢幕無遮擋照片放大 Modal -->
   <div id="fullScreenPhotoModal" class="full-screen-photo-backdrop" onclick="closeFullScreenPhoto();">
-    <button class="full-screen-close-btn" onclick="closeFullScreenPhoto();">✕</button>
+    <button class="full-screen-share-btn" id="fullScreenShareBtn" onclick="copyFullScreenPhotoShareLink(event);" title="複製分享此植物連結">
+      <span>🔗</span> <span class="share-text-full">複製分享連結</span><span class="share-text-short">分享</span>
+    </button>
+    <button class="full-screen-close-btn" onclick="closeFullScreenPhoto();" title="關閉 (Esc)">✕</button>
     <img id="fullScreenPhotoImg" src="" alt="全螢幕照片" class="full-screen-photo-img">
     <div id="fullScreenPhotoCaption" class="full-screen-photo-caption"></div>
   </div>
@@ -415,9 +423,14 @@
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=https://famidoc.github.io/plants/" alt="捻花惹草 App QR Code" style="width: 200px; height: 200px; display: block; border-radius: 8px;">
       </div>
       
-      <p style="font-size: 0.8rem; color: #4a5568; margin-top: 1rem; word-break: break-all; font-family: monospace; background: #f7fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #edf2f7;">
-        https://famidoc.github.io/plants/
-      </p>
+      <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 8px; align-items: center;">
+        <p id="qrModalUrlText" style="font-size: 0.8rem; color: #4a5568; margin: 0; word-break: break-all; font-family: monospace; background: #f7fafc; padding: 6px 10px; border-radius: 6px; border: 1px solid #edf2f7; width: 100%; box-sizing: border-box;">
+          https://famidoc.github.io/plants/
+        </p>
+        <button id="copyQrAppUrlBtn" class="btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.88rem; width: 100%; justify-content: center;" onclick="copyAppUrl(event)">
+          <span>📋 複製 App 網址</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -437,12 +450,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=79 Cache Buster -->
-  <script src="./js/data.js?v=79"></script>
-  <script src="./js/sync.js?v=79"></script>
-  <script src="./js/gallery.js?v=79"></script>
-  <script src="./js/quiz.js?v=79"></script>
-  <script src="./js/app.js?v=79"></script>
+  <!-- JavaScript Scripts with ?v=80 Cache Buster -->
+  <script src="./js/data.js?v=80"></script>
+  <script src="./js/sync.js?v=80"></script>
+  <script src="./js/gallery.js?v=80"></script>
+  <script src="./js/quiz.js?v=80"></script>
+  <script src="./js/app.js?v=80"></script>
 
 </body>
 </html>

@@ -84,8 +84,56 @@
 .modal-top-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-shrink: 0;
+}
+
+/* 燈箱頂部「複製分享連結」按鈕 */
+.modal-share-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.modal-share-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: #afd19e;
+  color: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.modal-share-btn:active {
+  transform: scale(0.96);
+}
+
+.modal-share-btn.copied {
+  background: #2e7d32 !important;
+  color: #ffffff !important;
+  border-color: #81c784 !important;
+  box-shadow: 0 0 12px rgba(129, 199, 132, 0.6) !important;
+}
+
+.modal-share-btn .share-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.modal-share-btn .share-text-short {
+  display: none;
 }
 
 .modal-close-btn {
@@ -617,6 +665,46 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.full-screen-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.full-screen-share-btn {
+  position: absolute;
+  top: 20px;
+  right: 76px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(15, 32, 23, 0.85);
+  color: #ffffff;
+  border: 1px solid rgba(175, 209, 158, 0.4);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: var(--transition-fast);
+}
+
+.full-screen-share-btn:hover {
+  background: rgba(44, 94, 67, 0.95);
+  border-color: #afd19e;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  transform: translateY(-1px);
+}
+
+.full-screen-share-btn.copied {
+  background: #2e7d32 !important;
+  border-color: #81c784 !important;
 }
 
 .btn-primary {
@@ -641,4 +729,21 @@
 @media (max-width: 768px) {
   .modal-header-hero { height: 220px; }
   .modal-title { font-size: 1.4rem; }
+  .modal-share-btn {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.82rem;
+  }
+  .modal-share-btn .share-text-full {
+    display: none;
+  }
+  .modal-share-btn .share-text-short {
+    display: inline;
+  }
+  .full-screen-share-btn {
+    top: 16px;
+    right: 68px;
+    height: 38px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+  }
 }
