@@ -3,6 +3,7 @@
  */
 
 const GAS_SYNC_URL_KEY = 'nian_hua_re_cao_gas_url';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyB5jyXL5gA-8AvGLsRHUEbU-J3gAQPsrjhaiKUy5I3xZ9PivboSfcjV1m1iOHu450/exec';
 
 function cleanGasUrl(raw) {
   if (!raw) return '';
@@ -56,33 +57,33 @@ function getSavedGasUrl() {
     if (!raw) {
       try { raw = sessionStorage.getItem(GAS_SYNC_URL_KEY) || ''; } catch(e) {}
     }
-    return cleanGasUrl(raw);
+    const cleaned = cleanGasUrl(raw);
+    return cleaned || DEFAULT_GAS_URL;
   } catch (e) {
     console.error('getSavedGasUrl LocalStorage 讀取例外:', e);
-    try {
-      const raw = sessionStorage.getItem(GAS_SYNC_URL_KEY) || '';
-      return cleanGasUrl(raw);
-    } catch(e2) {
-      return '';
-    }
+    return DEFAULT_GAS_URL;
   }
 }
 
 async function getSavedGasUrlAsync() {
   let url = getSavedGasUrl();
-  if (!url && typeof getFromIndexedDB === 'function') {
+  if (url && url !== DEFAULT_GAS_URL) {
+    return url;
+  }
+  if (typeof getFromIndexedDB === 'function') {
     try {
       const idbUrl = await getFromIndexedDB('gas_api_url');
       if (idbUrl && typeof idbUrl === 'string') {
-        url = cleanGasUrl(idbUrl);
-        if (url) {
-          try { localStorage.setItem(GAS_SYNC_URL_KEY, url); } catch(e) {}
-          try { sessionStorage.setItem(GAS_SYNC_URL_KEY, url); } catch(e) {}
+        const cleaned = cleanGasUrl(idbUrl);
+        if (cleaned) {
+          try { localStorage.setItem(GAS_SYNC_URL_KEY, cleaned); } catch(e) {}
+          try { sessionStorage.setItem(GAS_SYNC_URL_KEY, cleaned); } catch(e) {}
+          return cleaned;
         }
       }
     } catch (e) {}
   }
-  return url;
+  return url || DEFAULT_GAS_URL;
 }
 
 function saveGasUrl(url) {

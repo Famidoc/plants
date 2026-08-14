@@ -911,7 +911,7 @@ async function copyAppUrl(event) {
 /**
  * 檢查網址列是否有 ?plant=... 或 ?id=... 並自動彈出詳細燈箱
  */
-function checkAndOpenUrlPlant() {
+async function checkAndOpenUrlPlant() {
   try {
     const params = new URLSearchParams(window.location.search);
     const target = params.get('plant') || params.get('id');
@@ -922,14 +922,18 @@ function checkAndOpenUrlPlant() {
       ? currentPlantsList
       : (getStoredPlants() || DEFAULT_PLANT_DATA);
 
-    const matched = list.find(p => {
-      if (!p) return false;
-      if (p.name && p.name.toLowerCase() === query) return true;
-      if (p.id && String(p.id).toLowerCase() === query) return true;
-      if (p.scientificName && p.scientificName.toLowerCase() === query) return true;
-      if (p.aliases && Array.isArray(p.aliases) && p.aliases.some(a => String(a).toLowerCase() === query)) return true;
-      return false;
-    });
+    const findMatch = (arr) => {
+      return (arr || []).find(p => {
+        if (!p) return false;
+        if (p.name && p.name.toLowerCase() === query) return true;
+        if (p.id && String(p.id).toLowerCase() === query) return true;
+        if (p.scientificName && p.scientificName.toLowerCase() === query) return true;
+        if (p.aliases && Array.isArray(p.aliases) && p.aliases.some(a => String(a).toLowerCase() === query)) return true;
+        return false;
+      });
+    };
+
+    let matched = findMatch(list);
 
     if (matched) {
       // 若非圖鑑主畫面，切換回圖鑑
@@ -939,6 +943,28 @@ function checkAndOpenUrlPlant() {
       }
       openPlantDetailModal(matched);
       return true;
+    } else {
+      // 若本機尚未收錄該筆花草（可能剛於雲端新增），自動觸發一次雲端連線同步
+      if (!window._urlPlantSyncAttempted && typeof fetchLatestDataFromGAS === 'function') {
+        window._urlPlantSyncAttempted = true;
+        if (typeof showToast === 'function') {
+          showToast(`🌿 正在從雲端載入《${decodeURIComponent(target)}》最新圖資...`, 4000);
+        }
+        try {
+          const syncRes = await fetchLatestDataFromGAS();
+          if (syncRes && syncRes.plants) {
+            currentPlantsList = syncRes.plants;
+            renderGallery();
+            const newMatched = findMatch(currentPlantsList);
+            if (newMatched) {
+              openPlantDetailModal(newMatched);
+              return true;
+            }
+          }
+        } catch(e) {
+          console.warn('自動同步花草失敗:', e);
+        }
+      }
     }
   } catch(e) {
     console.warn("解析網址植物參數失敗:", e);
