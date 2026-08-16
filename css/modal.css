@@ -591,9 +591,47 @@
   color: var(--primary-light);
 }
 
-/* 設定 Modal 專用樣式 */
+/* 設定 Modal 專用樣式 (支援手機流暢滾動) */
+#settingsModalBackdrop .modal-container {
+  max-width: 640px;
+  max-height: 90vh;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#settingsModalBackdrop .settings-modal-header {
+  padding: 1.4rem 1.5rem;
+  border-bottom: 1px solid #e2e8e3;
+  flex-shrink: 0;
+}
+
 .settings-box {
   padding: 1.5rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+#adminAuthModalBackdrop .modal-container {
+  max-height: 92vh;
+  height: auto;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  #settingsModalBackdrop .modal-container {
+    height: 95vh;
+    max-height: 95vh;
+    border-radius: 16px;
+  }
+  #settingsModalBackdrop .settings-modal-header {
+    padding: 1rem 1.2rem;
+  }
+  .settings-box {
+    padding: 1rem 1.2rem 3.5rem;
+  }
 }
 
 .form-group {
