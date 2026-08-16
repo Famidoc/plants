@@ -331,12 +331,12 @@
   }
   .modal-tabs {
     border-bottom: none;
-    padding-top: 0;
-    padding-bottom: 0.2rem;
+    padding: 0.55rem 0 0.35rem 0;
     margin-bottom: 0.5rem;
+    background: #ffffff;
   }
   .modal-body {
-    padding: 0.75rem 1rem 1rem;
+    padding: 0 1rem 1rem;
   }
 }
 
@@ -351,6 +351,7 @@
   align-items: center;
   justify-content: center;
   cursor: zoom-in !important;
+  border-bottom: 1px solid #1c3629;
 }
 
 .modal-hero-bg-blur {
@@ -414,7 +415,7 @@
 .modal-body {
   flex: 1;
   overflow-y: auto;
-  padding: 0.85rem 1.5rem 1.25rem;
+  padding: 0 1.5rem 1.25rem;
 }
 
 /* 螢幕閱讀器專用隱藏類別 (Accessibility Helper) */
@@ -430,15 +431,15 @@
   border: 0;
 }
 
-/* 頁籤選單 (Tabs) - 滾動時黏在頂部 */
+/* 頁籤選單 (Tabs) - 與主圖下緣貼齊，滾動時黏在頂部 */
 .modal-tabs {
   display: flex;
   position: sticky;
   top: 0;
   background: #ffffff;
   z-index: 10;
-  padding-top: 0.1rem;
-  padding-bottom: 0.4rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.45rem;
   border-bottom: 2px solid #e2e8e3;
   margin-bottom: 0.85rem;
 }
@@ -789,4 +790,27 @@
     padding: 0 12px;
     font-size: 0.85rem;
   }
+}
+
+/* 🔐 管理員驗證與動畫效果 */
+@keyframes shakeInput {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
+.shake-anim {
+  animation: shakeInput 0.35s ease !important;
+  border-color: #e53e3e !important;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.25) !important;
+}
+
+#adminAuthModalBackdrop .modal-close-btn {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+#adminAuthModalBackdrop .modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }

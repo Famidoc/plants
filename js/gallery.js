@@ -99,22 +99,66 @@ function renderGallery() {
     rawList = DEFAULT_PLANT_DATA;
   }
 
-  // 2. 進行搜尋過濾
+/**
+ * 全欄位全域深度搜尋比對函式
+ * 涵蓋：植物名稱、學名、英文名、別名、科別、主圖地點、附圖圖集(caption/地點/註記)、
+ * 形態特徵、養護資訊、用途、花期果期、參考資料等全欄位
+ */
+function matchPlantQuery(p, q) {
+  if (!p || !q) return false;
+  const lowerQ = q.toLowerCase().trim();
+  if (!lowerQ) return true;
+
+  // 1. 基本名稱與文字欄位
+  if (String(p.name || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.scientificName || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.englishName || '').toLowerCase().includes(lowerQ)) return true;
+  if (Array.isArray(p.aliases) && p.aliases.some(a => String(a || '').toLowerCase().includes(lowerQ))) return true;
+  if (String(p.family || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.locationNote || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.dateAdded || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.bloomPeriod || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.fruitPeriod || '').toLowerCase().includes(lowerQ)) return true;
+  if (String(p.sporePeriod || '').toLowerCase().includes(lowerQ)) return true;
+
+  // 2. 用途 (uses)
+  if (Array.isArray(p.uses) && p.uses.some(u => String(u || '').toLowerCase().includes(lowerQ))) return true;
+  if (typeof p.uses === 'string' && p.uses.toLowerCase().includes(lowerQ)) return true;
+
+  // 3. 形態特徵 (morphologyDetails)
+  if (Array.isArray(p.morphologyDetails)) {
+    if (p.morphologyDetails.some(m => String(m.label || '').toLowerCase().includes(lowerQ) || String(m.value || '').toLowerCase().includes(lowerQ))) return true;
+  }
+
+  // 4. 養護資訊 (careNotes)
+  if (p.careNotes && typeof p.careNotes === 'object') {
+    if (Object.values(p.careNotes).some(val => String(val || '').toLowerCase().includes(lowerQ))) return true;
+  }
+
+  // 5. 📷 附圖圖集 (galleryImages) - 照片圖說/拍攝地點/日期/特徵註解
+  if (Array.isArray(p.galleryImages)) {
+    if (p.galleryImages.some(img => {
+      if (!img) return false;
+      const caption = String(img.caption || '').toLowerCase();
+      const title = String(img.title || '').toLowerCase();
+      const alt = String(img.alt || '').toLowerCase();
+      return caption.includes(lowerQ) || title.includes(lowerQ) || alt.includes(lowerQ);
+    })) return true;
+  }
+
+  // 6. 參考資料 (references)
+  if (Array.isArray(p.references)) {
+    if (p.references.some(r => String(r.title || '').toLowerCase().includes(lowerQ) || String(r.url || '').toLowerCase().includes(lowerQ))) return true;
+  }
+
+  return false;
+}
+
+  // 2. 進行搜尋過濾 (全域深度搜尋)
   let filtered = [...rawList];
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase().trim();
-    filtered = filtered.filter(p => {
-      if (!p) return false;
-      const nameStr = String(p.name || '').toLowerCase();
-      const matchName = nameStr.includes(q);
-      const matchSci = String(p.scientificName || '').toLowerCase().includes(q);
-      const matchAliases = Array.isArray(p.aliases) ? p.aliases.some(a => String(a || '').toLowerCase().includes(q)) : false;
-      const matchFamily = String(p.family || '').toLowerCase().includes(q);
-      const matchCare = JSON.stringify(p.careNotes || {}).toLowerCase().includes(q);
-      const matchLoc = String(p.locationNote || '').toLowerCase().includes(q);
-      const matchMorph = JSON.stringify(p.morphologyDetails || []).toLowerCase().includes(q);
-      return matchName || matchSci || matchAliases || matchFamily || matchCare || matchLoc || matchMorph;
-    });
+    filtered = filtered.filter(p => matchPlantQuery(p, q));
   }
 
   // 3. 進行分類 Chips 篩選 (取得當前分頁內容)
@@ -342,12 +386,7 @@ function setupGalleryEventListeners() {
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        filtered = filtered.filter(p => {
-          if (!p) return false;
-          return String(p.name || '').toLowerCase().includes(q) ||
-                 String(p.scientificName || '').toLowerCase().includes(q) ||
-                 String(p.family || '').toLowerCase().includes(q);
-        });
+        filtered = filtered.filter(p => matchPlantQuery(p, q));
       }
       randomShuffledList = shuffleArray(filtered);
       renderGallery();

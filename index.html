@@ -44,10 +44,10 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=82">
-  <link rel="stylesheet" href="./css/gallery.css?v=82">
-  <link rel="stylesheet" href="./css/modal.css?v=82">
-  <link rel="stylesheet" href="./css/quiz.css?v=82">
+  <link rel="stylesheet" href="./css/main.css?v=83">
+  <link rel="stylesheet" href="./css/gallery.css?v=83">
+  <link rel="stylesheet" href="./css/modal.css?v=83">
+  <link rel="stylesheet" href="./css/quiz.css?v=83">
 </head>
 <body>
 
@@ -341,13 +341,47 @@
     </div>
   </div>
 
+  <!-- 管理員身分驗證 Modal (Admin Auth Modal) -->
+  <div id="adminAuthModalBackdrop" class="modal-backdrop">
+    <div class="modal-container" style="max-width: 420px; border-radius: 16px; overflow: hidden;">
+      <div style="background: #11261c; padding: 1.1rem 1.4rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.12);">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 1.25rem;">🔐</span>
+          <h3 style="color: #ffffff; font-size: 1.15rem; margin: 0; font-weight: 700;">管理員身分驗證</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closeAdminAuthModal()" title="關閉 (Esc)">✕</button>
+      </div>
+      <div style="padding: 1.4rem 1.5rem 1.6rem;">
+        <p style="font-size: 0.88rem; color: #4a5568; margin-bottom: 1.1rem; line-height: 1.5;">
+          「<strong>設定同步</strong>」為管理員維護專用，請輸入管理員密碼以進入雲端同步與資料管理功能。
+        </p>
+        <form id="adminAuthForm" onsubmit="handleAdminAuthSubmit(event)">
+          <div style="position: relative; margin-bottom: 0.85rem;">
+            <input type="password" id="adminPasswordInput" class="form-input" placeholder="請輸入管理密碼 (預設: 8888)" style="margin-top: 0; padding-right: 2.8rem;" autocomplete="current-password">
+            <button type="button" id="toggleAdminPwdVisibilityBtn" onclick="toggleAdminPasswordVisibility()" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #718096; padding: 4px;" title="顯示/隱藏密碼">👁️</button>
+          </div>
+          <div id="adminAuthErrorMsg" style="display: none; color: #e53e3e; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.85rem; background: #fff5f5; padding: 8px 12px; border-radius: 6px; border: 1px solid #feb2b2;">
+            ❌ 密碼錯誤，請重新輸入！
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" onclick="closeAdminAuthModal()" class="btn-secondary" style="flex: 1; padding: 0.75rem; border-radius: var(--radius-md); border: 1px solid #cbd5e0; background: #f7fafc; color: #4a5568; font-weight: 600; cursor: pointer;">取消</button>
+            <button type="submit" class="btn-primary" style="flex: 1.5; padding: 0.75rem; font-size: 0.95rem;">確認進入 ➔</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <!-- 設定與 Google Drive 同步 Modal -->
   <div id="settingsModalBackdrop" class="modal-backdrop">
     <div class="modal-container" style="max-width: 640px;">
       <button class="modal-close-btn" id="closeSettingsBtn">✕</button>
       <div style="padding: 1.5rem; border-bottom: 1px solid #e2e8e3;">
-        <h3 style="color: var(--primary-dark); font-size: 1.3rem; display: flex; align-items: center;">
-          <span>⚙️ 雲端同步與資料管理</span>
+        <h3 style="color: var(--primary-dark); font-size: 1.3rem; display: flex; align-items: center; justify-content: space-between;">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <span>⚙️</span> <span>雲端同步與資料管理</span>
+          </span>
+          <button type="button" onclick="lockAdminSession()" style="font-size: 0.8rem; color: #c53030; background: #fff5f5; border: 1px solid #feb2b2; padding: 4px 12px; border-radius: var(--radius-pill); cursor: pointer; font-weight: 700;">🔒 登出上鎖</button>
         </h3>
         <p style="font-size: 0.88rem; color: #2d3748; margin-top: 8px; background: #fff8e1; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #f57c00; line-height: 1.5;">
           <span style="color: #b71c1c; font-weight: 900; font-size: 0.92rem; background: #ffebee; padding: 2px 8px; border-radius: 4px; border: 1px solid #ffcdd2; margin-right: 6px;">👑 管理員維護專用</span>
@@ -382,6 +416,24 @@
             <span id="syncDebugLogToggleText" style="font-size: 0.78rem; color: #4a5568; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 10px;">點擊展開 ▼</span>
           </div>
           <div id="syncDebugLogList" style="display: none; margin-top: 10px; max-height: 220px; overflow-y: auto; font-family: monospace; font-size: 0.78rem; background: #ffffff; border: 1px solid #dcdcdc; padding: 10px; border-radius: 6px; white-space: pre-wrap; color: #2d3748; line-height: 1.6;"></div>
+        </div>
+
+        <hr style="border: none; border-top: 1px dashed #cccccc; margin: 1.5rem 0;">
+
+        <!-- 🔑 管理員密碼變更設定 -->
+        <div class="form-group" style="background: #f8faf8; border: 1px solid #e2e8e3; border-radius: 10px; padding: 14px; margin-bottom: 1.5rem;">
+          <label class="form-label" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <span style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--primary-dark);">
+              <span>🔑</span> <span>變更管理員密碼</span>
+            </span>
+            <span style="font-size: 0.78rem; color: #718096; font-weight: normal;">預設密碼：8888</span>
+          </label>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+            <input type="password" id="changeAdminPwdInput" class="form-input" placeholder="輸入新密碼" style="flex: 1; min-width: 130px; margin-top: 0; padding: 0.6rem 0.85rem;">
+            <input type="password" id="confirmAdminPwdInput" class="form-input" placeholder="再次確認新密碼" style="flex: 1; min-width: 130px; margin-top: 0; padding: 0.6rem 0.85rem;">
+            <button type="button" id="saveNewAdminPwdBtn" onclick="saveNewAdminPassword()" class="btn-primary" style="padding: 0.6rem 1.1rem; font-size: 0.88rem; white-space: nowrap;">儲存新密碼</button>
+          </div>
+          <div id="changePwdMsg" style="display: none; font-size: 0.82rem; margin-top: 8px; font-weight: 600;"></div>
         </div>
 
         <hr style="border: none; border-top: 1px dashed #cccccc; margin: 1.5rem 0;">
@@ -450,12 +502,12 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=82 Cache Buster -->
-  <script src="./js/data.js?v=82"></script>
-  <script src="./js/sync.js?v=82"></script>
-  <script src="./js/gallery.js?v=82"></script>
-  <script src="./js/quiz.js?v=82"></script>
-  <script src="./js/app.js?v=82"></script>
+  <!-- JavaScript Scripts with ?v=83 Cache Buster -->
+  <script src="./js/data.js?v=83"></script>
+  <script src="./js/sync.js?v=83"></script>
+  <script src="./js/gallery.js?v=83"></script>
+  <script src="./js/quiz.js?v=83"></script>
+  <script src="./js/app.js?v=83"></script>
 
 </body>
 </html>

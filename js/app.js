@@ -137,7 +137,155 @@ function setupQuizControls() {
   }
 }
 
+const ADMIN_PWD_STORAGE_KEY = 'nian_hua_re_cao_admin_pwd';
+const ADMIN_AUTH_SESSION_KEY = 'nian_hua_re_cao_admin_auth';
+const DEFAULT_ADMIN_PWD = '8888';
+
+function getStoredAdminPassword() {
+  return localStorage.getItem(ADMIN_PWD_STORAGE_KEY) || DEFAULT_ADMIN_PWD;
+}
+
+function isAdminAuthenticated() {
+  try {
+    return sessionStorage.getItem(ADMIN_AUTH_SESSION_KEY) === 'true';
+  } catch(e) {
+    return false;
+  }
+}
+
+function setAdminAuthenticated(auth) {
+  try {
+    if (auth) {
+      sessionStorage.setItem(ADMIN_AUTH_SESSION_KEY, 'true');
+    } else {
+      sessionStorage.removeItem(ADMIN_AUTH_SESSION_KEY);
+    }
+  } catch(e) {}
+}
+
+function openAdminAuthModal() {
+  const modal = document.getElementById('adminAuthModalBackdrop');
+  const input = document.getElementById('adminPasswordInput');
+  const errorMsg = document.getElementById('adminAuthErrorMsg');
+  if (errorMsg) errorMsg.style.display = 'none';
+  if (input) {
+    input.value = '';
+    input.type = 'password';
+  }
+  const toggleBtn = document.getElementById('toggleAdminPwdVisibilityBtn');
+  if (toggleBtn) toggleBtn.textContent = '👁️';
+  if (modal) {
+    modal.classList.add('open');
+    setTimeout(() => {
+      if (input) input.focus();
+    }, 100);
+  }
+}
+
+function closeAdminAuthModal() {
+  const modal = document.getElementById('adminAuthModalBackdrop');
+  if (modal) modal.classList.remove('open');
+}
+
+function toggleAdminPasswordVisibility() {
+  const input = document.getElementById('adminPasswordInput');
+  const toggleBtn = document.getElementById('toggleAdminPwdVisibilityBtn');
+  if (input && toggleBtn) {
+    if (input.type === 'password') {
+      input.type = 'text';
+      toggleBtn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      toggleBtn.textContent = '👁️';
+    }
+  }
+}
+
+function handleAdminAuthSubmit(e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('adminPasswordInput');
+  const errorMsg = document.getElementById('adminAuthErrorMsg');
+  const val = input ? input.value.trim() : '';
+  const correctPwd = getStoredAdminPassword();
+
+  if (val === correctPwd) {
+    setAdminAuthenticated(true);
+    closeAdminAuthModal();
+    if (typeof showToast === 'function') {
+      showToast('🔓 管理員身分驗證成功，已進入維護模式');
+    }
+    actualOpenSettingsModal();
+  } else {
+    if (errorMsg) {
+      errorMsg.style.display = 'block';
+    }
+    if (input) {
+      input.classList.add('shake-anim');
+      setTimeout(() => input.classList.remove('shake-anim'), 500);
+      input.select();
+    }
+  }
+}
+
+function lockAdminSession() {
+  setAdminAuthenticated(false);
+  closeSettingsModal();
+  if (typeof showToast === 'function') {
+    showToast('🔒 已安全登出並重新上鎖管理員功能');
+  }
+}
+
+function saveNewAdminPassword() {
+  const newPwdInput = document.getElementById('changeAdminPwdInput');
+  const confirmPwdInput = document.getElementById('confirmAdminPwdInput');
+  const msgEl = document.getElementById('changePwdMsg');
+  if (!newPwdInput || !confirmPwdInput) return;
+
+  const p1 = newPwdInput.value.trim();
+  const p2 = confirmPwdInput.value.trim();
+
+  if (!p1) {
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      msgEl.style.color = '#e53e3e';
+      msgEl.textContent = '⚠️ 新密碼不得為空！';
+    }
+    return;
+  }
+  if (p1 !== p2) {
+    if (msgEl) {
+      msgEl.style.display = 'block';
+      msgEl.style.color = '#e53e3e';
+      msgEl.textContent = '❌ 兩次輸入的新密碼不一致，請重新確認！';
+    }
+    return;
+  }
+
+  localStorage.setItem(ADMIN_PWD_STORAGE_KEY, p1);
+  newPwdInput.value = '';
+  confirmPwdInput.value = '';
+  if (msgEl) {
+    msgEl.style.display = 'block';
+    msgEl.style.color = '#2e7d32';
+    msgEl.textContent = '✅ 管理員密碼已成功更新！請妥善保存新密碼。';
+    setTimeout(() => {
+      if (msgEl) msgEl.style.display = 'none';
+    }, 4000);
+  }
+  if (typeof showToast === 'function') {
+    showToast('🔑 管理員密碼已成功更新！');
+  }
+}
+
 async function openSettingsModal() {
+  if (isAdminAuthenticated()) {
+    actualOpenSettingsModal();
+  } else {
+    openAdminAuthModal();
+  }
+}
+
+async function actualOpenSettingsModal() {
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
   const gasInput = document.getElementById('gasApiUrlInput');
   if (gasInput) {
@@ -188,12 +336,19 @@ function closeQrModal() {
 
 window.openSettingsModal = openSettingsModal;
 window.closeSettingsModal = closeSettingsModal;
+window.openAdminAuthModal = openAdminAuthModal;
+window.closeAdminAuthModal = closeAdminAuthModal;
+window.toggleAdminPasswordVisibility = toggleAdminPasswordVisibility;
+window.handleAdminAuthSubmit = handleAdminAuthSubmit;
+window.lockAdminSession = lockAdminSession;
+window.saveNewAdminPassword = saveNewAdminPassword;
 window.openQrModal = openQrModal;
 window.closeQrModal = closeQrModal;
 
 function setupSettingsModal() {
   const openSettingsBtn = document.getElementById('openSettingsBtn');
   const modalBackdrop = document.getElementById('settingsModalBackdrop');
+  const adminAuthBackdrop = document.getElementById('adminAuthModalBackdrop');
   const closeSettingsBtn = document.getElementById('closeSettingsBtn');
   const saveGasBtn = document.getElementById('saveGasUrlBtn');
   const gasInput = document.getElementById('gasApiUrlInput');
@@ -212,6 +367,31 @@ function setupSettingsModal() {
       modalBackdrop.classList.remove('open');
     });
   }
+
+  // 點擊背景空白處關閉
+  if (adminAuthBackdrop) {
+    adminAuthBackdrop.addEventListener('click', (e) => {
+      if (e.target === adminAuthBackdrop) {
+        closeAdminAuthModal();
+      }
+    });
+  }
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) {
+        closeSettingsModal();
+      }
+    });
+  }
+
+  // 按 Esc 鍵關閉管理員驗證彈窗
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (adminAuthBackdrop && adminAuthBackdrop.classList.contains('open')) {
+        closeAdminAuthModal();
+      }
+    }
+  });
 
   if (gasInput) {
     // 開局立即填入已儲存的 API 網址
