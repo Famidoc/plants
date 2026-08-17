@@ -6332,9 +6332,22 @@ function convertPlantToComparison(plant) {
   };
 }
 
+function deduplicatePlants(plants) {
+  if (!Array.isArray(plants)) return [];
+  const seen = new Set();
+  return plants.filter(p => {
+    if (!p || !p.name) return false;
+    const clean = p.name.trim().replace(/^[\(\[\【]?植物資料[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+    if (isComparisonPlantOrDoc(p)) return false;
+    if (seen.has(clean)) return false;
+    seen.add(clean);
+    return true;
+  });
+}
+
 function getStoredPlants() {
   if (inMemoryPlantsList && inMemoryPlantsList.length > 0) {
-    return inMemoryPlantsList.filter(p => !isComparisonPlantOrDoc(p));
+    return deduplicatePlants(inMemoryPlantsList);
   }
   try {
     for (let key of STORAGE_KEYS) {
@@ -6342,20 +6355,20 @@ function getStoredPlants() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const cleanParsed = parsed.filter(p => !isComparisonPlantOrDoc(p));
+          const cleanParsed = deduplicatePlants(parsed);
           inMemoryPlantsList = cleanParsed;
           return cleanParsed;
         }
       }
     }
   } catch (e) {}
-  return DEFAULT_PLANT_DATA.filter(p => !isComparisonPlantOrDoc(p));
+  return deduplicatePlants(DEFAULT_PLANT_DATA);
 }
 
 async function loadStoredPlantsAsync() {
   const idbPlants = await getFromIndexedDB('synced_plants');
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
-    const cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
+    const cleanIdb = deduplicatePlants(idbPlants);
     inMemoryPlantsList = cleanIdb;
     return cleanIdb;
   }
@@ -6365,8 +6378,8 @@ async function loadStoredPlantsAsync() {
 function saveStoredPlants(plants) {
   if (!plants || !Array.isArray(plants) || plants.length === 0) return;
   
-  // 🛡️ 防護攔截：確保存入圖鑑庫的資料絕不包含鑑別檔案
-  const cleanPlants = plants.filter(p => !isComparisonPlantOrDoc(p));
+  // 🛡️ 防護攔截與嚴格去重
+  const cleanPlants = deduplicatePlants(plants);
   
   // 1. 立即寫入記憶體
   inMemoryPlantsList = cleanPlants;
@@ -6663,8 +6676,8 @@ const DEFAULT_COMPARISON_DATA = [
         caption: "九芎 (花小密集呈白黃色、具短葉柄)"
       },
       {
-        url: "https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000",
-        caption: "紫薇 (花大艷麗、近無葉柄、幼枝具四稜)"
+        url: "https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop",
+        caption: "紫薇 (花大艷麗桃紅粉紫、近無葉柄、幼枝具四稜)"
       }
     ]
   },

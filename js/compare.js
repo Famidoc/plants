@@ -46,7 +46,7 @@
       '薰衣草': 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop',
       '鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
       '粉萼鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
-      '紫薇': 'https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000',
+      '紫薇': 'https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop',
       '九芎': 'https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000',
       '羊蹄甲': 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?w=800&auto=format&fit=crop',
       '洋紫荊': 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop',
