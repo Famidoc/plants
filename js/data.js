@@ -6354,13 +6354,23 @@ function getStoredPlants() {
 
 async function loadStoredPlantsAsync() {
   const idbPlants = await getFromIndexedDB('synced_plants');
+  let cleanIdb = [];
+
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
     const compPlants = idbPlants.filter(p => isComparisonPlantOrDoc(p));
-    const cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
+    cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
+
+    // ⚡ 核心修復：若先前因寬鬆匹配而被誤覆蓋的花草（如 烏蘞莓、九芎），自動從原始圖鑑補回！
+    DEFAULT_PLANT_DATA.forEach(defPlant => {
+      const defName = defPlant.name.trim();
+      const exists = cleanIdb.some(p => (p.name || '').trim() === defName);
+      if (!exists) {
+        cleanIdb.push(defPlant);
+      }
+    });
 
     if (compPlants.length > 0) {
       console.log(`[開機自動遷移] 發現 ${compPlants.length} 筆鑑別檔案，正在自動遷移至相似鑑別庫...`);
-      saveStoredPlants(cleanIdb);
       const converted = compPlants.map(convertPlantToComparison).filter(Boolean);
       if (typeof mergeAndSaveStoredComparisons === 'function') {
         await mergeAndSaveStoredComparisons(converted, []);
@@ -6370,6 +6380,7 @@ async function loadStoredPlantsAsync() {
       }
     }
 
+    saveStoredPlants(cleanIdb);
     inMemoryPlantsList = cleanIdb;
     return cleanIdb;
   }
@@ -6448,7 +6459,7 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
       const beforeLen = currentList.length;
       currentList = currentList.filter(p => {
         const pName = (p.name || '').trim();
-        return pName !== targetName && !pName.includes(targetName) && !targetName.includes(pName);
+        return pName !== targetName;
       });
       if (currentList.length < beforeLen) {
         deletedCount += (beforeLen - currentList.length);
@@ -6456,15 +6467,15 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
     });
   }
 
-  // 2. 處理新增與更新 (Upsert)
+  // 2. 處理新增與更新 (Upsert) - 嚴格精確比對名稱 (Exact Match Only)
   if (validPlants.length > 0) {
     validPlants.forEach(incomingPlant => {
       if (!incomingPlant || !incomingPlant.name) return;
-      const incomingName = incomingPlant.name.trim();
+      const incomingName = incomingPlant.name.trim().replace(/^[\(\[\【]?植物資料[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
 
       const existingIdx = currentList.findIndex(p => {
-        const existingName = (p.name || '').trim();
-        return existingName === incomingName || existingName.includes(incomingName) || incomingName.includes(existingName);
+        const existingName = (p.name || '').trim().replace(/^[\(\[\【]?植物資料[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+        return existingName === incomingName;
       });
 
       if (existingIdx !== -1) {
@@ -6918,7 +6929,29 @@ function getStoredComparisons() {
 }
 
 async function loadStoredComparisonsAsync() {
-  const idbComps = await getFromIndexedDB('synced_comparisons_v2');
+  let idbComps = await getFromIndexedDB('synced_comparisons_v2');
+
+  // 檢查 synced_plants 是否有尚未轉移的鑑別資料
+  const idbPlants = await getFromIndexedDB('synced_plants');
+  if (idbPlants && Array.isArray(idbPlants)) {
+    const compPlants = idbPlants.filter(p => isComparisonPlantOrDoc(p));
+    if (compPlants.length > 0) {
+      const converted = compPlants.map(convertPlantToComparison).filter(Boolean);
+      const demoIds = ['comp-lavender-sage', 'comp-crape-subcostate', 'comp-bauhinia-trio', 'comp-cayratia-sambucus'];
+      const isPureDemo = !idbComps || (Array.isArray(idbComps) && idbComps.every(c => c.isDemo || demoIds.includes(c.id)));
+      let baseList = isPureDemo ? [] : (Array.isArray(idbComps) ? [...idbComps] : []);
+
+      converted.forEach(item => {
+        const existIdx = baseList.findIndex(c => c.title === item.title);
+        if (existIdx !== -1) baseList[existIdx] = item;
+        else baseList.unshift(item);
+      });
+
+      saveStoredComparisons(baseList);
+      idbComps = baseList;
+    }
+  }
+
   if (idbComps && Array.isArray(idbComps) && idbComps.length > 0) {
     inMemoryComparisonsList = idbComps;
     return idbComps;
