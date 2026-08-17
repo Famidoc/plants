@@ -6423,9 +6423,14 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
 
 function clearAllPlantCache() {
   inMemoryPlantsList = null;
+  inMemoryComparisonsList = null;
   saveToIndexedDB('synced_plants', null);
+  saveToIndexedDB('synced_comparisons_v2', null);
   try {
     STORAGE_KEYS.forEach(k => localStorage.removeItem(k));
+    if (typeof COMPARISON_STORAGE_KEYS !== 'undefined') {
+      COMPARISON_STORAGE_KEYS.forEach(k => localStorage.removeItem(k));
+    }
   } catch(e) {}
   if (typeof clearLastSyncedTime === 'function') {
     clearLastSyncedTime();
@@ -6841,6 +6846,13 @@ async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComp
   let deletedCount = 0;
   let addedCount = 0;
   let updatedCount = 0;
+
+  // ⚡ 聰明機制：若當前資料庫「僅有初始 4 筆預設示範資料」且雲端有新鑑別資料傳入，則自動清除示範資料，改由使用者的真實文件接管！
+  const demoIds = ['comp-lavender-sage', 'comp-crape-subcostate', 'comp-bauhinia-trio', 'comp-cayratia-sambucus'];
+  const isPureDemoData = currentList.length > 0 && currentList.every(c => c.isDemo || demoIds.includes(c.id));
+  if (isPureDemoData && Array.isArray(newOrUpdatedComps) && newOrUpdatedComps.length > 0) {
+    currentList = [];
+  }
 
   // 1. 處理刪除
   if (Array.isArray(deletedComps) && deletedComps.length > 0) {
