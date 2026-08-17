@@ -6493,7 +6493,7 @@ function parseGoogleDocFormat(text) {
 // ==========================================================================
 
 let inMemoryComparisonsList = null;
-const COMPARISON_STORAGE_KEYS = ['nian_hua_re_cao_comparisons_v1'];
+const COMPARISON_STORAGE_KEYS = ['nian_hua_re_cao_comparisons_v2', 'nian_hua_re_cao_comparisons_v1'];
 
 const DEFAULT_COMPARISON_DATA = [
   {
@@ -6560,12 +6560,12 @@ const DEFAULT_COMPARISON_DATA = [
     ],
     galleryImages: [
       {
-        url: "https://images.unsplash.com/photo-1528183429752-a97d0bf99b5a?w=800&auto=format&fit=crop",
+        url: "https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop",
         caption: "薰衣草 (狹長平滑葉片與密集穗狀花輪)"
       },
       {
-        url: "https://images.unsplash.com/photo-1595181261011-82ff5b4f6202?w=800&auto=format&fit=crop",
-        caption: "鼠尾草 (卵圓形具皺褶葉片與分層唇形花)"
+        url: "https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000",
+        caption: "鼠尾草 / 粉萼鼠尾草 (卵圓形具皺褶葉片與分層唇形花)"
       }
     ]
   },
@@ -6633,11 +6633,11 @@ const DEFAULT_COMPARISON_DATA = [
     ],
     galleryImages: [
       {
-        url: "https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop",
+        url: "https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000",
         caption: "紫薇 (花大艷麗、花瓣具長爪與皺褶)"
       },
       {
-        url: "https://images.unsplash.com/photo-1508873696983-2df57046475a?w=800&auto=format&fit=crop",
+        url: "https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000",
         caption: "九芎 (花小密集、台灣原生水土保持樹)"
       }
     ]
@@ -6711,8 +6711,12 @@ const DEFAULT_COMPARISON_DATA = [
     ],
     galleryImages: [
       {
-        url: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&auto=format&fit=crop",
+        url: "https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?w=800&auto=format&fit=crop",
         caption: "羊蹄甲 (春季開花滿樹粉紅無葉)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop",
+        caption: "洋紫荊 (秋季開淡粉白花、雄蕊3枚)"
       },
       {
         url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop",
@@ -6784,11 +6788,11 @@ const DEFAULT_COMPARISON_DATA = [
     ],
     galleryImages: [
       {
-        url: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?w=800&auto=format&fit=crop",
+        url: "https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000",
         caption: "烏蘞莓 (鳥足狀5出複葉與攀爬卷鬚)"
       },
       {
-        url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop",
+        url: "https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop",
         caption: "冇骨消 (羽狀複葉與亮橘黃色蜜杯)"
       }
     ]
@@ -6815,7 +6819,7 @@ function getStoredComparisons() {
 }
 
 async function loadStoredComparisonsAsync() {
-  const idbComps = await getFromIndexedDB('synced_comparisons');
+  const idbComps = await getFromIndexedDB('synced_comparisons_v2');
   if (idbComps && Array.isArray(idbComps) && idbComps.length > 0) {
     inMemoryComparisonsList = idbComps;
     return idbComps;
@@ -6826,7 +6830,7 @@ async function loadStoredComparisonsAsync() {
 function saveStoredComparisons(comparisons) {
   if (!comparisons || !Array.isArray(comparisons) || comparisons.length === 0) return;
   inMemoryComparisonsList = comparisons;
-  saveToIndexedDB('synced_comparisons', comparisons);
+  saveToIndexedDB('synced_comparisons_v2', comparisons);
   try {
     localStorage.setItem(COMPARISON_STORAGE_KEYS[0], JSON.stringify(comparisons));
   } catch (e) {}

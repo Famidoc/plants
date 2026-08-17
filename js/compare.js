@@ -20,6 +20,49 @@
   }
 
   /**
+   * 智慧取得物種真實照片（優先從已儲存的圖鑑資料庫比對）
+   */
+  function findSpeciesPhoto(speciesName, fallbackUrl) {
+    if (!speciesName) return fallbackUrl || '';
+    const cleanName = speciesName.trim().replace(/\s*\(.*?\)/g, '');
+    
+    // 1. 嘗試從既有圖鑑搜尋
+    const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
+    const matched = plants.find(p => {
+      if (!p || !p.name) return false;
+      const pName = p.name.trim();
+      return pName === cleanName || 
+             pName.includes(cleanName) || 
+             cleanName.includes(pName) ||
+             (p.aliases && p.aliases.some(a => a.trim() === cleanName || a.includes(cleanName)));
+    });
+
+    if (matched && matched.imageUrl) {
+      return matched.imageUrl;
+    }
+
+    // 2. 特殊對應真實精美圖照 fallback
+    const KNOWN_PHOTOS = {
+      '薰衣草': 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop',
+      '鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
+      '粉萼鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
+      '紫薇': 'https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000',
+      '九芎': 'https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000',
+      '羊蹄甲': 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?w=800&auto=format&fit=crop',
+      '洋紫荊': 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop',
+      '艷紫荊': 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop',
+      '烏蘞莓': 'https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000',
+      '冇骨消': 'https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop'
+    };
+
+    if (KNOWN_PHOTOS[cleanName]) {
+      return KNOWN_PHOTOS[cleanName];
+    }
+
+    return fallbackUrl || 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop';
+  }
+
+  /**
    * 設定控制元件監聽 (搜尋、類別標籤、燈箱關閉等)
    */
   function setupCompareControls() {
@@ -71,7 +114,10 @@
     }
 
     if (modalCloseBtn) {
-      modalCloseBtn.addEventListener('click', closeCompareModal);
+      modalCloseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeCompareModal();
+      });
     }
 
     if (modalBackdrop) {
@@ -84,7 +130,7 @@
 
     // ESC 鍵關閉燈箱
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && modalBackdrop && modalBackdrop.classList.contains('active')) {
+      if (e.key === 'Escape' && modalBackdrop && (modalBackdrop.classList.contains('open') || modalBackdrop.classList.contains('active'))) {
         closeCompareModal();
       }
     });
@@ -160,12 +206,12 @@
       const speciesArr = item.species || [];
       const images = item.galleryImages || [];
       
-      // 取得左右封面圖（若無圖片則使用預設圖）
-      const leftImg = images[0] ? images[0].url : 'https://images.unsplash.com/photo-1528183429752-a97d0bf99b5a?w=600&auto=format&fit=crop';
-      const rightImg = images[1] ? images[1].url : (images[0] ? images[0].url : 'https://images.unsplash.com/photo-1595181261011-82ff5b4f6202?w=600&auto=format&fit=crop');
-
       const leftLabel = speciesArr[0] || '物種 A';
       const rightLabel = speciesArr[1] || (speciesArr.length > 2 ? speciesArr.slice(1).join(' / ') : '物種 B');
+
+      // 取得左右真實精確封面圖
+      const leftImg = findSpeciesPhoto(leftLabel, images[0] ? images[0].url : '');
+      const rightImg = findSpeciesPhoto(rightLabel, images[1] ? images[1].url : '');
 
       // 提取特徵預覽標籤 (前 3~4 個項目)
       let featureTagsHtml = '';
@@ -310,12 +356,15 @@
       if (images.length > 0) {
         galleryContainer.innerHTML = `
           <div class="compare-gallery-grid">
-            ${images.map(img => `
-              <div class="compare-gallery-item">
-                <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.caption || '鑑別特徵圖')}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(img.url)}', '${escapeHtml(img.caption || '')}') : window.open('${escapeHtml(img.url)}', '_blank')">
-                <div class="compare-gallery-caption">${escapeHtml(img.caption || '特徵特寫照')}</div>
-              </div>
-            `).join('')}
+            ${images.map(img => {
+              const realImgUrl = findSpeciesPhoto(img.caption ? img.caption.split(/[\(\s@\-]/)[1] || '' : '', img.url);
+              return `
+                <div class="compare-gallery-item">
+                  <img src="${escapeHtml(realImgUrl)}" alt="${escapeHtml(img.caption || '鑑別特徵圖')}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(realImgUrl)}', '${escapeHtml(img.caption || '')}') : window.open('${escapeHtml(realImgUrl)}', '_blank')">
+                  <div class="compare-gallery-caption">${escapeHtml(img.caption || '特徵特寫照')}</div>
+                </div>
+              `;
+            }).join('')}
           </div>
         `;
         galleryContainer.parentElement.style.display = 'block';
@@ -344,7 +393,8 @@
       }
     }
 
-    // 顯示 Modal
+    // ⚡ 關鍵修復：同時加上 open 與 active，確保 modal.css 能百分之百開啟顯示燈箱！
+    backdrop.classList.add('open');
     backdrop.classList.add('active');
     document.body.style.overflow = 'hidden';
   }
@@ -354,7 +404,10 @@
    */
   function closeCompareModal() {
     const backdrop = document.getElementById('compareModalBackdrop');
-    if (backdrop) backdrop.classList.remove('active');
+    if (backdrop) {
+      backdrop.classList.remove('open');
+      backdrop.classList.remove('active');
+    }
     document.body.style.overflow = '';
   }
 
@@ -372,10 +425,12 @@
 
     // 搜尋該植物並自動開啟
     const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
+    const cleanTargetName = plantName.trim().replace(/\s*\(.*?\)/g, '');
     const matchedPlant = plants.find(p => 
-      p.name.includes(plantName) || 
-      plantName.includes(p.name) ||
-      (p.aliases && p.aliases.some(a => a.includes(plantName) || plantName.includes(a)))
+      p.name === cleanTargetName ||
+      p.name.includes(cleanTargetName) || 
+      cleanTargetName.includes(p.name) ||
+      (p.aliases && p.aliases.some(a => a.includes(cleanTargetName) || cleanTargetName.includes(a)))
     );
 
     if (matchedPlant && typeof window.openPlantModal === 'function') {
@@ -386,7 +441,7 @@
       // 若找不到完全匹配，將植物名填入圖鑑搜尋框
       const searchInput = document.getElementById('searchInput');
       if (searchInput) {
-        searchInput.value = plantName;
+        searchInput.value = cleanTargetName;
         searchInput.dispatchEvent(new Event('input'));
       }
     }
@@ -408,5 +463,6 @@
   window.openCompareModal = openCompareModal;
   window.closeCompareModal = closeCompareModal;
   window.jumpToPlantFromCompare = jumpToPlantFromCompare;
+  window.findSpeciesPhoto = findSpeciesPhoto;
 
 })();
