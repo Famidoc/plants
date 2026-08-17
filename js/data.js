@@ -6676,8 +6676,8 @@ const DEFAULT_COMPARISON_DATA = [
         caption: "九芎 (花小密集呈白黃色、具短葉柄)"
       },
       {
-        url: "https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop",
-        caption: "紫薇 (花大艷麗桃紅粉紫、近無葉柄、幼枝具四稜)"
+        url: "https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000",
+        caption: "紫薇 (花大艷麗、近無葉柄、幼枝具四稜)"
       }
     ]
   },

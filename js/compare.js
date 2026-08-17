@@ -26,27 +26,32 @@
     if (!speciesName) return fallbackUrl || '';
     const cleanName = speciesName.trim().replace(/\s*\(.*?\)/g, '');
     
-    // 1. 嘗試從既有圖鑑搜尋
+    // 1. 嚴格名稱比對 (優先中文名稱完全相等)
     const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
-    const matched = plants.find(p => {
-      if (!p || !p.name) return false;
-      const pName = p.name.trim();
-      return pName === cleanName || 
-             pName.includes(cleanName) || 
-             cleanName.includes(pName) ||
-             (p.aliases && p.aliases.some(a => a.trim() === cleanName || a.includes(cleanName)));
-    });
+    
+    // 先找完全相等的名稱
+    let matched = plants.find(p => p && (p.name || '').trim() === cleanName);
+    
+    // 若無，再找別名中有完全相等的項目（嚴格相等，不用 includes，避免苞花紫薇誤命中紫薇）
+    if (!matched) {
+      matched = plants.find(p => p && Array.isArray(p.aliases) && p.aliases.some(a => (a || '').trim() === cleanName));
+    }
 
     if (matched && matched.imageUrl) {
       return matched.imageUrl;
     }
 
-    // 2. 特殊對應真實精美圖照 fallback
+    // 2. 優先使用傳入的 fallbackUrl（如鑑別文件內附的照片）
+    if (fallbackUrl) {
+      return fallbackUrl;
+    }
+
+    // 3. 特殊精確對照表
     const KNOWN_PHOTOS = {
       '薰衣草': 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop',
       '鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
       '粉萼鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
-      '紫薇': 'https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop',
+      '紫薇': 'https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000',
       '九芎': 'https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000',
       '羊蹄甲': 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?w=800&auto=format&fit=crop',
       '洋紫荊': 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop',
@@ -59,7 +64,7 @@
       return KNOWN_PHOTOS[cleanName];
     }
 
-    return fallbackUrl || 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop';
+    return 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop';
   }
 
   /**
