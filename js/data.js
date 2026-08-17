@@ -6354,33 +6354,8 @@ function getStoredPlants() {
 
 async function loadStoredPlantsAsync() {
   const idbPlants = await getFromIndexedDB('synced_plants');
-  let cleanIdb = [];
-
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
-    const compPlants = idbPlants.filter(p => isComparisonPlantOrDoc(p));
-    cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
-
-    // ⚡ 核心修復：若先前因寬鬆匹配而被誤覆蓋的花草（如 烏蘞莓、九芎），自動從原始圖鑑補回！
-    DEFAULT_PLANT_DATA.forEach(defPlant => {
-      const defName = defPlant.name.trim();
-      const exists = cleanIdb.some(p => (p.name || '').trim() === defName);
-      if (!exists) {
-        cleanIdb.push(defPlant);
-      }
-    });
-
-    if (compPlants.length > 0) {
-      console.log(`[開機自動遷移] 發現 ${compPlants.length} 筆鑑別檔案，正在自動遷移至相似鑑別庫...`);
-      const converted = compPlants.map(convertPlantToComparison).filter(Boolean);
-      if (typeof mergeAndSaveStoredComparisons === 'function') {
-        await mergeAndSaveStoredComparisons(converted, []);
-        if (typeof renderCompareCards === 'function') {
-          renderCompareCards();
-        }
-      }
-    }
-
-    saveStoredPlants(cleanIdb);
+    const cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
     inMemoryPlantsList = cleanIdb;
     return cleanIdb;
   }
@@ -6603,7 +6578,7 @@ function parseGoogleDocFormat(text) {
 // ==========================================================================
 
 let inMemoryComparisonsList = null;
-const COMPARISON_STORAGE_KEYS = ['nian_hua_re_cao_comparisons_v2', 'nian_hua_re_cao_comparisons_v1'];
+const COMPARISON_STORAGE_KEYS = ['nian_hua_re_cao_comparisons_v3', 'nian_hua_re_cao_comparisons_v2'];
 
 const DEFAULT_COMPARISON_DATA = [
   {
@@ -6829,7 +6804,7 @@ const DEFAULT_COMPARISON_DATA = [
         caption: "洋紫荊 (秋季開淡粉白花、雄蕊3枚)"
       },
       {
-        url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop",
+        url: "https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop",
         caption: "艷紫荊 (秋冬盛開艷麗深紫、不結莢)"
       }
     ]
@@ -6929,7 +6904,7 @@ function getStoredComparisons() {
 }
 
 async function loadStoredComparisonsAsync() {
-  let idbComps = await getFromIndexedDB('synced_comparisons_v2');
+  let idbComps = await getFromIndexedDB('synced_comparisons_v3');
 
   // 檢查 synced_plants 是否有尚未轉移的鑑別資料
   const idbPlants = await getFromIndexedDB('synced_plants');
@@ -6962,7 +6937,7 @@ async function loadStoredComparisonsAsync() {
 function saveStoredComparisons(comparisons) {
   if (!comparisons || !Array.isArray(comparisons) || comparisons.length === 0) return;
   inMemoryComparisonsList = comparisons;
-  saveToIndexedDB('synced_comparisons_v2', comparisons);
+  saveToIndexedDB('synced_comparisons_v3', comparisons);
   try {
     localStorage.setItem(COMPARISON_STORAGE_KEYS[0], JSON.stringify(comparisons));
   } catch (e) {}
