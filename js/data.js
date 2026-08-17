@@ -6280,9 +6280,61 @@ const DEFAULT_PLANT_DATA = [
   }
 ];
 
+function isComparisonPlantOrDoc(nameOrObj) {
+  if (!nameOrObj) return false;
+  const name = typeof nameOrObj === 'string' ? nameOrObj : (nameOrObj.name || nameOrObj.title || nameOrObj.fileName || '');
+  return /[\(\[\【]?(鑑別|辨析|相似|辨別|VS|vs)[\)\]\】]?/i.test(name) ||
+         name.includes(' vs ') ||
+         name.includes(' VS ') ||
+         name.includes('對比') ||
+         name.startsWith('[鑑別]');
+}
+
+function convertPlantToComparison(plant) {
+  if (!plant) return null;
+  const rawName = (plant.name || '').trim();
+  const cleanTitle = rawName.replace(/^[\(\[\【]?鑑別[\]\)\】\_\-\s]*/g, '').trim();
+  
+  let speciesList = cleanTitle.split(/[-–—vsVS與和、,+/]+/i).map(s => s.trim()).filter(Boolean);
+  if (speciesList.length === 0) speciesList = [cleanTitle];
+
+  let comparisonTable = {
+    headers: ["比對項目"].concat(speciesList),
+    rows: []
+  };
+
+  if (plant.morphologyDetails && Array.isArray(plant.morphologyDetails)) {
+    plant.morphologyDetails.forEach(m => {
+      if (m.label && m.value) {
+        comparisonTable.rows.push({
+          feature: m.label,
+          values: [m.value]
+        });
+      }
+    });
+  }
+
+  return {
+    id: `comp-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    title: cleanTitle,
+    species: speciesList,
+    family: plant.family || '觀賞植物',
+    confusionLevel: '★★★★☆',
+    mnemonic: cleanTitle + ' 特徵辨析與鑑別要領',
+    comparisonTable: comparisonTable,
+    detailedNotes: (plant.morphologyDetails || []).map(m => ({
+      title: m.label || '特徵要點',
+      content: m.value || ''
+    })),
+    galleryImages: plant.galleryImages || (plant.imageUrl ? [{ url: plant.imageUrl, caption: cleanTitle }] : []),
+    dateAdded: plant.dateAdded || new Date().toISOString().slice(0,10).replace(/-/g,''),
+    fileName: rawName
+  };
+}
+
 function getStoredPlants() {
   if (inMemoryPlantsList && inMemoryPlantsList.length > 0) {
-    return inMemoryPlantsList;
+    return inMemoryPlantsList.filter(p => !isComparisonPlantOrDoc(p));
   }
   try {
     for (let key of STORAGE_KEYS) {
@@ -6290,41 +6342,45 @@ function getStoredPlants() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryPlantsList = parsed;
-          return parsed;
+          const cleanParsed = parsed.filter(p => !isComparisonPlantOrDoc(p));
+          inMemoryPlantsList = cleanParsed;
+          return cleanParsed;
         }
       }
     }
   } catch (e) {}
-  return DEFAULT_PLANT_DATA;
+  return DEFAULT_PLANT_DATA.filter(p => !isComparisonPlantOrDoc(p));
 }
 
 async function loadStoredPlantsAsync() {
-  // 1. 優先從 IndexedDB (無 5MB 限制的大容量完整快取) 讀取最新完整資料
   const idbPlants = await getFromIndexedDB('synced_plants');
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
-    inMemoryPlantsList = idbPlants;
-    return idbPlants;
+    const cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
+    inMemoryPlantsList = cleanIdb;
+    return cleanIdb;
   }
   return getStoredPlants();
 }
 
 function saveStoredPlants(plants) {
   if (!plants || !Array.isArray(plants) || plants.length === 0) return;
-  // 1. 立即寫入記憶體，確保畫面能瞬間更新
-  inMemoryPlantsList = plants;
+  
+  // 🛡️ 防護攔截：確保存入圖鑑庫的資料絕不包含鑑別檔案
+  const cleanPlants = plants.filter(p => !isComparisonPlantOrDoc(p));
+  
+  // 1. 立即寫入記憶體
+  inMemoryPlantsList = cleanPlants;
 
-  // 2. 寫入 IndexedDB 永久大容量快取 (圖片已是 Drive URL，體積極小)
-  saveToIndexedDB('synced_plants', plants);
+  // 2. 寫入 IndexedDB
+  saveToIndexedDB('synced_plants', cleanPlants);
 
-  // 3. 寫入 LocalStorage（圖片已是 Drive URL，體積極小，可完整存入）
+  // 3. 寫入 LocalStorage
   try {
-    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(plants));
+    localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(cleanPlants));
   } catch (e) {
     console.warn('LocalStorage 備份失敗，嘗試精簡版...', e);
     try {
-      // 超級極簡備份（僅保留核心文字欄位）
-      const ultraLight = plants.map(p => ({
+      const ultraLight = cleanPlants.map(p => ({
         id: p.id,
         name: p.name,
         scientificName: p.scientificName,
@@ -6337,9 +6393,7 @@ function saveStoredPlants(plants) {
         imageUrl: p.imageUrl || DEFAULT_SVG_PLACEHOLDER
       }));
       localStorage.setItem(STORAGE_KEYS[0], JSON.stringify(ultraLight));
-    } catch (err2) {
-      console.error('LocalStorage 寫入完全失敗 (請依賴 IndexedDB):', err2);
-    }
+    } catch (err2) {}
   }
 }
 
@@ -6349,9 +6403,27 @@ function saveStoredPlants(plants) {
 async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants = []) {
   let currentList = [...(await loadStoredPlantsAsync())];
 
+  // 清除現存列表中誤存的鑑別卡片
+  currentList = currentList.filter(p => !isComparisonPlantOrDoc(p));
+
   let deletedCount = 0;
   let addedCount = 0;
   let updatedCount = 0;
+
+  // 🛡️ 智慧雙向分流：若傳入的植物列表中含有鑑別文章，自動轉移至 comparisons 庫！
+  const comparisonsToAutoRedirect = [];
+  const validPlants = [];
+
+  if (Array.isArray(newOrUpdatedPlants)) {
+    newOrUpdatedPlants.forEach(item => {
+      if (isComparisonPlantOrDoc(item)) {
+        const convertedComp = convertPlantToComparison(item);
+        if (convertedComp) comparisonsToAutoRedirect.push(convertedComp);
+      } else {
+        validPlants.push(item);
+      }
+    });
+  }
 
   // 1. 處理刪除 (Deletions)
   if (Array.isArray(deletedPlants) && deletedPlants.length > 0) {
@@ -6371,8 +6443,8 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
   }
 
   // 2. 處理新增與更新 (Upsert)
-  if (Array.isArray(newOrUpdatedPlants) && newOrUpdatedPlants.length > 0) {
-    newOrUpdatedPlants.forEach(incomingPlant => {
+  if (validPlants.length > 0) {
+    validPlants.forEach(incomingPlant => {
       if (!incomingPlant || !incomingPlant.name) return;
       const incomingName = incomingPlant.name.trim();
 
@@ -6387,7 +6459,6 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
         const oldId = oldPlant.id;
         const oldImageUrl = oldPlant.imageUrl || '';
         
-        // 智慧圖片保留保護：若舊資料有實體雲端照片 (data:image)，而新資料無照片，保留原實體照片
         let finalImageUrl = incomingPlant.imageUrl || '';
         if ((!finalImageUrl || finalImageUrl === './assets/images/ferns.jpg') && 
             oldImageUrl && oldImageUrl.startsWith('data:image') && !oldImageUrl.includes('svg+xml')) {
@@ -6413,11 +6484,20 @@ async function mergeAndSaveStoredPlants(newOrUpdatedPlants = [], deletedPlants =
 
   saveStoredPlants(currentList);
 
+  // ⚡ 若攔截到鑑別資料，自動將其存入相似鑑別庫！
+  if (comparisonsToAutoRedirect.length > 0 && typeof mergeAndSaveStoredComparisons === 'function') {
+    await mergeAndSaveStoredComparisons(comparisonsToAutoRedirect, []);
+    if (typeof renderCompareCards === 'function') {
+      renderCompareCards();
+    }
+  }
+
   return {
     addedCount,
     updatedCount,
     deletedCount,
-    totalCount: currentList.length
+    totalCount: currentList.length,
+    redirectedComparisonCount: comparisonsToAutoRedirect.length
   };
 }
 
