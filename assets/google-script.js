@@ -1,12 +1,12 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v84 相似鑑別智慧分流版
+ * Google Apps Script (GAS) 自動掃描腳本 - v91 相似鑑別穩定版
  * 
- * 重大升級：
- * 1. ⚡ 智慧分流：自動識別 [增修刪] 中的「花草資料」與「相似鑑別資料」
- * 2. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
- * 3. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動
- * 4. 逐圖時間地點解析：自動辨識每張照片下方/附近的拍攝時間與地點
+ * 重大修復：
+ * 1. ⚡ 修復 parseComparisonDoc 中 doc.getDateCreated() 方法不存在導致解析崩潰的 Bug
+ * 2. ⚡ 智慧分流：自動識別 [增修刪] 中的「花草資料」與「相似鑑別資料」
+ * 3. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
+ * 4. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動
  * 5. 草稿防護機制：自動忽略名稱含有 [草稿]、(編輯中)、Draft 的檔案
  * ==========================================================================
  */
@@ -241,7 +241,7 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
   if (parsedDl && parsedDl.dateAdded) dateAdded = parsedDl.dateAdded;
 
   // 提取特徵照片
-  var galleryItems = getPlantGalleryFromDoc(doc, folder, "compare_" + rawTitle.replace(/[^\w\u4e00-\u9fa5]/g, '_'), imagesFolder, text, formattedDateFromDate(doc.getDateCreated()) || defaultDateStr, debugLog);
+  var galleryItems = getPlantGalleryFromDoc(doc, folder, "compare_" + rawTitle.replace(/[^\w\u4e00-\u9fa5]/g, '_'), imagesFolder, text, defaultDateStr, debugLog);
 
   // 提取表格對比矩陣 (優先從 DocumentApp Table 物件提取，無表格則解析 Markdown 表格)
   var comparisonTable = extractComparisonTable(doc, text, speciesList);
