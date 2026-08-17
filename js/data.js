@@ -6355,7 +6355,21 @@ function getStoredPlants() {
 async function loadStoredPlantsAsync() {
   const idbPlants = await getFromIndexedDB('synced_plants');
   if (idbPlants && Array.isArray(idbPlants) && idbPlants.length > 0) {
+    const compPlants = idbPlants.filter(p => isComparisonPlantOrDoc(p));
     const cleanIdb = idbPlants.filter(p => !isComparisonPlantOrDoc(p));
+
+    if (compPlants.length > 0) {
+      console.log(`[開機自動遷移] 發現 ${compPlants.length} 筆鑑別檔案，正在自動遷移至相似鑑別庫...`);
+      saveStoredPlants(cleanIdb);
+      const converted = compPlants.map(convertPlantToComparison).filter(Boolean);
+      if (typeof mergeAndSaveStoredComparisons === 'function') {
+        await mergeAndSaveStoredComparisons(converted, []);
+        if (typeof renderCompareCards === 'function') {
+          renderCompareCards();
+        }
+      }
+    }
+
     inMemoryPlantsList = cleanIdb;
     return cleanIdb;
   }
