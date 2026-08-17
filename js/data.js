@@ -6949,11 +6949,10 @@ async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComp
   let addedCount = 0;
   let updatedCount = 0;
 
-  // ⚡ 聰明機制：若當前資料庫「僅有初始 4 筆預設示範資料」且雲端有新鑑別資料傳入，則自動清除示範資料，改由使用者的真實文件接管！
+  // ⚡ 聰明機制：只要雲端有新的鑑別資料傳入，自動將 4 筆預設示範資料徹底清空！
   const demoIds = ['comp-lavender-sage', 'comp-crape-subcostate', 'comp-bauhinia-trio', 'comp-cayratia-sambucus'];
-  const isPureDemoData = currentList.length > 0 && currentList.every(c => c.isDemo || demoIds.includes(c.id));
-  if (isPureDemoData && Array.isArray(newOrUpdatedComps) && newOrUpdatedComps.length > 0) {
-    currentList = [];
+  if (Array.isArray(newOrUpdatedComps) && newOrUpdatedComps.length > 0) {
+    currentList = currentList.filter(c => !demoIds.includes(c.id) && !c.isDemo);
   }
 
   // 1. 處理刪除

@@ -622,14 +622,24 @@ function getComparisonFolder() {
 }
 
 function findTargetFolder() {
-  var stagingNames = ["增修刪", "[增修刪]", "【增修刪】"];
+  var stagingNames = ["[增修刪]", "增修刪", "【增修刪】"];
   for (var s = 0; s < stagingNames.length; s++) {
     var sFolders = DriveApp.getFoldersByName(stagingNames[s]);
-    if (sFolders.hasNext()) {
-      return { folder: sFolders.next(), syncMode: "INCREMENTAL" };
+    while (sFolders.hasNext()) {
+      var sf = sFolders.next();
+      var sfDocs = getAllDocsInFolder(sf);
+      if (sfDocs.length > 0) {
+        return { folder: sf, syncMode: "INCREMENTAL" };
+      }
     }
   }
-  var mainNames = ["捻花惹草", "[捻花惹草]", "【捻花惹草】"];
+  for (var s2 = 0; s2 < stagingNames.length; s2++) {
+    var sFolders2 = DriveApp.getFoldersByName(stagingNames[s2]);
+    if (sFolders2.hasNext()) {
+      return { folder: sFolders2.next(), syncMode: "INCREMENTAL" };
+    }
+  }
+  var mainNames = ["[捻花惹草]", "捻花惹草", "【捻花惹草】"];
   var bestFolder = null;
   for (var i = 0; i < mainNames.length; i++) {
     var folders = DriveApp.getFoldersByName(mainNames[i]);
@@ -649,25 +659,18 @@ function getAllDocsInFolder(folder) {
   function searchIn(targetFolder) {
     if (!targetFolder) return;
     try {
-      var files = targetFolder.getFilesByType(MimeType.GOOGLE_DOCS);
+      var files = targetFolder.getFiles();
       while (files.hasNext()) {
         var f = files.next();
-        if (!seenIds[f.getId()]) {
-          seenIds[f.getId()] = true;
-          docs.push(f);
+        var mime = (f.getMimeType() || "").toLowerCase();
+        if (mime.indexOf("image/") === -1 && mime.indexOf("video/") === -1 && mime.indexOf("audio/") === -1) {
+          if (!seenIds[f.getId()]) {
+            seenIds[f.getId()] = true;
+            docs.push(f);
+          }
         }
       }
     } catch(e1) {}
-    try {
-      var docxFiles = targetFolder.getFilesByType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-      while (docxFiles.hasNext()) {
-        var df = docxFiles.next();
-        if (!seenIds[df.getId()]) {
-          seenIds[df.getId()] = true;
-          docs.push(df);
-        }
-      }
-    } catch(e2) {}
     try { var subs = targetFolder.getSubFolders(); while (subs.hasNext()) { searchIn(subs.next()); } } catch(e3) {}
   }
   searchIn(folder);
