@@ -44,10 +44,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=83">
-  <link rel="stylesheet" href="./css/gallery.css?v=83">
-  <link rel="stylesheet" href="./css/modal.css?v=83">
-  <link rel="stylesheet" href="./css/quiz.css?v=83">
+  <link rel="stylesheet" href="./css/main.css?v=84">
+  <link rel="stylesheet" href="./css/gallery.css?v=84">
+  <link rel="stylesheet" href="./css/compare.css?v=84">
+  <link rel="stylesheet" href="./css/modal.css?v=84">
+  <link rel="stylesheet" href="./css/quiz.css?v=84">
 </head>
 <body>
 
@@ -63,7 +64,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v83</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v84</small></span>
         </div>
       </div>
 
@@ -71,6 +72,9 @@
       <nav class="nav-links">
         <button class="nav-btn active" data-target-view="galleryView">
           <span>📖</span> 花草圖鑑
+        </button>
+        <button class="nav-btn" data-target-view="compareView">
+          <span>⚖️</span> 相似鑑別
         </button>
         <button class="nav-btn" data-target-view="quizView">
           <span>🎯</span> 知識測驗
@@ -172,6 +176,37 @@
       </div>
     </section>
 
+    <!-- View 3: 相似植物鑑別 (Compare View) -->
+    <section id="compareView" class="view-section">
+      <div class="gallery-controls">
+        <div class="search-bar-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="compareSearchInput" class="search-input" placeholder="搜尋鑑別物種名稱 (如: 薰衣草、紫薇、九芎、艷紫荊)、科別或特徵口訣..." aria-label="搜尋相似鑑別">
+          <button id="compareSearchClearBtn" class="search-clear-btn" aria-label="清除搜尋">✕</button>
+        </div>
+
+        <div class="filter-toolbar">
+          <div class="category-chips" id="compareCategoryChips">
+            <button class="chip-btn active" data-category="ALL">全部鑑別</button>
+            <button class="chip-btn" data-category="唇形科">唇形科</button>
+            <button class="chip-btn" data-category="千屈菜科">千屈菜科</button>
+            <button class="chip-btn" data-category="豆科">豆科</button>
+            <button class="chip-btn" data-category="葡萄科">葡萄科 / 五福花科</button>
+          </div>
+
+          <div class="sort-info-bar">
+            <button id="compareSortToggleBtn" class="order-badge" title="點擊切換排序">⬇ 依時間逆向排序</button>
+            <span id="compareCountBadge">載入中...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 鑑別卡片網格 -->
+      <div id="compareGridContainer" class="compare-grid">
+        <!-- JS 動態生成 -->
+      </div>
+    </section>
+
   </main>
 
   <!-- 行動端 Bottom Navigation (Mobile Only) -->
@@ -179,6 +214,10 @@
     <button class="mobile-nav-item active" data-target-view="galleryView">
       <i>📖</i>
       <span>花草圖鑑</span>
+    </button>
+    <button class="mobile-nav-item" data-target-view="compareView">
+      <i>⚖️</i>
+      <span>相似鑑別</span>
     </button>
     <button class="mobile-nav-item" data-target-view="quizView">
       <i>🎯</i>
@@ -486,6 +525,74 @@
     </div>
   </div>
 
+  <!-- 相似鑑別詳細燈箱 Modal (Compare Detail Modal) -->
+  <div id="compareModalBackdrop" class="modal-backdrop">
+    <div id="compareModalContainer" class="modal-container">
+      
+      <!-- 頂部標題與關閉按鈕 -->
+      <div class="compare-modal-header">
+        <div class="compare-modal-header-left">
+          <span class="compare-modal-icon">⚖️</span>
+          <div>
+            <h2 id="compareModalTitle" class="compare-modal-title">物種 A vs 物種 B</h2>
+            <div id="compareModalSubtitle" class="compare-modal-subtitle">
+              <span>🌿 科別</span>
+              <span>•</span>
+              <span>⚡ 混淆指數：★★★★☆</span>
+            </div>
+          </div>
+        </div>
+        <button id="compareModalCloseBtn" class="compare-modal-close-btn" title="關閉 (Esc)">✕</button>
+      </div>
+
+      <!-- Modal 內容區 -->
+      <div class="compare-modal-body">
+        
+        <!-- 一句話秒殺速記 Banner -->
+        <div class="compare-modal-mnemonic-card">
+          <div class="compare-modal-mnemonic-icon">💡</div>
+          <div>
+            <div class="compare-modal-mnemonic-title">核心鑑別速記要訣</div>
+            <div id="compareModalMnemonicText" class="compare-modal-mnemonic-text">
+              速記口訣加載中...
+            </div>
+          </div>
+        </div>
+
+        <!-- 關聯花草快速跳轉列 -->
+        <div id="compareQuickJumpBar" class="compare-quick-jump-bar">
+          <!-- JS 動態生成 -->
+        </div>
+
+        <!-- 特徵對比矩陣表 -->
+        <div class="compare-table-section">
+          <h3 class="compare-section-heading"><span>📊</span> 重點特徵對比矩陣</h3>
+          <div id="compareTableContainer">
+            <!-- JS 動態生成表格 -->
+          </div>
+        </div>
+
+        <!-- 高清特徵圖文對照 -->
+        <div class="compare-table-section">
+          <h3 class="compare-section-heading"><span>📸</span> 特徵實物特寫與對照</h3>
+          <div id="compareGalleryContainer">
+            <!-- JS 動態生成照片 -->
+          </div>
+        </div>
+
+        <!-- 鑑別重點詳解 -->
+        <div class="compare-table-section">
+          <h3 class="compare-section-heading"><span>🎯</span> 實戰鑑別要點詳解</h3>
+          <div id="compareNotesContainer">
+            <!-- JS 動態生成條列 -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
   <!-- 🔄 雲端動態同步進度與狀態提示橫幅 -->
   <div id="syncStatusBanner" class="sync-status-banner">
     <span id="syncStatusIcon" class="sync-status-icon">🔄</span>
@@ -502,12 +609,13 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=83 Cache Buster -->
-  <script src="./js/data.js?v=83"></script>
-  <script src="./js/sync.js?v=83"></script>
-  <script src="./js/gallery.js?v=83"></script>
-  <script src="./js/quiz.js?v=83"></script>
-  <script src="./js/app.js?v=83"></script>
+  <!-- JavaScript Scripts with ?v=84 Cache Buster -->
+  <script src="./js/data.js?v=84"></script>
+  <script src="./js/sync.js?v=84"></script>
+  <script src="./js/compare.js?v=84"></script>
+  <script src="./js/gallery.js?v=84"></script>
+  <script src="./js/quiz.js?v=84"></script>
+  <script src="./js/app.js?v=84"></script>
 
 </body>
 </html>

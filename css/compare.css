@@ -1,0 +1,530 @@
+/* ==========================================================================
+   「相似鑑別」專屬視覺樣式 (Similar Species Comparison CSS)
+   ========================================================================== */
+
+/* 相似鑑別卡片網格 */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 1.75rem;
+  margin-top: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* 鑑別卡片 (Compare Card) */
+.compare-card {
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-smooth), box-shadow var(--transition-smooth), border-color var(--transition-fast);
+  cursor: pointer;
+  position: relative;
+}
+
+.compare-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+  border-color: var(--accent-mint);
+}
+
+/* 雙圖對比封面 (Dual Image Banner) */
+.compare-hero-banner {
+  position: relative;
+  height: 210px;
+  display: flex;
+  background: #15281e;
+  overflow: hidden;
+}
+
+.compare-hero-img-wrap {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.compare-hero-img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.compare-card:hover .compare-hero-img-wrap img {
+  transform: scale(1.06);
+}
+
+.compare-hero-label {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: rgba(15, 32, 23, 0.78);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.compare-hero-img-wrap:last-child .compare-hero-label {
+  left: auto;
+  right: 8px;
+}
+
+/* VS 圓形標誌 (Golden VS Badge) */
+.compare-vs-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  background: linear-gradient(135deg, #e5ba73, #c69443);
+  color: #1b3b2b;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 900;
+  font-size: 1.05rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 4px 14px rgba(0, 0, 0, 0.35);
+  z-index: 3;
+  letter-spacing: -0.5px;
+}
+
+/* 卡片內容區 */
+.compare-card-body {
+  padding: 1.25rem 1.4rem;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.85rem;
+}
+
+.compare-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.compare-card-title {
+  font-size: 1.28rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  line-height: 1.3;
+}
+
+.compare-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.compare-family-badge {
+  background: #e8f5e9;
+  color: var(--primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid #c8e6c9;
+}
+
+.compare-diff-badge {
+  background: #fff3e0;
+  color: #e65100;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid #ffe0b2;
+}
+
+/* 一句話速記卡片 (Mnemonic Quote Box) */
+.compare-mnemonic-box {
+  background: linear-gradient(135deg, rgba(232, 245, 233, 0.7), rgba(241, 248, 233, 0.9));
+  border-left: 4px solid var(--primary-light);
+  padding: 0.75rem 0.9rem;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: 0.88rem;
+  color: #244231;
+  line-height: 1.5;
+  font-weight: 500;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.compare-mnemonic-box i {
+  font-style: normal;
+  font-size: 1rem;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+/* 特徵亮點標籤 */
+.compare-features-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 0.4rem;
+}
+
+.compare-feature-chip {
+  font-size: 0.74rem;
+  background: #edf2ed;
+  color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.compare-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #edf2ed;
+  padding-top: 0.85rem;
+  margin-top: 0.4rem;
+}
+
+.compare-date-text {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.compare-btn-link {
+  color: var(--primary);
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: transform var(--transition-fast);
+}
+
+.compare-card:hover .compare-btn-link {
+  transform: translateX(4px);
+  color: var(--primary-light);
+}
+
+/* ==========================================================================
+   相似鑑別詳細燈箱 (Compare Modal)
+   ========================================================================== */
+
+#compareModalContainer {
+  max-width: 920px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.compare-modal-header {
+  background: var(--primary-dark);
+  color: #ffffff;
+  padding: 1.2rem 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.compare-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compare-modal-icon {
+  font-size: 1.7rem;
+}
+
+.compare-modal-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.compare-modal-subtitle {
+  font-size: 0.82rem;
+  color: var(--accent-mint);
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.compare-modal-close-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast);
+}
+
+.compare-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.compare-modal-body {
+  padding: 1.5rem 1.8rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: #fbfdfb;
+}
+
+/* 一句話口訣 Banner (Modal Top Mnemonic) */
+.compare-modal-mnemonic-card {
+  background: linear-gradient(135deg, #1b3b2b 0%, #2c5e43 100%);
+  color: #ffffff;
+  padding: 1.25rem 1.5rem;
+  border-radius: var(--radius-md);
+  box-shadow: 0 6px 18px rgba(27, 59, 43, 0.2);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.compare-modal-mnemonic-icon {
+  font-size: 1.8rem;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.15);
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.compare-modal-mnemonic-title {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent-gold);
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.compare-modal-mnemonic-text {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #f4fdf6;
+}
+
+/* 關聯植物快速導覽按鈕群 (Quick Plant Jump Chips) */
+.compare-quick-jump-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 0.75rem 1rem;
+  background: #eef4ef;
+  border-radius: var(--radius-sm);
+  border: 1px dashed #b8d4be;
+}
+
+.compare-quick-jump-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.compare-plant-jump-btn {
+  background: #ffffff;
+  border: 1px solid #c2dec8;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.04);
+  transition: all var(--transition-fast);
+}
+
+.compare-plant-jump-btn:hover {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(44, 94, 67, 0.2);
+}
+
+/* 特徵矩陣表格 (Comparison Table) */
+.compare-table-section {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  border: 1px solid #e0ece3;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.compare-section-heading {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--primary-dark);
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  border: 1px solid #d9e6dc;
+}
+
+.compare-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  text-align: left;
+}
+
+.compare-matrix-table th {
+  background: #244835;
+  color: #ffffff;
+  font-weight: 700;
+  padding: 12px 16px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 0.95rem;
+}
+
+.compare-matrix-table th:first-child {
+  width: 22%;
+  background: #1b3829;
+}
+
+.compare-matrix-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e6eee8;
+  border-right: 1px solid #e6eee8;
+  color: var(--text-main);
+  line-height: 1.5;
+  vertical-align: top;
+}
+
+.compare-matrix-table tr:nth-child(even) td {
+  background: #f8faf8;
+}
+
+.compare-matrix-table tr:hover td {
+  background: #eef7f0;
+}
+
+.compare-matrix-table td.feature-name {
+  font-weight: 700;
+  color: var(--primary-dark);
+  background: #f3f8f4;
+  border-right: 2px solid #cce0d2;
+}
+
+/* 高清圖文對照區 (Photo Gallery in Modal) */
+.compare-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.compare-gallery-item {
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid #e2ede4;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+.compare-gallery-item img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: transform var(--transition-fast);
+}
+
+.compare-gallery-item img:hover {
+  transform: scale(1.03);
+}
+
+.compare-gallery-caption {
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  background: #f4f8f5;
+  border-top: 1px solid #e5ede7;
+  text-align: center;
+}
+
+/* 鑑別重點詳解條列 (Detailed Notes) */
+.compare-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compare-note-card {
+  background: #ffffff;
+  border-left: 4px solid var(--accent-sage);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  border-top: 1px solid #edf3ef;
+  border-right: 1px solid #edf3ef;
+  border-bottom: 1px solid #edf3ef;
+}
+
+.compare-note-title {
+  font-weight: 700;
+  font-size: 0.96rem;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.compare-note-content {
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  white-space: pre-line;
+}

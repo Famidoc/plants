@@ -1,12 +1,12 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v75 聰明增量與零等待保護版
+ * Google Apps Script (GAS) 自動掃描腳本 - v84 相似鑑別智慧分流版
  * 
- * 重大修復與升級：
- * 1. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動，絕不白跑全量掃描
- * 2. 徹底消除圖片重複產生與雙重讀取 Bug
- * 3. 智慧增量快取：當 Doc 中新增照片時，自動精確補抓新照片並存入 images/ 主資料夾
- * 4. 逐圖時間地點解析：自動辨識每張照片下方/附近的獨立拍攝時間與地點 (如 20260707@大坑四號步道)
+ * 重大升級：
+ * 1. ⚡ 智慧分流：自動識別 [增修刪] 中的「花草資料」與「相似鑑別資料」
+ * 2. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
+ * 3. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動
+ * 4. 逐圖時間地點解析：自動辨識每張照片下方/附近的拍攝時間與地點
  * 5. 草稿防護機制：自動忽略名稱含有 [草稿]、(編輯中)、Draft 的檔案
  * ==========================================================================
  */
@@ -74,6 +74,14 @@ function doGet(e) {
           folderName = folder.getName();
           syncMode = "FULL";
           docs = mainDocs;
+
+          // 若為全量同步，額外嘗試搜尋 [相似鑑別] 歸檔資料夾並合併掃描
+          var compFolder = getComparisonFolder();
+          if (compFolder && compFolder.getId() !== realMainFolder.getId()) {
+            var compDocs = getAllDocsInFolder(compFolder);
+            debugLog.push("📂 合併掃描 [相似鑑別] 主資料夾，發現 " + compDocs.length + " 篇鑑別文件");
+            docs = docs.concat(compDocs);
+          }
         } else {
           debugLog.push("⚡ [增修刪] 為空且雲端無更新，0.1秒直接回傳 0 筆異動");
         }
@@ -82,6 +90,8 @@ function doGet(e) {
 
     var plantList = [];
     var deletedList = [];
+    var comparisonList = [];
+    var deletedComparisonList = [];
 
     for (var i = 0; i < docs.length; i++) {
       var file = docs[i];
@@ -96,16 +106,24 @@ function doGet(e) {
 
       var createdDate = file.getDateCreated();
       var formattedDate = Utilities.formatDate(createdDate, "GMT+8", "yyyyMMdd");
-      var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').trim();
+      var isDel = (syncMode === "INCREMENTAL" && (/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/.test(fileName) || fileName.indexOf("刪除") !== -1));
 
-      if (syncMode === "INCREMENTAL" && (/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/.test(fileName) || fileName.indexOf("刪除") !== -1)) {
+      // 判斷是否為「相似鑑別」檔案
+      var isComp = isComparisonFileNameOrType(fileName);
+
+      if (isDel) {
         var cleanTargetName = fileName.replace(/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/g, '')
-                                      .replace(/[-_–\s]*植物資料.*/g, '')
+                                      .replace(/[-_–\s]*(植物資料|相似鑑別|鑑別).*/g, '')
                                       .replace(/\.(docx?|gdoc)$/i, '')
                                       .trim();
         if (cleanTargetName) {
-          deletedList.push({ name: cleanTargetName, fileName: fileName });
-          debugLog.push("🗑️ 偵測到待刪除檔案: 「" + cleanTargetName + "」");
+          if (isComp) {
+            deletedComparisonList.push({ name: cleanTargetName, fileName: fileName });
+            debugLog.push("🗑️ 偵測到待刪除鑑別: 「" + cleanTargetName + "」");
+          } else {
+            deletedList.push({ name: cleanTargetName, fileName: fileName });
+            debugLog.push("🗑️ 偵測到待刪除花草: 「" + cleanTargetName + "」");
+          }
           continue;
         }
       }
@@ -114,12 +132,25 @@ function doGet(e) {
         var doc = DocumentApp.openById(docId);
         var text = doc.getBody().getText();
 
-        // ⚡ v71：逐圖解析圖片網址與獨立標題 (已排重 & 正確擴充快取)
-        var galleryItems = getPlantGalleryFromDoc(doc, folder, plantNameOnly, imagesFolder, text, formattedDate, debugLog);
-        var primaryImageUrl = galleryItems.length > 0 ? galleryItems[0].url : "";
+        // 二次檢查內文特徵判斷是否為鑑別文章
+        if (!isComp && isComparisonText(text)) {
+          isComp = true;
+        }
 
-        var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, galleryItems, doc, debugLog, plantNameOnly);
-        plantList.push(parsedPlant);
+        if (isComp) {
+          var parsedComp = parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog, formattedDate);
+          if (parsedComp) {
+            comparisonList.push(parsedComp);
+            debugLog.push("⚖️ 成功解析相似鑑別: 「" + parsedComp.title + "」");
+          }
+        } else {
+          var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+          var galleryItems = getPlantGalleryFromDoc(doc, folder, plantNameOnly, imagesFolder, text, formattedDate, debugLog);
+          var primaryImageUrl = galleryItems.length > 0 ? galleryItems[0].url : "";
+
+          var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, galleryItems, doc, debugLog, plantNameOnly);
+          plantList.push(parsedPlant);
+        }
       } catch (docErr) {
         debugLog.push("❌ 讀取 Doc 異常 (" + fileName + "): " + docErr.toString());
       }
@@ -129,16 +160,24 @@ function doGet(e) {
       return (b.dateAdded || "").localeCompare(a.dateAdded || "");
     });
 
+    comparisonList.sort(function(a, b) {
+      return (b.dateAdded || "").localeCompare(a.dateAdded || "");
+    });
+
     var result = {
       status: "success",
       syncMode: syncMode,
       folderFound: folderName,
       count: plantList.length,
       deletedCount: deletedList.length,
+      comparisonCount: comparisonList.length,
+      deletedComparisonCount: deletedComparisonList.length,
       updatedAt: new Date().toISOString(),
       debugLog: debugLog,
       plants: plantList,
-      deletedPlants: deletedList
+      deletedPlants: deletedList,
+      comparisons: comparisonList,
+      deletedComparisons: deletedComparisonList
     };
 
     return ContentService.createTextOutput(JSON.stringify(result))
@@ -154,7 +193,192 @@ function doGet(e) {
 }
 
 // ==========================================================================
-// ⚡ v71 新增：Drive images/ 資料夾管理與精確單次圖片處理
+// 判斷是否為相似鑑別檔案
+// ==========================================================================
+
+function isComparisonFileNameOrType(fileName) {
+  if (!fileName) return false;
+  return /[\(\[\【]?(鑑別|辨析|相似|辨別|VS|vs)[\)\]\】]?/i.test(fileName) ||
+         fileName.indexOf(" vs ") !== -1 ||
+         fileName.indexOf(" VS ") !== -1 ||
+         fileName.indexOf("對比") !== -1;
+}
+
+function isComparisonText(text) {
+  if (!text) return false;
+  return /【?(相似植物鑑別|相似鑑別|對比物種|比較物種|鑑別物種|重點特徵對比表)】?/i.test(text);
+}
+
+// ==========================================================================
+// 相似鑑別解析器
+// ==========================================================================
+
+function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog, defaultDateStr) {
+  function getField(pattern) { var m = text.match(pattern); return m ? m[1].trim() : ''; }
+
+  var titleMatch = text.match(/【?(?:相似植物鑑別|相似鑑別)】?[：:\s]*([^\n]+)/i);
+  var rawTitle = titleMatch ? titleMatch[1].trim() : fileName.replace(/^[\(\[\【]?鑑別[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+
+  // 提取對比物種
+  var speciesField = getField(/(?:對比物種|比較物種|鑑別物種)[：:\s]+([^\n]+)/);
+  var speciesList = [];
+  if (speciesField) {
+    speciesList = speciesField.split(/[、,，\/\s+與和vsVS]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  if (speciesList.length === 0) {
+    // 從標題嘗試提取 (如: 薰衣草 vs 鼠尾草)
+    var vsParts = rawTitle.split(/[-–—vsVS與和、,]+/i).map(function(s){ return s.trim(); }).filter(Boolean);
+    if (vsParts.length >= 2) speciesList = vsParts;
+  }
+
+  var family = getField(/(?:所屬科別|科別)[：:\s]+([^\n]+)/) || "觀賞植物";
+  var confusionLevel = getField(/(?:混淆程度|混淆指數|難度)[：:\s]+([^\n]+)/) || "★★★★☆";
+  var mnemonic = getField(/(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣)[：:\s]+([^\n]+)/);
+
+  // 提取日期地點
+  var dateAdded = defaultDateStr;
+  var parsedDl = parseDateAndLocationFromLine(text);
+  if (parsedDl && parsedDl.dateAdded) dateAdded = parsedDl.dateAdded;
+
+  // 提取特徵照片
+  var galleryItems = getPlantGalleryFromDoc(doc, folder, "compare_" + rawTitle.replace(/[^\w\u4e00-\u9fa5]/g, '_'), imagesFolder, text, formattedDateFromDate(doc.getDateCreated()) || defaultDateStr, debugLog);
+
+  // 提取表格對比矩陣 (優先從 DocumentApp Table 物件提取，無表格則解析 Markdown 表格)
+  var comparisonTable = extractComparisonTable(doc, text, speciesList);
+
+  // 提取鑑別重點詳解
+  var detailedNotes = extractComparisonDetails(text);
+
+  return {
+    id: "comp-" + Math.random().toString(36).substr(2, 9),
+    title: rawTitle,
+    species: speciesList,
+    family: family,
+    confusionLevel: confusionLevel,
+    mnemonic: mnemonic || (speciesList.join('與') + "特徵差異對比"),
+    comparisonTable: comparisonTable,
+    detailedNotes: detailedNotes,
+    galleryImages: galleryItems || [],
+    dateAdded: dateAdded,
+    fileName: fileName
+  };
+}
+
+function formattedDateFromDate(d) {
+  if (!d) return "";
+  try {
+    return Utilities.formatDate(d, "GMT+8", "yyyyMMdd");
+  } catch(e) {
+    return "";
+  }
+}
+
+/**
+ * 提取特徵對比表
+ */
+function extractComparisonTable(doc, text, speciesList) {
+  var tableResult = {
+    headers: ["比對項目"].concat(speciesList.length > 0 ? speciesList : ["物種 A", "物種 B"]),
+    rows: []
+  };
+
+  // 1. 嘗試從 Google Doc 原生表格提取
+  if (doc) {
+    try {
+      var tables = doc.getBody().getTables();
+      if (tables.length > 0) {
+        var table = tables[0];
+        var numRows = table.getNumRows();
+        if (numRows > 0) {
+          var headerRow = table.getRow(0);
+          var hCount = headerRow.getNumCells();
+          var headers = [];
+          for (var c = 0; c < hCount; c++) {
+            headers.push(headerRow.getCell(c).getText().trim());
+          }
+          if (headers.length > 1) tableResult.headers = headers;
+
+          for (var r = 1; r < numRows; r++) {
+            var row = table.getRow(r);
+            var feature = row.getCell(0).getText().trim();
+            var values = [];
+            for (var c2 = 1; c2 < row.getNumCells(); c2++) {
+              values.push(row.getCell(c2).getText().trim());
+            }
+            if (feature) {
+              tableResult.rows.push({
+                feature: feature,
+                values: values
+              });
+            }
+          }
+          if (tableResult.rows.length > 0) return tableResult;
+        }
+      }
+    } catch(e) {}
+  }
+
+  // 2. 若無原生表格，嘗試從純文字 Markdown / 管道符號表格提取
+  var tableMatch = text.match(/【?重點特徵對比表】?[\s\S]*?(?=(?:【|===|---|鑑別重點|$))/i);
+  var block = tableMatch ? tableMatch[0] : text;
+  var lines = block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (line.indexOf('|') !== -1) {
+      var cells = line.split('|').map(function(c){ return c.trim().replace(/^\[|\]$/g, ''); }).filter(Boolean);
+      if (cells.length >= 2) {
+        if (/比對項目|特徵|項目/i.test(cells[0])) {
+          tableResult.headers = cells;
+        } else if (!/^[-=:\s]+$/.test(cells.join(''))) {
+          tableResult.rows.push({
+            feature: cells[0],
+            values: cells.slice(1)
+          });
+        }
+      }
+    }
+  }
+
+  return tableResult;
+}
+
+/**
+ * 提取鑑別重點詳解
+ */
+function extractComparisonDetails(text) {
+  var details = [];
+  var detailMatch = text.match(/【?(?:鑑別重點詳解|鑑別要點|重點解析|外觀詳解)】?[\s\S]*?(?=(?:【|===|---|參考資料|$))/i);
+  if (!detailMatch) return details;
+
+  var block = detailMatch[0].replace(/^【?(?:鑑別重點詳解|鑑別要點|重點解析|外觀詳解)】?[\s:\n]*/i, '').trim();
+  if (!block) return details;
+
+  var lines = block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  var currentItem = null;
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var numMatch = line.match(/^(\d+[\.、\)]\s*[^:：\n]+)[：:\s]*(.*)/);
+    if (numMatch) {
+      if (currentItem) details.push(currentItem);
+      currentItem = {
+        title: numMatch[1].trim(),
+        content: numMatch[2] ? numMatch[2].trim() : ""
+      };
+    } else if (currentItem) {
+      currentItem.content += (currentItem.content ? "\n" : "") + line;
+    } else {
+      currentItem = { title: "鑑別重點 " + (details.length + 1), content: line };
+    }
+  }
+  if (currentItem) details.push(currentItem);
+
+  return details;
+}
+
+// ==========================================================================
+// ⚡ Drive images/ 資料夾管理與圖片處理
 // ==========================================================================
 
 function getOrCreateImagesFolder(parentFolder) {
@@ -169,16 +393,12 @@ function getDriveThumbnailUrl(fileId) {
   return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
 }
 
-/**
- * ⚡ v71 核心：解析 Doc 內的所有圖片與對應獨立標題 (時間地點)
- */
 function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocText, defaultDateStr, debugLog) {
   var galleryItems = [];
   if (!doc) return galleryItems;
 
   var docImages = getDocImagesWithNearbyText(doc);
   if (docImages.length === 0) {
-    // 若 Doc 無內嵌圖片，嘗試搜尋 Drive 同名圖檔
     try {
       var driveUrl = findDriveFolderPhoto(folder, plantName, imagesFolder);
       if (driveUrl) {
@@ -191,7 +411,6 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
     return galleryItems;
   }
 
-  // 先讀取 images/ 中已存在的快取檔案對照表
   var existingFilesMap = {};
   try {
     var files = imagesFolder.getFiles();
@@ -215,10 +434,10 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
       if (!blob) continue;
       
       var bytesLen = blob.getBytes().length;
-      if (bytesLen < 200) continue; // 過濾小於 200 bytes 的佔位小圖
+      if (bytesLen < 200) continue;
 
       var blobKey = bytesLen + '_' + (blob.getContentType() || '');
-      if (seenBlobKeys[blobKey]) continue; // 避免同一文章內完全重複的 Blob 圖片
+      if (seenBlobKeys[blobKey]) continue;
       seenBlobKeys[blobKey] = true;
 
       var imgIndex = galleryItems.length;
@@ -232,7 +451,6 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
       }
 
       if (imgUrl) {
-        // 解析該張照片專屬的拍攝時間與地點標題
         var specificCaption = parseSpecificCaptionFromNearbyText(item.nearbyText) || defaultDocCaption || ("特徵照片 " + (imgIndex + 1));
         galleryItems.push({
           url: imgUrl,
@@ -248,9 +466,6 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
   return galleryItems;
 }
 
-/**
- * ⚡ v71 修復：單次精確走訪 Doc 中的圖片及其下方/附近說明文字 (絕不重複走訪)
- */
 function getDocImagesWithNearbyText(doc) {
   var results = [];
   if (!doc) return results;
@@ -271,7 +486,6 @@ function getDocImagesWithNearbyText(doc) {
           var pChild = para.getChild(j);
           if (pChild.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
             var img = pChild.asInlineImage();
-            // 抓取照片附近的說明文字：包含同段落文字與後續 2 個段落
             var nearbyText = para.getText() || "";
             if (i + 1 < numChildren && body.getChild(i + 1).getType() === DocumentApp.ElementType.PARAGRAPH) {
               nearbyText += "\n" + body.getChild(i + 1).asParagraph().getText();
@@ -291,13 +505,9 @@ function getDocImagesWithNearbyText(doc) {
   return results;
 }
 
-/**
- * 解析照片附近專屬的時間與地點標題 (如：20260707@大坑四號步道)
- */
 function parseSpecificCaptionFromNearbyText(text) {
   if (!text) return null;
 
-  // 1. 優先尋找完整標註格式：(照片拍攝地點與日期：20260707@大坑四號步道 - 盛開的紫茉莉) 或 (20260707@大坑四號步道)
   var matchDateLoc = text.match(/(?:照片拍攝地點與日期[：:\s]*)?\(?(\d{4}[年\-\/\.]?\s*\d{1,2}[月\-\/\.]?\s*\d{1,2}[日]?)\s*@\s*([^\)\n\r\t]+)\)?/);
   if (matchDateLoc) {
     var rawDate = matchDateLoc[1];
@@ -308,11 +518,16 @@ function parseSpecificCaptionFromNearbyText(text) {
       ? dMatch[1] + (dMatch[2].length === 1 ? '0' + dMatch[2] : dMatch[2]) + (dMatch[3].length === 1 ? '0' + dMatch[3] : dMatch[3])
       : rawDate.replace(/[^\d]/g, '');
 
-    // 清理地點說明中可能夾帶的後續描述
     var locClean = rawLoc.split(/[-–—]/)[0].replace(/[\)\s]+/g, '').trim();
     if (locClean && !locClean.startsWith('@')) locClean = '@' + locClean;
 
     return "(" + dateClean + locClean + ")";
+  }
+
+  // 嘗試提取括號說明的特徵標題，如 (薰衣草 - 葉緣光滑狹長)
+  var matchFeatureCaption = text.match(/\(([^\)\n\r]{2,30})\)/);
+  if (matchFeatureCaption) {
+    return matchFeatureCaption[1].trim();
   }
 
   return null;
@@ -385,7 +600,7 @@ function findDriveFolderPhoto(folder, plantName, imagesFolder) {
 }
 
 // ==========================================================================
-// 全文圖片走訪與資料解析
+// 資料夾定位與輔助
 // ==========================================================================
 
 function getMainFolder() {
@@ -397,13 +612,20 @@ function getMainFolder() {
   return null;
 }
 
+function getComparisonFolder() {
+  var compNames = ["相似鑑別", "[相似鑑別]", "【相似鑑別】", "植物鑑別", "[植物鑑別]"];
+  for (var i = 0; i < compNames.length; i++) {
+    var folders = DriveApp.getFoldersByName(compNames[i]);
+    if (folders.hasNext()) return folders.next();
+  }
+  return null;
+}
+
 function findTargetFolder() {
   var stagingNames = ["增修刪", "[增修刪]", "【增修刪】"];
   for (var s = 0; s < stagingNames.length; s++) {
     var sFolders = DriveApp.getFoldersByName(stagingNames[s]);
     if (sFolders.hasNext()) {
-      // ⚡ v75 重大優化：只要發現名為 [增修刪] 的資料夾，即鎖定增量模式 (INCREMENTAL)
-      // 若資料夾為空，0.1秒直接回傳 0 筆異動，絕不下墜白跑全量主資料夾掃描！
       return { folder: sFolders.next(), syncMode: "INCREMENTAL" };
     }
   }
@@ -428,15 +650,21 @@ function getAllDocsInFolder(folder) {
     if (!targetFolder) return;
     try {
       var files = targetFolder.getFilesByType(MimeType.GOOGLE_DOCS);
-      while (files.hasNext()) { var f = files.next(); if (!seenIds[f.getId()]) { seenIds[f.getId()] = true; docs.push(f); } }
+      while (files.hasNext()) {
+        var f = files.next();
+        if (!seenIds[f.getId()]) {
+          seenIds[f.getId()] = true;
+          docs.push(f);
+        }
+      }
     } catch(e1) {}
     try {
-      var allFiles = targetFolder.getFiles();
-      while (allFiles.hasNext()) {
-        var f2 = allFiles.next();
-        var m = f2.getMimeType();
-        if ((m === MimeType.GOOGLE_DOCS || m === "application/vnd.google-apps.document") && !seenIds[f2.getId()]) {
-          seenIds[f2.getId()] = true; docs.push(f2);
+      var docxFiles = targetFolder.getFilesByType("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      while (docxFiles.hasNext()) {
+        var df = docxFiles.next();
+        if (!seenIds[df.getId()]) {
+          seenIds[df.getId()] = true;
+          docs.push(df);
         }
       }
     } catch(e2) {}
@@ -525,7 +753,7 @@ function parseDateAndLocationFromLine(line) {
 function parseDocText(text, fileName, defaultDateStr, imageUrl, galleryItems, doc, debugLog, plantName) {
   function getField(pattern) { var m = text.match(pattern); return m ? m[1].trim() : ''; }
 
-  var name = plantName || fileName.replace(/[-_–\s]*植物資料.*/g, '').trim();
+  var name = plantName || fileName.replace(/[-_–\s]*植物資料.*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
   var dateAdded = defaultDateStr;
   var locationNote = "";
   var parsedDl = parseDateAndLocationFromLine(text);
@@ -559,4 +787,3 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, galleryItems, do
     galleryImages: galleryItems || []
   };
 }
-

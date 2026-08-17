@@ -6487,3 +6487,410 @@ function parseGoogleDocFormat(text) {
     references: []
   };
 }
+
+// ==========================================================================
+// 相似鑑別資料集與持久化 (Similar Species Identification Store)
+// ==========================================================================
+
+let inMemoryComparisonsList = null;
+const COMPARISON_STORAGE_KEYS = ['nian_hua_re_cao_comparisons_v1'];
+
+const DEFAULT_COMPARISON_DATA = [
+  {
+    id: "comp-lavender-sage",
+    title: "薰衣草 vs 鼠尾草",
+    species: ["薰衣草", "鼠尾草"],
+    family: "唇形科",
+    confusionLevel: "★★★★☆",
+    mnemonic: "薰衣草莖基部木質化、揉葉清冽芳香；鼠尾草葉面具細毛與皺紋、氣味偏草本辛香。",
+    dateAdded: "20260817",
+    comparisonTable: {
+      headers: ["比對項目", "薰衣草 (Lavender)", "鼠尾草 (Sage)"],
+      rows: [
+        {
+          feature: "葉片外觀",
+          values: [
+            "葉形狹長線形或羽狀，葉緣平滑或全緣，質地偏硬",
+            "葉片多為卵圓或長橢圓形，表面具明顯網狀皺褶或細絨毛"
+          ]
+        },
+        {
+          feature: "花序排列",
+          values: [
+            "頂生穗狀花序，輪傘花輪密集緊湊呈棒狀",
+            "輪傘花序較為疏鬆分層，花冠唇形明顯展開"
+          ]
+        },
+        {
+          feature: "莖部質感",
+          values: [
+            "多年生亞灌木，成熟植株基部明顯木質化呈褐色",
+            "多為草本或半木質，莖呈典型四稜形且密生腺毛"
+          ]
+        },
+        {
+          feature: "氣味辨識",
+          values: [
+            "清甜芳香、具舒緩放鬆的標誌性薰衣草精油香",
+            "強烈草本辛香、藥草香（部分觀賞種如粉萼鼠尾草氣味較淡）"
+          ]
+        },
+        {
+          feature: "主要用途",
+          values: [
+            "提煉精油、香氛、花草茶、芳療",
+            "西餐香料（如料理鼠尾草）、庭園景觀花海"
+          ]
+        }
+      ]
+    },
+    detailedNotes: [
+      {
+        title: "1. 摸摸看葉片表面",
+        content: "鼠尾草葉片大多粗糙、帶有細毛或網狀凹凸皺紋；薰衣草葉片較為平整或窄細挺立。"
+      },
+      {
+        title: "2. 輕揉葉片聞氣味",
+        content: "薰衣草帶有甜美放鬆的精油芬芳；鼠尾草則有濃郁草本料理辛香味。"
+      },
+      {
+        title: "3. 觀察基部木質化程度",
+        content: "薰衣草底部常呈現木質化褐色老枝；鼠尾草大多保持綠色草質莖。"
+      }
+    ],
+    galleryImages: [
+      {
+        url: "https://images.unsplash.com/photo-1528183429752-a97d0bf99b5a?w=800&auto=format&fit=crop",
+        caption: "薰衣草 (狹長平滑葉片與密集穗狀花輪)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1595181261011-82ff5b4f6202?w=800&auto=format&fit=crop",
+        caption: "鼠尾草 (卵圓形具皺褶葉片與分層唇形花)"
+      }
+    ]
+  },
+  {
+    id: "comp-crape-subcostate",
+    title: "紫薇 vs 九芎",
+    species: ["紫薇", "九芎"],
+    family: "千屈菜科",
+    confusionLevel: "★★★★☆",
+    mnemonic: "紫薇花大艷麗（紅/紫/白）、果實如彈珠；九芎花小密集且呈白黃色、果實小如豌豆，兩者樹皮皆極光滑（猴不爬）。",
+    dateAdded: "20260816",
+    comparisonTable: {
+      headers: ["比對項目", "紫薇 (Crape Myrtle)", "九芎 (Subcostate Crape Myrtle)"],
+      rows: [
+        {
+          feature: "花朵顏色與大小",
+          values: [
+            "花朵較大 (直徑約 3~4 cm)，花色艷麗多變（紅、紫、粉、白）",
+            "花朵細小 (直徑約 0.5~0.8 cm)，花色多為白或淡黃白色"
+          ]
+        },
+        {
+          feature: "果實大小",
+          values: [
+            "蒴果較大（長約 1~1.5 公分，似小龍眼）",
+            "蒴果極小（長約 0.6~0.8 公分，如豌豆大小）"
+          ]
+        },
+        {
+          feature: "葉片與葉柄",
+          values: [
+            "葉片近無柄或極短柄，近對生或互生，質地較薄",
+            "葉片具短柄，基部兩側常具一對微小腺點"
+          ]
+        },
+        {
+          feature: "樹皮特徵",
+          values: [
+            "樹皮平滑易剝落，呈灰褐色（俗稱猴不爬、百日紅）",
+            "樹皮極為光溜紅褐色，剝落後呈現新木黃白色斑塊"
+          ]
+        },
+        {
+          feature: "生態習性",
+          values: [
+            "外來園藝觀賞樹種，庭園公園綠化常見",
+            "台灣原生樹種，多見於低海拔山區及溪谷崩塌地水土保持"
+          ]
+        }
+      ]
+    },
+    detailedNotes: [
+      {
+        title: "1. 花朵大小與顏色一秒辨識",
+        content: "開出大朵粉紅、紫紅花朵的大多是紫薇；開出密密麻麻細碎小白花的是台灣原生九芎。"
+      },
+      {
+        title: "2. 蒴果大小比一比",
+        content: "秋冬落葉時可看樹梢果實：紫薇果實飽滿如彈珠；九芎果實小巧如小綠豆。"
+      },
+      {
+        title: "3. 樹幹光滑度",
+        content: "兩者都是「猴不爬」，但九芎樹幹紅褐色斑駁感更強烈，極易剝落露出白嫩新皮。"
+      }
+    ],
+    galleryImages: [
+      {
+        url: "https://images.unsplash.com/photo-1596707328646-609d94943f75?w=800&auto=format&fit=crop",
+        caption: "紫薇 (花大艷麗、花瓣具長爪與皺褶)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1508873696983-2df57046475a?w=800&auto=format&fit=crop",
+        caption: "九芎 (花小密集、台灣原生水土保持樹)"
+      }
+    ]
+  },
+  {
+    id: "comp-bauhinia-trio",
+    title: "艷紫荊 vs 洋紫荊 vs 羊蹄甲",
+    species: ["艷紫荊", "洋紫荊", "羊蹄甲"],
+    family: "豆科 (蘇木亞科)",
+    confusionLevel: "★★★★★",
+    mnemonic: "羊蹄甲春開粉紅兼落葉、雄蕊5~6；洋紫荊秋開白或淡粉、雄蕊3；艷紫荊冬春艷紫不結莢、雄蕊5。",
+    dateAdded: "20260815",
+    comparisonTable: {
+      headers: ["比對項目", "羊蹄甲", "洋紫荊", "艷紫荊 (香港市花)"],
+      rows: [
+        {
+          feature: "開花季節",
+          values: [
+            "春天 (3~5月)，開花時通常全株落葉",
+            "秋天至初冬 (10~12月)，開花時綠葉繁茂",
+            "秋冬至翌春 (10~3月)，花期極長且花朵常開滿樹"
+          ]
+        },
+        {
+          feature: "花朵顏色",
+          values: [
+            "粉紅至紫紅色，旗瓣具深紫紅色條紋",
+            "粉白至淡粉紅色，花瓣較為狹窄倒披針形",
+            "鮮艷濃郁的艷紫色或紫紅色，花大繁盛"
+          ]
+        },
+        {
+          feature: "雄蕊數量",
+          values: [
+            "5~6 枚可孕雄蕊（長）",
+            "3 枚可孕雄蕊（長）",
+            "5 枚可孕雄蕊（長）"
+          ]
+        },
+        {
+          feature: "果實 (莢果)",
+          values: [
+            "結果率高，莢果扁平長條狀",
+            "結果率高，結莢長而硬",
+            "為天然雜交種，雄蕊多不孕，【通常不結果實】"
+          ]
+        },
+        {
+          feature: "葉片分叉",
+          values: [
+            "葉端裂至 1/4~1/3，先端鈍圓如羊蹄印",
+            "葉端深裂至 1/3~1/2，裂片先端較尖",
+            "葉幅最大，裂至 1/4~1/3，質地較厚"
+          ]
+        }
+      ]
+    },
+    detailedNotes: [
+      {
+        title: "1. 看花期與花色",
+        content: "春天滿樹粉紅無葉是羊蹄甲；秋天開淡白粉花是洋紫荊；冬天盛開大朵艷麗紫花是艷紫荊。"
+      },
+      {
+        title: "2. 數雄蕊數量",
+        content: "抓一朵落花數裡面的長花絲：3枚為洋紫荊，5~6枚為羊蹄甲或艷紫荊。"
+      },
+      {
+        title: "3. 找找看有沒有掛豆莢",
+        content: "艷紫荊因雜交不育，樹上幾乎永遠看不到掛豆莢；其他兩者在花期後皆結實纍纍。"
+      }
+    ],
+    galleryImages: [
+      {
+        url: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&auto=format&fit=crop",
+        caption: "羊蹄甲 (春季開花滿樹粉紅無葉)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=800&auto=format&fit=crop",
+        caption: "艷紫荊 (秋冬盛開艷麗深紫、不結莢)"
+      }
+    ]
+  },
+  {
+    id: "comp-cayratia-sambucus",
+    title: "烏蘞莓 vs 冇骨消",
+    species: ["烏蘞莓", "冇骨消"],
+    family: "葡萄科 / 五福花科",
+    confusionLevel: "★★★★☆",
+    mnemonic: "烏蘞莓是五葉鳥足狀蔓藤、有卷鬚；冇骨消是直立灌木、具亮黃蜜杯與紅果。",
+    dateAdded: "20260814",
+    comparisonTable: {
+      headers: ["比對項目", "烏蘞莓 (Cayratia japonica)", "冇骨消 (Sambucus chinensis)"],
+      rows: [
+        {
+          feature: "生長型態",
+          values: [
+            "草質藤本，具分枝卷鬚攀附其他植物生長",
+            "直立草本或亞灌木，莖直立無卷鬚"
+          ]
+        },
+        {
+          feature: "葉片結構",
+          values: [
+            "鳥足狀 5 出複葉（小葉 5 枚，中央一枚最大）",
+            "奇數羽狀複葉，小葉 5~9 枚，對生，葉緣具細鋸齒"
+          ]
+        },
+        {
+          feature: "花序與蜜腺",
+          values: [
+            "聚繖花序腋生，花極小呈淡黃綠色，花盤肉質橙紅",
+            "頂生大型複聚繖花序，花白色，花序間著生黃色杯狀蜜腺（蜜杯）"
+          ]
+        },
+        {
+          feature: "果實外觀",
+          values: [
+            "漿果球形，成熟時由綠轉紫黑色",
+            "核果球形，成熟時呈鮮紅色，晶瑩剔透"
+          ]
+        },
+        {
+          feature: "生態吸引力",
+          values: [
+            "多種小型昆蟲取食花蜜",
+            "台灣低海拔極重要的蜜源植物，吸引大量蝴蝶與鳥類"
+          ]
+        }
+      ]
+    },
+    detailedNotes: [
+      {
+        title: "1. 看爬藤還是直立",
+        content: "烏蘞莓是趴在地上或纏繞在灌木上的藤蔓；冇骨消是站得挺挺的灌木叢。"
+      },
+      {
+        title: "2. 找找看有沒有黃色「小蜜杯」",
+        content: "冇骨消開白花時，花叢中一顆顆橘黃色的小杯子是它最標誌性的腺體。"
+      },
+      {
+        title: "3. 數葉子排列",
+        content: "烏蘞莓是鳥足狀5葉；冇骨消是標準的羽毛狀排開複葉。"
+      }
+    ],
+    galleryImages: [
+      {
+        url: "https://images.unsplash.com/photo-1530595467537-0b5996c41f2d?w=800&auto=format&fit=crop",
+        caption: "烏蘞莓 (鳥足狀5出複葉與攀爬卷鬚)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=800&auto=format&fit=crop",
+        caption: "冇骨消 (羽狀複葉與亮橘黃色蜜杯)"
+      }
+    ]
+  }
+];
+
+function getStoredComparisons() {
+  if (inMemoryComparisonsList && inMemoryComparisonsList.length > 0) {
+    return inMemoryComparisonsList;
+  }
+  try {
+    for (let key of COMPARISON_STORAGE_KEYS) {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          inMemoryComparisonsList = parsed;
+          return parsed;
+        }
+      }
+    }
+  } catch (e) {}
+  return DEFAULT_COMPARISON_DATA;
+}
+
+async function loadStoredComparisonsAsync() {
+  const idbComps = await getFromIndexedDB('synced_comparisons');
+  if (idbComps && Array.isArray(idbComps) && idbComps.length > 0) {
+    inMemoryComparisonsList = idbComps;
+    return idbComps;
+  }
+  return getStoredComparisons();
+}
+
+function saveStoredComparisons(comparisons) {
+  if (!comparisons || !Array.isArray(comparisons) || comparisons.length === 0) return;
+  inMemoryComparisonsList = comparisons;
+  saveToIndexedDB('synced_comparisons', comparisons);
+  try {
+    localStorage.setItem(COMPARISON_STORAGE_KEYS[0], JSON.stringify(comparisons));
+  } catch (e) {}
+}
+
+async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComps = []) {
+  let currentList = [...(await loadStoredComparisonsAsync())];
+  let deletedCount = 0;
+  let addedCount = 0;
+  let updatedCount = 0;
+
+  // 1. 處理刪除
+  if (Array.isArray(deletedComps) && deletedComps.length > 0) {
+    deletedComps.forEach(item => {
+      const targetName = typeof item === 'string' ? item.trim() : (item.name || '').trim();
+      if (!targetName) return;
+      const initialLen = currentList.length;
+      currentList = currentList.filter(c => {
+        const titleMatch = (c.title || '').trim() === targetName;
+        const speciesMatch = (c.species || []).some(s => s === targetName);
+        return !(titleMatch || speciesMatch);
+      });
+      if (currentList.length < initialLen) deletedCount++;
+    });
+  }
+
+  // 2. 處理新增與更新
+  if (Array.isArray(newOrUpdatedComps) && newOrUpdatedComps.length > 0) {
+    newOrUpdatedComps.forEach(incomingComp => {
+      if (!incomingComp || !incomingComp.title) return;
+      const cleanIncomingTitle = incomingComp.title.trim();
+      const existingIdx = currentList.findIndex(c => (c.title || '').trim() === cleanIncomingTitle);
+
+      if (existingIdx !== -1) {
+        const oldId = currentList[existingIdx].id;
+        currentList[existingIdx] = {
+          ...incomingComp,
+          id: oldId || incomingComp.id || `comp-${Date.now()}`
+        };
+        updatedCount++;
+      } else {
+        currentList.unshift({
+          ...incomingComp,
+          id: incomingComp.id || `comp-${Date.now()}`
+        });
+        addedCount++;
+      }
+    });
+  }
+
+  saveStoredComparisons(currentList);
+
+  return {
+    addedCount,
+    updatedCount,
+    deletedCount,
+    totalCount: currentList.length
+  };
+}
+
+// 綁定全域供其他腳本調用
+window.DEFAULT_COMPARISON_DATA = DEFAULT_COMPARISON_DATA;
+window.getStoredComparisons = getStoredComparisons;
+window.loadStoredComparisonsAsync = loadStoredComparisonsAsync;
+window.saveStoredComparisons = saveStoredComparisons;
+window.mergeAndSaveStoredComparisons = mergeAndSaveStoredComparisons;
+

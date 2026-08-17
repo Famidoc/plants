@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. 初始化圖鑑 (0.0001 秒原生秒刷已儲存之花草與照片)
   initGallery();
 
+  // 1.5 初始化相似鑑別模組
+  if (typeof initCompareModule === 'function') {
+    initCompareModule();
+  }
+
   // 2. 導覽列與 View 切換 (Desktop & Mobile)
   setupNavigation();
 
@@ -52,16 +57,30 @@ async function autoBackgroundSyncGAS() {
     showSyncProgressBanner('loading', '🔄 雲端資料增修中..... 正在檢查與解析 [增修刪] 圖資與照片');
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
-      const { syncMode, plants, deletedPlants } = syncRes;
+      const { syncMode, plants, deletedPlants, comparisons, deletedComparisons } = syncRes;
 
       if (syncMode === 'INCREMENTAL') {
         const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
-        if (stats.addedCount > 0 || stats.updatedCount > 0 || stats.deletedCount > 0) {
+        
+        // 增量同步相似鑑別資料
+        let compStats = { addedCount: 0, updatedCount: 0, deletedCount: 0 };
+        if (typeof mergeAndSaveStoredComparisons === 'function' && ((comparisons && comparisons.length > 0) || (deletedComparisons && deletedComparisons.length > 0))) {
+          compStats = await mergeAndSaveStoredComparisons(comparisons, deletedComparisons);
+          if (typeof renderCompareCards === 'function') renderCompareCards();
+        }
+
+        const totalChanges = stats.addedCount + stats.updatedCount + stats.deletedCount +
+                             compStats.addedCount + compStats.updatedCount + compStats.deletedCount;
+
+        if (totalChanges > 0) {
           let details = [];
-          if (stats.addedCount > 0) details.push(`新增 ${stats.addedCount} 筆`);
-          if (stats.updatedCount > 0) details.push(`更新 ${stats.updatedCount} 筆`);
-          if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
-          showSyncProgressBanner('success', `✅ 自動增修完成！${details.join('、')}`, 3500);
+          if (stats.addedCount > 0) details.push(`新增花草 ${stats.addedCount} 筆`);
+          if (stats.updatedCount > 0) details.push(`更新花草 ${stats.updatedCount} 筆`);
+          if (stats.deletedCount > 0) details.push(`刪除花草 ${stats.deletedCount} 筆`);
+          if (compStats.addedCount > 0) details.push(`新增鑑別 ${compStats.addedCount} 篇`);
+          if (compStats.updatedCount > 0) details.push(`更新鑑別 ${compStats.updatedCount} 篇`);
+          if (compStats.deletedCount > 0) details.push(`刪除鑑別 ${compStats.deletedCount} 篇`);
+          showSyncProgressBanner('success', `✅ 自動增修完成！${details.join('、')}`, 4500);
         } else {
           // 若 [增修刪] 為空無異動，瞬間隱藏橫幅 (0.1秒)，達到完全靜默無打擾！
           hideSyncProgressBanner();
@@ -69,10 +88,12 @@ async function autoBackgroundSyncGAS() {
       } else {
         if (plants && Array.isArray(plants) && plants.length > 0) {
           saveStoredPlants(plants);
-          showSyncProgressBanner('success', `✅ 自動同步完成！共載入 ${plants.length} 筆完整花草圖鑑`, 3000);
-        } else {
-          hideSyncProgressBanner();
         }
+        if (comparisons && Array.isArray(comparisons) && comparisons.length > 0 && typeof saveStoredComparisons === 'function') {
+          saveStoredComparisons(comparisons);
+          if (typeof renderCompareCards === 'function') renderCompareCards();
+        }
+        showSyncProgressBanner('success', `✅ 自動同步完成！載入 ${plants ? plants.length : 0} 筆圖鑑與 ${comparisons ? comparisons.length : 0} 篇鑑別`, 3500);
       }
 
       const modalBackdrop = document.getElementById('plantModalBackdrop');
@@ -451,7 +472,7 @@ function setupSettingsModal() {
 
       try {
         const syncRes = await fetchLatestDataFromGAS();
-        const { syncMode, plants, deletedPlants, folderFound, debugLog } = syncRes;
+        const { syncMode, plants, deletedPlants, comparisons, deletedComparisons, folderFound, debugLog } = syncRes;
 
         // 渲染診斷日誌 (Debug Log)
         renderDebugLog(debugLog);
@@ -463,19 +484,40 @@ function setupSettingsModal() {
           const stats = await mergeAndSaveStoredPlants(plants, deletedPlants);
           initGallery();
 
+          // 增量同步相似鑑別資料
+          let compStats = { addedCount: 0, updatedCount: 0, deletedCount: 0 };
+          if (typeof mergeAndSaveStoredComparisons === 'function' && ((comparisons && comparisons.length > 0) || (deletedComparisons && deletedComparisons.length > 0))) {
+            compStats = await mergeAndSaveStoredComparisons(comparisons, deletedComparisons);
+            if (typeof renderCompareCards === 'function') renderCompareCards();
+          }
+
           let details = [];
-          if (stats.addedCount > 0) details.push(`新增 ${stats.addedCount} 筆`);
-          if (stats.updatedCount > 0) details.push(`更新 ${stats.updatedCount} 筆`);
-          if (stats.deletedCount > 0) details.push(`刪除 ${stats.deletedCount} 筆`);
+          if (stats.addedCount > 0) details.push(`新增花草 ${stats.addedCount} 筆`);
+          if (stats.updatedCount > 0) details.push(`更新花草 ${stats.updatedCount} 筆`);
+          if (stats.deletedCount > 0) details.push(`刪除花草 ${stats.deletedCount} 筆`);
+          if (compStats.addedCount > 0) details.push(`新增鑑別 ${compStats.addedCount} 篇`);
+          if (compStats.updatedCount > 0) details.push(`更新鑑別 ${compStats.updatedCount} 篇`);
+          if (compStats.deletedCount > 0) details.push(`刪除鑑別 ${compStats.deletedCount} 篇`);
+
           const detailStr = details.length > 0 ? details.join('、') : '無異動項目';
 
           bannerText = `✅ [增量增修] 同步完成！${detailStr}`;
-          msg = `✅ [增修刪] 暫存同步成功！${detailStr}（圖鑑共 ${stats.totalCount} 筆）。<br>💡 提示：可展開下方診斷日誌確認照片擷取細節。`;
+          
+          let remindMsg = '';
+          if (stats.addedCount > 0 || stats.updatedCount > 0 || compStats.addedCount > 0 || compStats.updatedCount > 0) {
+            remindMsg = '<br>📂 <b>溫馨提醒</b>：同步已生效！請記得將 [增修刪] 中的檔案分別搬移至 <code>[捻花惹草]</code> 或 <code>[相似鑑別]</code> 資料夾歸檔。';
+          }
+
+          msg = `✅ [增修刪] 暫存同步成功！${detailStr}。<br>📊 圖鑑現有 ${stats.totalCount} 筆${compStats.totalCount ? `、鑑別現有 ${compStats.totalCount} 篇` : ''}。${remindMsg}`;
         } else {
-          saveStoredPlants(plants);
+          if (plants && Array.isArray(plants)) saveStoredPlants(plants);
+          if (comparisons && Array.isArray(comparisons) && typeof saveStoredComparisons === 'function') {
+            saveStoredComparisons(comparisons);
+            if (typeof renderCompareCards === 'function') renderCompareCards();
+          }
           initGallery();
-          bannerText = `✅ [全量掃描] 同步完成！共載入 ${plants.length} 筆完整圖鑑`;
-          msg = `✅ 全量連線同步成功！已從 [${folderFound}] 載入 ${plants.length} 筆完整花草資料與照片。`;
+          bannerText = `✅ [全量掃描] 同步完成！共載入 ${plants ? plants.length : 0} 筆圖鑑與 ${comparisons ? comparisons.length : 0} 篇鑑別`;
+          msg = `✅ 全量連線同步成功！已從 [${folderFound}] 載入 ${plants ? plants.length : 0} 筆花草與 ${comparisons ? comparisons.length : 0} 篇相似鑑別。`;
         }
 
         // ⚡ 平滑體驗加強：確保 [同步中...] 載入橫幅至少展示 800ms，讓肉眼能清晰確認轉圈動畫
@@ -485,7 +527,7 @@ function setupSettingsModal() {
         }
 
         showSyncProgressBanner('success', bannerText, 3500);
-        showToast(msg, 6500);
+        showToast(msg, 7500);
       } catch (err) {
         showSyncProgressBanner('error', `⚠️ 同步失敗：${err.message}`, 6000);
         showToast(`❌ 同步失敗：${err.message}`, 8000);
