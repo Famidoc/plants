@@ -1,13 +1,12 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v94 附圖一對一精準標註分發版
+ * Google Apps Script (GAS) 自動掃描腳本 - v95 跨分隔線穿透與標題徹底排除版
  * 
  * 重大修復：
- * 1. 🎯 一對一精準標註防重複消費：徹底解決第 3 張圖（葉基腺盃）被前面圖片標註（油桐果）誤植的 Bug
- * 2. ⚡ 支援 Google Doc 表格（Table）排版內的附圖與說明提取
- * 3. 🧹 自動剔除章節大標題：自動過濾「其他附圖」、「植物附圖」等冗贅章節詞
+ * 1. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
+ * 2. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
+ * 3. 🎯 標註一對一消費機制：保證各圖片精確依序取得屬於自己的專屬標註
  * 4. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
- * 5. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
  * ==========================================================================
  */
 
@@ -428,8 +427,8 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
   var seenBlobKeys = {};
   var defaultDocCaption = parseDefaultCaptionFromText(fullDocText, defaultDateStr);
 
-  // ⚡ 抽取文檔中所有依序出現的標註行清單 (例如: [主圖時地, 油桐果時地, 葉基腺盃時地...])
-  var allDocCaptions = extractAllOrderedDocCaptions(fullDocText, defaultDateStr);
+  // ⚡ 抽取文檔中所有依序出現的有效標註行清單 (已嚴格排除「植物資料」等大標題)
+  var allDocCaptions = extractAllOrderedDocCaptions(fullDocText, defaultDateStr, plantName);
   var usedCaptionIndices = {};
 
   for (var i = 0; i < docImages.length; i++) {
@@ -461,16 +460,15 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
 
       if (imgUrl) {
         // 🎯 核心演算法：一對一精確標註指派
-        // 1. 優先嘗試解析該圖片下方緊鄰的專屬說明段落 (且排除已被前面圖片消費過的文字)
         var specificCaption = null;
         if (item.nearbyText) {
-          var candidateCap = parseSpecificCaptionFromNearbyText(item.nearbyText);
+          var candidateCap = parseSpecificCaptionFromNearbyText(item.nearbyText, plantName);
           if (candidateCap && !isCaptionAlreadyUsed(candidateCap, galleryItems)) {
             specificCaption = candidateCap;
           }
         }
 
-        // 2. 若專屬文字為空或重複，從文檔全局標註序列中依序消費下一個未使用的標註！
+        // 若專屬文字為空或重複，從文檔全局標註序列中依序消費下一個未使用的有效標註！
         if (!specificCaption) {
           for (var cIdx = 0; cIdx < allDocCaptions.length; cIdx++) {
             if (!usedCaptionIndices[cIdx]) {
@@ -508,10 +506,10 @@ function isCaptionAlreadyUsed(caption, galleryItems) {
 }
 
 /**
- * ⚡ 全文標註行依序提取器
- * 依文檔由上而下順序，提取出所有含有日期/地點或特徵說明的獨立行，保證一對一順序分發
+ * ⚡ 全文標註行依序提取器 (v95 嚴格純化版)
+ * 提取所有包含日期/地點或特徵時地的有效行，100% 排除「油桐 - 植物資料」等標題
  */
-function extractAllOrderedDocCaptions(text, defaultDateStr) {
+function extractAllOrderedDocCaptions(text, defaultDateStr, plantName) {
   var captions = [];
   if (!text) return captions;
 
@@ -519,12 +517,15 @@ function extractAllOrderedDocCaptions(text, defaultDateStr) {
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
 
-    // 若為一般章節標題則跳過
-    if (/^(基本資料|形態特徵|特殊作用|用途|養護|參考資料|【?其他附圖】?|【?植物附圖】?)$/.test(line)) {
+    // 嚴格跳過文章主標題與一般章節
+    if (/植物資料|基本資料|形態特徵|特殊作用|用途|養護|參考資料|【?其他附圖】?|【?植物附圖】?/i.test(line)) {
+      continue;
+    }
+    if (plantName && (line === plantName || line.indexOf(plantName + " -") === 0 || line.indexOf(plantName + " –") === 0)) {
       continue;
     }
 
-    var cap = parseSpecificCaptionFromNearbyText(line);
+    var cap = parseSpecificCaptionFromNearbyText(line, plantName);
     if (cap && captions.indexOf(cap) === -1) {
       captions.push(cap);
     }
@@ -585,14 +586,21 @@ function processParagraphImages(para, container, childIndex, totalChildren, resu
 
       // 1. 同段落內的純文字
       var sameParaText = (para.getText() || "").trim();
-      if (sameParaText) {
+      if (sameParaText && !/植物資料|基本資料|形態特徵/.test(sameParaText)) {
         nearbyText += sameParaText + "\n";
       }
 
-      // 2. 緊接在該圖片下方的專屬說明段落 (遇到下一張圖即刻停止)
-      for (var nextIdx = childIndex + 1; nextIdx < Math.min(childIndex + 4, totalChildren); nextIdx++) {
+      // 2. 緊接在該圖片下方的專屬說明段落 (支援穿透 HORIZONTAL_RULE 與空行，遇到下一張圖即刻停止)
+      for (var nextIdx = childIndex + 1; nextIdx < Math.min(childIndex + 6, totalChildren); nextIdx++) {
         var nextChild = container.getChild(nextIdx);
-        if (nextChild.getType() === DocumentApp.ElementType.PARAGRAPH) {
+        var cType = nextChild.getType();
+
+        // 🛡️ 穿透水平線 (HORIZONTAL_RULE)，繼續往下尋找文字說明！
+        if (cType === DocumentApp.ElementType.HORIZONTAL_RULE) {
+          continue;
+        }
+
+        if (cType === DocumentApp.ElementType.PARAGRAPH) {
           var nextPara = nextChild.asParagraph();
           
           var hasOtherImg = false;
@@ -603,21 +611,21 @@ function processParagraphImages(para, container, childIndex, totalChildren, resu
             }
           }
           if (hasOtherImg) {
-            break;
+            break; // 遇到下一張圖片段落停止
           }
 
           var nt = (nextPara.getText() || "").trim();
           if (nt) {
-            if (/^(基本資料|形態特徵|特殊作用|用途|養護|參考資料)/.test(nt)) {
+            // 排除文章大標題
+            if (/植物資料|基本資料|形態特徵|特殊作用|用途|養護|參考資料/.test(nt)) {
               break;
             }
             nearbyText += nt + "\n";
-            if (nt.indexOf("@") !== -1 || /\d{4}/.test(nt) || nt.length > 2) {
+            // 只要找到含有 @、日期或有效特徵的文字即鎖定完成
+            if (nt.indexOf("@") !== -1 || /\d{4}/.test(nt)) {
               break;
             }
           }
-        } else {
-          break;
         }
       }
 
@@ -627,16 +635,27 @@ function processParagraphImages(para, container, childIndex, totalChildren, resu
 }
 
 /**
- * ⚡ 智慧特徵與拍攝日期地點解析器 (v94 強化版)
+ * ⚡ 智慧特徵與拍攝日期地點解析器 (v95 嚴格純化版)
+ * 範例 1: "油桐果 (照片拍攝：20260506@大甲水東流桐花步道)" -> "油桐果 (20260506@大甲水東流桐花步道)"
+ * 範例 2: "葉基的腺盃 (20260422@挑水古道+碧山古道)" -> "葉基的腺盃 (20260422@挑水古道+碧山古道)"
+ * 範例 3: "20260422@挑水古道+碧山古道" -> "(20260422@挑水古道+碧山古道)"
  */
-function parseSpecificCaptionFromNearbyText(text) {
+function parseSpecificCaptionFromNearbyText(text, plantName) {
   if (!text) return null;
 
   var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
 
-    // 匹配拍攝日期與地點，如 20260506@大甲水東流桐花步道 或 (照片拍攝：20260506@大甲水東流...)
+    // 🛡️ 徹底排除非標註的文檔標題行 (如: "油桐 - 植物資料"、"油桐" 等)
+    if (/植物資料|基本資料|形態特徵|特殊作用|用途|養護|參考資料|學名|別名|科別/i.test(line)) {
+      continue;
+    }
+    if (plantName && (line === plantName || line.indexOf(plantName + " -") === 0 || line.indexOf(plantName + " –") === 0)) {
+      continue;
+    }
+
+    // 1. 匹配拍攝日期與地點 (如 20260506@大甲水東流桐花步道 或 (照片拍攝：20260506@...))
     var matchDateLoc = line.match(/(?:照片拍攝地點與日期|照片拍攝|拍攝地點與日期|拍攝日期|拍攝地點|拍攝於)?[：:\s]*\(?(\d{4}[年\-\/\.]?\s*\d{1,2}[月\-\/\.]?\s*\d{1,2}[日]?)\s*@\s*([^\)\n\r\t]+)\)?/i);
     
     if (matchDateLoc) {
@@ -670,19 +689,14 @@ function parseSpecificCaptionFromNearbyText(text) {
       return dateLocFormatted;
     }
 
-    // 若無日期地點，但有括號標註或明確文字特徵 (如: 葉基腺體特寫 或 (葉緣光滑狹長))
+    // 2. 匹配括號特徵標註 (如: (葉基腺盃特寫) 或 (葉緣光滑狹長))
     var matchFeatureCaption = line.match(/\(([^\)\n\r]{2,30})\)/);
     if (matchFeatureCaption) {
       var cap = matchFeatureCaption[1].trim();
       cap = cap.replace(/^[\(\[\【]?\s*(?:其他附圖|植物附圖|附圖|特徵照片|更多附圖|照片記錄|植物特徵|照片)\s*[\)\]\】]?\s*/gi, '').trim();
-      if (cap && !/^特徵照片\s*\d*$/i.test(cap)) {
+      if (cap && !/^特徵照片\s*\d*$/i.test(cap) && cap.indexOf("植物資料") === -1) {
         return cap;
       }
-    } else if (line.length >= 2 && line.length <= 35 && !/^[\-\*\d\.\s]+$/.test(line) && !/^(基本資料|形態特徵|養護|用途|參考)/.test(line)) {
-      var cleanLine = line.replace(/^[-\*•\s]+/, '')
-                          .replace(/^[\(\[\【]?\s*(?:其他附圖|植物附圖|附圖|特徵照片|更多附圖|照片記錄|植物特徵|照片)\s*[\)\]\】]?\s*/gi, '')
-                          .trim();
-      if (cleanLine) return cleanLine;
     }
   }
 
