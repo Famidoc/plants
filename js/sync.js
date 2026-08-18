@@ -179,24 +179,31 @@ async function fetchLatestDataFromGAS() {
       throw new Error(`GAS 傳回錯誤：${result.error}`);
     }
 
-    if (result && (Array.isArray(result.plants) || Array.isArray(result.deletedPlants))) {
+    if (result && (Array.isArray(result.plants) || Array.isArray(result.deletedPlants) || Array.isArray(result.comparisons))) {
       const plants = result.plants || [];
       const deletedPlants = result.deletedPlants || [];
+      const comparisons = result.comparisons || [];
+      const deletedComparisons = result.deletedComparisons || [];
       const syncMode = result.syncMode || 'FULL';
       const folderFound = result.folderFound || 'Google Drive';
 
       // 儲存本次成功同步的時間戳記
-      saveLastSyncedTime(result.updatedAt || new Date().toISOString());
+      if (result.updatedAt) {
+        saveLastSyncedTime(result.updatedAt);
+      }
 
       return {
         syncMode: syncMode,
         folderFound: folderFound,
         plants: plants,
         deletedPlants: deletedPlants,
+        comparisons: comparisons,
+        deletedComparisons: deletedComparisons,
+        updatedAt: result.updatedAt || new Date().toISOString(),
         debugLog: result.debugLog || []
       };
     } else {
-      throw new Error('傳回資料格式不符合預期 (缺少 plants 陣列)');
+      throw new Error('傳回資料格式不符合預期 (缺少 plants 或 comparisons 陣列)');
     }
   } catch (err) {
     clearTimeout(timeoutId);

@@ -1,20 +1,22 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v98 終極 \r 換行相容版
+ * Google Apps Script (GAS) 自動掃描腳本 - v100 雲端全量主快取 (Master Snapshot) 版
  * 
- * 重大修復：
- * 1. ⚡ 徹底修復 Google Docs 的 \r / \r\n 換行符號問題：解決附圖多行標註被合併導致第 3 張圖無法識別的根本原因
- * 2. 🎯 全局標註消費同步：修復因未同步標記導致第 3 張圖回溯抓到第 1 張圖時地的 Bug
- * 3. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
- * 4. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
- * 5. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
+ * 核心升級：
+ * 1. 🌟 雲端全量主快取 (Master Cache)：將整份植物資料庫與鑑別庫快照儲存於雲端 master_plants_cache.json
+ * 2. 👥 多設備/多使用者獨立同步：無論誰何時開啟手機，只要本機版本小於雲端版本，0.3秒秒傳最新完整資料！
+ * 3. ⚡ [增修刪] 自動合流：在 [增修刪] 處理植物時，立即更新 Master 快取與全域版本號，永不遺漏！
+ * 4. 🚀 零等待毫秒級回應：雲端版本一致時 0.1 秒秒回，省流量、免等待、徹底消除手機逾時 (Timeout)！
+ * 5. 🎯 \r 換行相容、葉基腺盃標註精確提取、MD5 圖片雜湊防快取機制完全繼承
  * ==========================================================================
  */
+
+const MASTER_CACHE_FILENAME = "master_plants_cache.json";
 
 function doGet(e) {
   var debugLog = [];
   try {
-    debugLog.push("🚀 GAS 腳本版本: v97-葉基腺盃修復版");
+    debugLog.push("🚀 GAS 腳本版本: v100-雲端全量主快取版");
     var targetInfo = findTargetFolder();
 
     if (!targetInfo || !targetInfo.folder) {
@@ -33,157 +35,119 @@ function doGet(e) {
     var imagesFolder = getOrCreateImagesFolder(mainFolder);
     debugLog.push("📂 圖片快取資料夾: " + mainFolder.getName() + "/images/ (ID: " + imagesFolder.getId() + ")");
 
-    var docs = getAllDocsInFolder(folder);
+    // 檢查是否有請求強制全量重建快取 (force_rebuild)
+    var isForceRebuild = e && e.parameter && (e.parameter.force_rebuild === "true" || e.parameter.rebuild === "true");
+    var clientLastSynced = e && e.parameter && e.parameter.last_synced ? e.parameter.last_synced : "";
+    var clientPlantCount = e && e.parameter && e.parameter.plant_count ? parseInt(e.parameter.plant_count, 10) : -1;
 
-    // ⚡ v79 智慧增量 fallback 全量機制
-    if (syncMode === "INCREMENTAL" && docs.length === 0) {
-      var realMainFolder = getMainFolder();
-      if (realMainFolder) {
-        var mainDocs = getAllDocsInFolder(realMainFolder);
-        var hasChanges = false;
-        var reason = "";
+    var docsInTarget = getAllDocsInFolder(folder);
 
-        // 解析傳入的本機狀態參數
-        var lastSynced = e && e.parameter && e.parameter.last_synced ? e.parameter.last_synced : "";
-        var plantCount = e && e.parameter && e.parameter.plant_count ? parseInt(e.parameter.plant_count, 10) : -1;
+    // ======================================================================
+    // 情況 A：目標為 [增修刪] 資料夾，且裡面有檔案需要增量處理
+    // ======================================================================
+    if (syncMode === "INCREMENTAL" && docsInTarget.length > 0) {
+      debugLog.push("⚡ 偵測到 [增修刪] 中有 " + docsInTarget.length + " 筆檔案待處理，進行增量解析並合流 Master 快取");
+      
+      var incrementalRes = parseDocsList(docsInTarget, syncMode, folder, imagesFolder, debugLog);
+      
+      // 讀取既有 Master 快取（若無則全量掃描主資料夾建立基底）
+      var currentMaster = readMasterCache(imagesFolder, mainFolder, debugLog);
+      if (!currentMaster || !Array.isArray(currentMaster.plants) || currentMaster.plants.length === 0) {
+        debugLog.push("⚠️ 未找到既有 Master 快取，先執行主資料夾全量掃描以建立基準庫");
+        currentMaster = buildFullMasterCache(mainFolder, imagesFolder, debugLog);
+      }
 
-        if (plantCount !== -1 && mainDocs.length !== plantCount) {
-          hasChanges = true;
-          reason = "雲端檔案數量 (" + mainDocs.length + ") 與本機數量 (" + plantCount + ") 不一致";
-        } else if (lastSynced) {
-          var lastSyncedTime = isNaN(lastSynced) ? new Date(lastSynced).getTime() : parseInt(lastSynced, 10);
-          if (!isNaN(lastSyncedTime)) {
-            for (var d = 0; d < mainDocs.length; d++) {
-              if (mainDocs[d].getLastUpdated().getTime() > lastSyncedTime) {
-                hasChanges = true;
-                reason = "發現檔案在上次同步後有更新: " + mainDocs[d].getName();
-                break;
-              }
-            }
-          } else {
-            hasChanges = true;
-            reason = "無效的 last_synced 格式: " + lastSynced;
-          }
-        } else {
-          hasChanges = true;
-          reason = "未提供 last_synced 參數";
-        }
+      // 將 [增修刪] 異動合流至 Master 快取中
+      var mergedMaster = mergeChangesIntoMaster(currentMaster, incrementalRes, debugLog);
+      writeMasterCache(imagesFolder, mainFolder, mergedMaster, debugLog);
 
-        if (hasChanges) {
-          debugLog.push("🔄 [增修刪] 為空，但偵測到雲端主資料夾有更新 (" + reason + ")，自動切換為全量同步");
-          folder = realMainFolder;
-          folderName = folder.getName();
-          syncMode = "FULL";
-          docs = mainDocs;
+      var resA = {
+        status: "success",
+        scriptVersion: "v100",
+        syncMode: "INCREMENTAL",
+        folderFound: folderName,
+        count: incrementalRes.plants.length,
+        deletedCount: incrementalRes.deletedPlants.length,
+        comparisonCount: incrementalRes.comparisons.length,
+        deletedComparisonCount: incrementalRes.deletedComparisons.length,
+        updatedAt: mergedMaster.updatedAt,
+        plants: incrementalRes.plants,
+        deletedPlants: incrementalRes.deletedPlants,
+        comparisons: incrementalRes.comparisons,
+        deletedComparisons: incrementalRes.deletedComparisons,
+        debugLog: debugLog
+      };
 
-          // 若為全量同步，額外嘗試搜尋 [相似鑑別] 歸檔資料夾並合併掃描
-          var compFolder = getComparisonFolder();
-          if (compFolder && compFolder.getId() !== realMainFolder.getId()) {
-            var compDocs = getAllDocsInFolder(compFolder);
-            debugLog.push("📂 合併掃描 [相似鑑別] 主資料夾，發現 " + compDocs.length + " 篇鑑別文件");
-            docs = docs.concat(compDocs);
-          }
-        } else {
-          debugLog.push("⚡ [增修刪] 為空且雲端無更新，0.1秒直接回傳 0 筆異動");
+      return ContentService.createTextOutput(JSON.stringify(resA))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ======================================================================
+    // 情況 B：[增修刪] 為空，或是直接掃描 [捻花惹草] 主資料夾
+    // 優先使用雲端 Master 主快取 (0.1 ~ 0.3 秒秒回)！
+    // ======================================================================
+    var masterCache = null;
+    if (!isForceRebuild) {
+      masterCache = readMasterCache(imagesFolder, mainFolder, debugLog);
+    }
+
+    // 若快取不存在或使用者手動要求強制重建
+    if (!masterCache || !Array.isArray(masterCache.plants) || masterCache.plants.length === 0) {
+      debugLog.push("🔄 Master 快取不存在或請求強制重建，開始掃描雲端全量文件...");
+      masterCache = buildFullMasterCache(mainFolder, imagesFolder, debugLog);
+      writeMasterCache(imagesFolder, mainFolder, masterCache, debugLog);
+    }
+
+    // 比對用戶端傳來的 last_synced 與 plant_count
+    var isClientUpToDate = false;
+    if (clientLastSynced && masterCache && masterCache.updatedAt) {
+      if (clientLastSynced === masterCache.updatedAt || clientLastSynced >= masterCache.updatedAt) {
+        if (clientPlantCount === -1 || clientPlantCount === masterCache.plants.length) {
+          isClientUpToDate = true;
         }
       }
     }
 
-    var plantList = [];
-    var deletedList = [];
-    var comparisonList = [];
-    var deletedComparisonList = [];
-
-    for (var i = 0; i < docs.length; i++) {
-      var file = docs[i];
-      var docId = file.getId();
-      var fileName = file.getName();
-
-      // 🛡️ 草稿保護：若檔名包含 [草稿]、(編輯中)、Draft，自動跳過不安裝到正式庫
-      if (/[\(\[\【]?(草稿|編輯中|Draft|temp)[\)\]\】]?/i.test(fileName)) {
-        debugLog.push("🛡️ 忽略草稿檔案: 「" + fileName + "」");
-        continue;
-      }
-
-      var createdDate = file.getDateCreated();
-      var formattedDate = Utilities.formatDate(createdDate, "GMT+8", "yyyyMMdd");
-      var isDel = (syncMode === "INCREMENTAL" && (/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/.test(fileName) || fileName.indexOf("刪除") !== -1));
-
-      // 判斷是否為「相似鑑別」檔案
-      var isComp = isComparisonFileNameOrType(fileName);
-
-      if (isDel) {
-        var cleanTargetName = fileName.replace(/^[\(\[\【]?(?:刪除|delete)[\)\]\】\_\-\s]*/gi, '')
-                                      .replace(/^[\(\[\【]?(?:鑑別|植物資料|相似鑑別)[\)\]\】\_\-\s]*/gi, '')
-                                      .replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別)\s*$/gi, '')
-                                      .replace(/\.(docx?|gdoc)$/i, '')
-                                      .trim();
-        if (cleanTargetName) {
-          if (isComp) {
-            deletedComparisonList.push({ name: cleanTargetName, fileName: fileName });
-            debugLog.push("🗑️ 偵測到待刪除鑑別: 「" + cleanTargetName + "」");
-          } else {
-            deletedList.push({ name: cleanTargetName, fileName: fileName });
-            debugLog.push("🗑️ 偵測到待刪除花草: 「" + cleanTargetName + "」");
-          }
-          continue;
-        }
-      }
-
-      try {
-        var doc = DocumentApp.openById(docId);
-        var text = doc.getBody().getText();
-
-        // 二次檢查內文特徵判斷是否為鑑別文章
-        if (!isComp && isComparisonText(text)) {
-          isComp = true;
-        }
-
-        if (isComp) {
-          var parsedComp = parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog, formattedDate);
-          if (parsedComp) {
-            comparisonList.push(parsedComp);
-            debugLog.push("⚖️ 成功解析相似鑑別: 「" + parsedComp.title + "」");
-          }
-        } else {
-          var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
-          var galleryItems = getPlantGalleryFromDoc(doc, folder, plantNameOnly, imagesFolder, text, formattedDate, debugLog);
-          var primaryImageUrl = galleryItems.length > 0 ? galleryItems[0].url : "";
-
-          var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, galleryItems, doc, debugLog, plantNameOnly);
-          plantList.push(parsedPlant);
-        }
-      } catch (docErr) {
-        debugLog.push("❌ 讀取 Doc 異常 (" + fileName + "): " + docErr.toString());
-      }
+    if (isClientUpToDate && !isForceRebuild) {
+      debugLog.push("⚡ 本機版本 (" + clientLastSynced + ") 與雲端 Master 快照一致，0.1秒秒回無異動");
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        scriptVersion: "v100",
+        syncMode: "INCREMENTAL",
+        folderFound: mainFolder.getName(),
+        count: 0,
+        deletedCount: 0,
+        comparisonCount: 0,
+        deletedComparisonCount: 0,
+        updatedAt: masterCache.updatedAt,
+        plants: [],
+        deletedPlants: [],
+        comparisons: [],
+        deletedComparisons: [],
+        debugLog: debugLog
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    plantList.sort(function(a, b) {
-      return (b.dateAdded || "").localeCompare(a.dateAdded || "");
-    });
-
-    comparisonList.sort(function(a, b) {
-      return (b.dateAdded || "").localeCompare(a.dateAdded || "");
-    });
-
-    var result = {
+    // 用戶端需要更新（如太太的手機、新用戶登入、或有新版快照發布）
+    debugLog.push("🌟 傳送最新雲端 Master 全量快照至用戶端 (" + masterCache.plants.length + " 筆圖鑑, " + (masterCache.comparisons ? masterCache.comparisons.length : 0) + " 篇鑑別)");
+    var resB = {
       status: "success",
-      scriptVersion: "v97",
-      syncMode: syncMode,
-      folderFound: folderName,
-      count: plantList.length,
-      deletedCount: deletedList.length,
-      comparisonCount: comparisonList.length,
-      deletedComparisonCount: deletedComparisonList.length,
-      updatedAt: new Date().toISOString(),
-      debugLog: debugLog,
-      plants: plantList,
-      deletedPlants: deletedList,
-      comparisons: comparisonList,
-      deletedComparisons: deletedComparisonList
+      scriptVersion: "v100",
+      syncMode: "FULL",
+      folderFound: mainFolder.getName(),
+      count: masterCache.plants.length,
+      deletedCount: 0,
+      comparisonCount: masterCache.comparisons ? masterCache.comparisons.length : 0,
+      deletedComparisonCount: 0,
+      updatedAt: masterCache.updatedAt,
+      plants: masterCache.plants,
+      deletedPlants: [],
+      comparisons: masterCache.comparisons || [],
+      deletedComparisons: [],
+      debugLog: debugLog
     };
 
-    return ContentService.createTextOutput(JSON.stringify(result))
+    return ContentService.createTextOutput(JSON.stringify(resB))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
@@ -193,6 +157,236 @@ function doGet(e) {
       debugLog: debugLog
     })).setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ==========================================================================
+// 雲端全量主快取 (Master Cache) 核心操作
+// ==========================================================================
+
+function getMasterCacheFile(imagesFolder, mainFolder) {
+  var folders = [imagesFolder, mainFolder].filter(Boolean);
+  for (var i = 0; i < folders.length; i++) {
+    try {
+      var files = folders[i].getFilesByName(MASTER_CACHE_FILENAME);
+      if (files.hasNext()) return files.next();
+    } catch(e) {}
+  }
+  return null;
+}
+
+function readMasterCache(imagesFolder, mainFolder, debugLog) {
+  try {
+    var file = getMasterCacheFile(imagesFolder, mainFolder);
+    if (!file) return null;
+    var content = file.getBlob().getDataAsString("UTF-8");
+    if (!content) return null;
+    var parsed = JSON.parse(content);
+    if (parsed && Array.isArray(parsed.plants)) {
+      if (debugLog) debugLog.push("⚡ 成功讀取雲端 Master 快照 (版本: " + parsed.updatedAt + ", 筆數: " + parsed.plants.length + ")");
+      return parsed;
+    }
+  } catch (e) {
+    if (debugLog) debugLog.push("⚠️ 讀取 Master 快取異常: " + e.toString());
+  }
+  return null;
+}
+
+function writeMasterCache(imagesFolder, mainFolder, masterData, debugLog) {
+  try {
+    var targetFolder = imagesFolder || mainFolder;
+    if (!targetFolder) return false;
+    var content = JSON.stringify(masterData);
+    var file = getMasterCacheFile(imagesFolder, mainFolder);
+    if (file) {
+      file.setContent(content);
+      if (debugLog) debugLog.push("💾 已覆寫更新雲端 Master 快取檔 (版本: " + masterData.updatedAt + ")");
+    } else {
+      var newFile = targetFolder.createFile(MASTER_CACHE_FILENAME, content, MimeType.PLAIN_TEXT);
+      newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      if (debugLog) debugLog.push("💾 已新建雲端 Master 快取檔 (ID: " + newFile.getId() + ")");
+    }
+    return true;
+  } catch (e) {
+    if (debugLog) debugLog.push("⚠️ 寫入 Master 快取異常: " + e.toString());
+    return false;
+  }
+}
+
+function mergeChangesIntoMaster(masterData, changes, debugLog) {
+  var now = new Date().toISOString();
+  var plantsMap = {};
+  var compMap = {};
+
+  var existingPlants = (masterData && Array.isArray(masterData.plants)) ? masterData.plants : [];
+  for (var p = 0; p < existingPlants.length; p++) {
+    var item = existingPlants[p];
+    var key = (item.name || item.id || "").trim();
+    if (key) plantsMap[key] = item;
+  }
+
+  var existingComps = (masterData && Array.isArray(masterData.comparisons)) ? masterData.comparisons : [];
+  for (var c = 0; c < existingComps.length; c++) {
+    var cItem = existingComps[c];
+    var cKey = (cItem.title || cItem.id || "").trim();
+    if (cKey) compMap[cKey] = cItem;
+  }
+
+  // 處理刪除植物
+  if (changes.deletedPlants && changes.deletedPlants.length > 0) {
+    for (var dp = 0; dp < changes.deletedPlants.length; dp++) {
+      var delName = (changes.deletedPlants[dp].name || "").trim();
+      if (plantsMap[delName]) {
+        delete plantsMap[delName];
+        if (debugLog) debugLog.push("🗑️ Master快取中移除植物: 「" + delName + "」");
+      }
+    }
+  }
+
+  // 處理新增/更新植物
+  if (changes.plants && changes.plants.length > 0) {
+    for (var np = 0; np < changes.plants.length; np++) {
+      var newPlant = changes.plants[np];
+      var npKey = (newPlant.name || newPlant.id || "").trim();
+      if (npKey) {
+        plantsMap[npKey] = newPlant;
+        if (debugLog) debugLog.push("🌿 Master快取中合流植物: 「" + npKey + "」");
+      }
+    }
+  }
+
+  // 處理刪除鑑別
+  if (changes.deletedComparisons && changes.deletedComparisons.length > 0) {
+    for (var dc = 0; dc < changes.deletedComparisons.length; dc++) {
+      var delTitle = (changes.deletedComparisons[dc].name || changes.deletedComparisons[dc].title || "").trim();
+      if (compMap[delTitle]) {
+        delete compMap[delTitle];
+        if (debugLog) debugLog.push("🗑️ Master快取中移除鑑別: 「" + delTitle + "」");
+      }
+    }
+  }
+
+  // 處理新增/更新鑑別
+  if (changes.comparisons && changes.comparisons.length > 0) {
+    for (var nc = 0; nc < changes.comparisons.length; nc++) {
+      var newComp = changes.comparisons[nc];
+      var ncKey = (newComp.title || newComp.id || "").trim();
+      if (ncKey) {
+        compMap[ncKey] = newComp;
+        if (debugLog) debugLog.push("⚖️ Master快取中合流鑑別: 「" + ncKey + "」");
+      }
+    }
+  }
+
+  var finalPlants = Object.keys(plantsMap).map(function(k){ return plantsMap[k]; });
+  finalPlants.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+
+  var finalComps = Object.keys(compMap).map(function(k){ return compMap[k]; });
+  finalComps.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+
+  return {
+    version: now,
+    updatedAt: now,
+    plants: finalPlants,
+    comparisons: finalComps
+  };
+}
+
+function buildFullMasterCache(mainFolder, imagesFolder, debugLog) {
+  var allDocs = getAllDocsInFolder(mainFolder);
+  var compFolder = getComparisonFolder();
+  if (compFolder && compFolder.getId() !== mainFolder.getId()) {
+    var compDocs = getAllDocsInFolder(compFolder);
+    if (debugLog) debugLog.push("📂 全量掃描合併 [相似鑑別] 資料夾，發現 " + compDocs.length + " 篇文件");
+    allDocs = allDocs.concat(compDocs);
+  }
+
+  if (debugLog) debugLog.push("📁 開始全量解析雲端 " + allDocs.length + " 篇文檔...");
+  var parsed = parseDocsList(allDocs, "FULL", mainFolder, imagesFolder, debugLog);
+
+  var now = new Date().toISOString();
+  return {
+    version: now,
+    updatedAt: now,
+    plants: parsed.plants,
+    comparisons: parsed.comparisons
+  };
+}
+
+function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog) {
+  var plantList = [];
+  var deletedList = [];
+  var comparisonList = [];
+  var deletedComparisonList = [];
+
+  for (var i = 0; i < docs.length; i++) {
+    var file = docs[i];
+    var docId = file.getId();
+    var fileName = file.getName();
+
+    if (/[\(\[\【]?(草稿|編輯中|Draft|temp)[\)\]\】]?/i.test(fileName)) {
+      if (debugLog) debugLog.push("🛡️ 忽略草稿檔案: 「" + fileName + "」");
+      continue;
+    }
+
+    var createdDate = file.getDateCreated();
+    var formattedDate = Utilities.formatDate(createdDate, "GMT+8", "yyyyMMdd");
+    var isDel = (syncMode === "INCREMENTAL" && (/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/.test(fileName) || fileName.indexOf("刪除") !== -1));
+    var isComp = isComparisonFileNameOrType(fileName);
+
+    if (isDel) {
+      var cleanTargetName = fileName.replace(/^[\(\[\【]?(?:刪除|delete)[\)\]\】\_\-\s]*/gi, '')
+                                    .replace(/^[\(\[\【]?(?:鑑別|植物資料|相似鑑別)[\)\]\】\_\-\s]*/gi, '')
+                                    .replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別)\s*$/gi, '')
+                                    .replace(/\.(docx?|gdoc)$/i, '')
+                                    .trim();
+      if (cleanTargetName) {
+        if (isComp) {
+          deletedComparisonList.push({ name: cleanTargetName, fileName: fileName });
+          if (debugLog) debugLog.push("🗑️ 偵測到待刪除鑑別: 「" + cleanTargetName + "」");
+        } else {
+          deletedList.push({ name: cleanTargetName, fileName: fileName });
+          if (debugLog) debugLog.push("🗑️ 偵測到待刪除花草: 「" + cleanTargetName + "」");
+        }
+        continue;
+      }
+    }
+
+    try {
+      var doc = DocumentApp.openById(docId);
+      var text = doc.getBody().getText();
+
+      if (!isComp && isComparisonText(text)) {
+        isComp = true;
+      }
+
+      if (isComp) {
+        var parsedComp = parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog, formattedDate);
+        if (parsedComp) {
+          comparisonList.push(parsedComp);
+          if (debugLog) debugLog.push("⚖️ 成功解析相似鑑別: 「" + parsedComp.title + "」");
+        }
+      } else {
+        var plantNameOnly = fileName.replace(/[-_–\s]*植物資料.*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+        var galleryItems = getPlantGalleryFromDoc(doc, folder, plantNameOnly, imagesFolder, text, formattedDate, debugLog);
+        var primaryImageUrl = galleryItems.length > 0 ? galleryItems[0].url : "";
+
+        var parsedPlant = parseDocText(text, fileName, formattedDate, primaryImageUrl, galleryItems, doc, debugLog, plantNameOnly);
+        plantList.push(parsedPlant);
+      }
+    } catch (docErr) {
+      if (debugLog) debugLog.push("❌ 讀取 Doc 異常 (" + fileName + "): " + docErr.toString());
+    }
+  }
+
+  plantList.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+  comparisonList.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+
+  return {
+    plants: plantList,
+    deletedPlants: deletedList,
+    comparisons: comparisonList,
+    deletedComparisons: deletedComparisonList
+  };
 }
 
 // ==========================================================================
