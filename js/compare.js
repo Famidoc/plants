@@ -303,17 +303,21 @@
   /**
    * 切換橫向全幅檢視模式
    */
-  function toggleCompareTableWideMode() {
+  function toggleCompareTableWideMode(forceState) {
     const modalContainer = document.getElementById('compareModalContainer');
     const modalBody = document.querySelector('.compare-modal-body');
     const btn = document.getElementById('toggleCompareWideBtn');
     if (!modalBody) return;
     
-    modalBody.classList.toggle('wide-table-mode');
-    if (modalContainer) {
-      modalContainer.classList.toggle('wide-modal-mode');
+    let isWide;
+    if (typeof forceState === 'boolean') {
+      isWide = forceState;
+      modalBody.classList.toggle('wide-table-mode', isWide);
+      if (modalContainer) modalContainer.classList.toggle('wide-modal-mode', isWide);
+    } else {
+      isWide = modalBody.classList.toggle('wide-table-mode');
+      if (modalContainer) modalContainer.classList.toggle('wide-modal-mode', isWide);
     }
-    const isWide = modalBody.classList.contains('wide-table-mode');
     
     if (btn) {
       btn.classList.toggle('active', isWide);
@@ -329,7 +333,6 @@
     if (!item) return;
 
     const modalBackdrop = document.getElementById('compareModalBackdrop');
-    const modalContainer = document.getElementById('compareModalContainer');
     const modalTitle = document.getElementById('compareModalTitle');
     const modalSubtitle = document.getElementById('compareModalSubtitle');
     const mnemonicText = document.getElementById('compareModalMnemonicText');
@@ -337,15 +340,9 @@
     const tableContainer = document.getElementById('compareTableContainer');
     const notesContainer = document.getElementById('compareNotesContainer');
     const galleryContainer = document.getElementById('compareGalleryContainer');
-    const wideBtn = document.getElementById('toggleCompareWideBtn');
-    const modalBody = document.querySelector('.compare-modal-body');
 
-    if (modalBody) modalBody.classList.remove('wide-table-mode');
-    if (modalContainer) modalContainer.classList.remove('wide-modal-mode');
-    if (wideBtn) {
-      wideBtn.classList.remove('active');
-      wideBtn.innerHTML = '<span>↔️</span> <span>橫向全幅檢視</span>';
-    }
+    // 每次開啟燈箱重設為預設完整視圖
+    toggleCompareTableWideMode(false);
 
     if (modalTitle) modalTitle.textContent = item.title;
     if (modalSubtitle) modalSubtitle.innerHTML = `<span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span> <span>•</span> <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>`;
