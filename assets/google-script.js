@@ -14,6 +14,7 @@
 function doGet(e) {
   var debugLog = [];
   try {
+    debugLog.push("🚀 GAS 腳本版本: v97-葉基腺盃修復版");
     var targetInfo = findTargetFolder();
 
     if (!targetInfo || !targetInfo.folder) {
@@ -167,6 +168,7 @@ function doGet(e) {
 
     var result = {
       status: "success",
+      scriptVersion: "v97",
       syncMode: syncMode,
       folderFound: folderName,
       count: plantList.length,
