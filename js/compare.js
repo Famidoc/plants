@@ -133,6 +133,15 @@
       }
     });
 
+    // 橫向全幅檢視按鈕
+    const wideBtn = document.getElementById('toggleCompareWideBtn');
+    if (wideBtn) {
+      wideBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleCompareTableWideMode();
+      });
+    }
+
     if (modalBackdrop) {
       modalBackdrop.addEventListener('click', (e) => {
         if (e.target === modalBackdrop) {
@@ -476,6 +485,7 @@
   window.renderCompareCards = renderCompareCards;
   window.openCompareModal = openCompareModal;
   window.closeCompareModal = closeCompareModal;
+  window.toggleCompareTableWideMode = toggleCompareTableWideMode;
   window.jumpToPlantFromCompare = jumpToPlantFromCompare;
   window.findSpeciesPhoto = findSpeciesPhoto;
 
