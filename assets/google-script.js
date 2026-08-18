@@ -323,15 +323,62 @@ function mergeChangesIntoMaster(masterData, changes, debugLog) {
 }
 
 function generateMasterCache() {
-  Logger.log("=== 開始執行手動生成 Master 全量快照 ===");
+  Logger.log("=== 開始執行安全增量建置 Master 快照 ===");
   var mainFolder = getMainFolder();
   if (!mainFolder) throw new Error("找不到 [捻花惹草] 資料夾");
   var imagesFolder = getOrCreateImagesFolder(mainFolder);
   
+  var existingMaster = readMasterCache(imagesFolder, mainFolder, []) || { plants: [], comparisons: [] };
+  if (!existingMaster.plants) existingMaster.plants = [];
+  if (!existingMaster.comparisons) existingMaster.comparisons = [];
+
+  var allDocs = getAllDocsInFolder(mainFolder);
+  var compFolder = getComparisonFolder();
+  if (compFolder && compFolder.getId() !== mainFolder.getId()) {
+    allDocs = allDocs.concat(getAllDocsInFolder(compFolder));
+  }
+
+  // 找出既有已解析的花草名稱
+  var parsedMap = {};
+  for (var p = 0; p < existingMaster.plants.length; p++) {
+    var pName = (existingMaster.plants[p].name || "").trim();
+    if (pName) parsedMap[pName] = true;
+  }
+  for (var c = 0; c < existingMaster.comparisons.length; c++) {
+    var cTitle = (existingMaster.comparisons[c].title || "").trim();
+    if (cTitle) parsedMap[cTitle] = true;
+  }
+
+  var remainingDocs = allDocs.filter(function(d) {
+    var dName = d.getName().replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別).*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+    return !parsedMap[dName];
+  });
+
+  Logger.log("📊 雲端共有 " + allDocs.length + " 篇文檔，已有快照 " + (existingMaster.plants.length + existingMaster.comparisons.length) + " 篇，剩餘待解析: " + remainingDocs.length + " 篇");
+
+  if (remainingDocs.length === 0) {
+    Logger.log("🎉 全部文檔均已在快取中！總計 " + existingMaster.plants.length + " 筆花草，" + existingMaster.comparisons.length + " 篇鑑別。");
+    return;
+  }
+
+  // 每輪安全處理 40 篇 (約 90 秒，絕對不超時)
+  var batchDocs = remainingDocs.slice(0, 40);
+  Logger.log("⏳ 本輪開始解析 " + batchDocs.length + " 篇文檔...");
+  
   var debugLog = [];
-  var masterData = buildFullMasterCache(mainFolder, imagesFolder, debugLog, 0);
-  writeMasterCache(imagesFolder, mainFolder, masterData, debugLog);
-  Logger.log("=== 生成完成！共 " + masterData.plants.length + " 筆花草，" + (masterData.comparisons ? masterData.comparisons.length : 0) + " 篇鑑別 ===");
+  var parsedBatch = parseDocsList(batchDocs, "FULL", mainFolder, imagesFolder, debugLog, 0);
+
+  var merged = mergeChangesIntoMaster(existingMaster, parsedBatch, debugLog);
+  writeMasterCache(imagesFolder, mainFolder, merged, debugLog);
+
+  Logger.log("✅ 本輪成功解析並寫入 " + (parsedBatch.plants.length + parsedBatch.comparisons.length) + " 篇！");
+  Logger.log("📈 目前 Master 快照累積: " + merged.plants.length + " 筆花草，" + merged.comparisons.length + " 篇鑑別 (進度 " + (merged.plants.length + merged.comparisons.length) + " / " + allDocs.length + ")");
+
+  if ((merged.plants.length + merged.comparisons.length) < allDocs.length) {
+    Logger.log("👉 請再次點擊「▶ 執行」按鈕處理下一批，直到全部完成！");
+  } else {
+    Logger.log("🌟 恭喜！全部文檔快照建置大功告成！");
+  }
 }
 
 function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {
