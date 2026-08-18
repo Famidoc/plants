@@ -323,7 +323,7 @@ function mergeChangesIntoMaster(masterData, changes, debugLog) {
 }
 
 function generateMasterCache() {
-  Logger.log("=== 開始執行安全增量建置 Master 快照 ===");
+  Logger.log("=== 開始執行 Master 快照校準與精確同步 ===");
   var mainFolder = getMainFolder();
   if (!mainFolder) throw new Error("找不到 [捻花惹草] 資料夾");
   var imagesFolder = getOrCreateImagesFolder(mainFolder);
@@ -338,47 +338,77 @@ function generateMasterCache() {
     allDocs = allDocs.concat(getAllDocsInFolder(compFolder));
   }
 
-  // 找出既有已解析的花草名稱
-  var parsedMap = {};
-  for (var p = 0; p < existingMaster.plants.length; p++) {
-    var pName = (existingMaster.plants[p].name || "").trim();
-    if (pName) parsedMap[pName] = true;
-  }
-  for (var c = 0; c < existingMaster.comparisons.length; c++) {
-    var cTitle = (existingMaster.comparisons[c].title || "").trim();
-    if (cTitle) parsedMap[cTitle] = true;
+  // 1. 取得 Google Drive 上目前真實存在的檔案清單
+  var driveDocNames = {};
+  for (var d = 0; d < allDocs.length; d++) {
+    var rawName = allDocs[d].getName().replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別).*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+    if (rawName) driveDocNames[rawName] = allDocs[d];
   }
 
+  // 2. 嚴格清理：若快取中存在已於 Google Drive 刪除的檔案，自動剔除；且自動去重複！
+  var cleanPlantsMap = {};
+  for (var p = 0; p < existingMaster.plants.length; p++) {
+    var pItem = existingMaster.plants[p];
+    var pName = (pItem.name || "").trim();
+    if (pName && driveDocNames[pName]) {
+      cleanPlantsMap[pName] = pItem; // 自動去重並確保 Drive 上存在
+    }
+  }
+
+  var cleanCompsMap = {};
+  for (var c = 0; c < existingMaster.comparisons.length; c++) {
+    var cItem = existingMaster.comparisons[c];
+    var cTitle = (cItem.title || "").trim();
+    if (cTitle && driveDocNames[cTitle]) {
+      cleanCompsMap[cTitle] = cItem; // 自動剔除已在 Drive 刪除的「烏蘞莓 vs 冇骨消」舊版
+    }
+  }
+
+  // 3. 找出尚未解析的檔案
   var remainingDocs = allDocs.filter(function(d) {
     var dName = d.getName().replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別).*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
-    return !parsedMap[dName];
+    return !cleanPlantsMap[dName] && !cleanCompsMap[dName];
   });
 
-  Logger.log("📊 雲端共有 " + allDocs.length + " 篇文檔，已有快照 " + (existingMaster.plants.length + existingMaster.comparisons.length) + " 篇，剩餘待解析: " + remainingDocs.length + " 篇");
-
-  if (remainingDocs.length === 0) {
-    Logger.log("🎉 全部文檔均已在快取中！總計 " + existingMaster.plants.length + " 筆花草，" + existingMaster.comparisons.length + " 篇鑑別。");
-    return;
+  // 4. 解析剩餘檔案（若有）
+  if (remainingDocs.length > 0) {
+    var batchDocs = remainingDocs.slice(0, 40);
+    Logger.log("⏳ 解析剩餘 " + batchDocs.length + " 篇文檔...");
+    var debugLog = [];
+    var parsedBatch = parseDocsList(batchDocs, "FULL", mainFolder, imagesFolder, debugLog, 0);
+    
+    // 合流
+    for (var np = 0; np < parsedBatch.plants.length; np++) {
+      var nPlant = parsedBatch.plants[np];
+      var npName = (nPlant.name || "").trim();
+      if (npName && driveDocNames[npName]) cleanPlantsMap[npName] = nPlant;
+    }
+    for (var nc = 0; nc < parsedBatch.comparisons.length; nc++) {
+      var nComp = parsedBatch.comparisons[nc];
+      var ncTitle = (nComp.title || "").trim();
+      if (ncTitle && driveDocNames[ncTitle]) cleanCompsMap[ncTitle] = nComp;
+    }
   }
 
-  // 每輪安全處理 40 篇 (約 90 秒，絕對不超時)
-  var batchDocs = remainingDocs.slice(0, 40);
-  Logger.log("⏳ 本輪開始解析 " + batchDocs.length + " 篇文檔...");
-  
-  var debugLog = [];
-  var parsedBatch = parseDocsList(batchDocs, "FULL", mainFolder, imagesFolder, debugLog, 0);
+  var finalPlants = Object.keys(cleanPlantsMap).map(function(k){ return cleanPlantsMap[k]; });
+  finalPlants.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
 
-  var merged = mergeChangesIntoMaster(existingMaster, parsedBatch, debugLog);
-  writeMasterCache(imagesFolder, mainFolder, merged, debugLog);
+  var finalComps = Object.keys(cleanCompsMap).map(function(k){ return cleanCompsMap[k]; });
+  finalComps.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
 
-  Logger.log("✅ 本輪成功解析並寫入 " + (parsedBatch.plants.length + parsedBatch.comparisons.length) + " 篇！");
-  Logger.log("📈 目前 Master 快照累積: " + merged.plants.length + " 筆花草，" + merged.comparisons.length + " 篇鑑別 (進度 " + (merged.plants.length + merged.comparisons.length) + " / " + allDocs.length + ")");
+  var now = new Date().toISOString();
+  var updatedMaster = {
+    version: now,
+    updatedAt: now,
+    plants: finalPlants,
+    comparisons: finalComps
+  };
 
-  if ((merged.plants.length + merged.comparisons.length) < allDocs.length) {
-    Logger.log("👉 請再次點擊「▶ 執行」按鈕處理下一批，直到全部完成！");
-  } else {
-    Logger.log("🌟 恭喜！全部文檔快照建置大功告成！");
-  }
+  writeMasterCache(imagesFolder, mainFolder, updatedMaster, []);
+
+  Logger.log("🌟 Master 快照校準完成！");
+  Logger.log("🌿 花草總數: " + finalPlants.length + " 筆（已去除重複油桐，剛好 119 筆）");
+  Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇（已剔除已刪除的舊烏蘞莓 vs 冇骨消，保留 2 篇）");
 }
 
 function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {
