@@ -6786,79 +6786,6 @@ const DEFAULT_COMPARISON_DATA = [
         caption: "西洋接骨木 (木本灌木、無蜜杯純白聚傘花)"
       }
     ]
-  },
-  {
-    id: "comp-cayratia-sambucus",
-    title: "烏蘞莓 vs 冇骨消",
-    species: ["烏蘞莓", "冇骨消"],
-    family: "葡萄科 / 五福花科",
-    confusionLevel: "★★★★☆",
-    mnemonic: "烏蘞莓是草質藤蔓、鳥足狀5葉、花盤橙黃、果熟紫黑；冇骨消是直立灌木、奇數羽狀複葉、花序有黃色蜜杯、莖中空有腥臭、果熟鮮紅。",
-    dateAdded: "20260817",
-    comparisonTable: {
-      headers: ["比對項目", "烏蘞莓（Cayratia japonica）", "冇骨消（Sambucus chinensis）"],
-      rows: [
-        {
-          feature: "生長型態",
-          values: [
-            "多年生草質蔓性藤本，具2~3叉狀卷鬚（與葉對生），攀緣於灌木或雜草上。",
-            "多年生大型直立草本或半灌木，高可達1~2公尺，株型挺拔，無卷鬚。"
-          ]
-        },
-        {
-          feature: "葉片外觀",
-          values: [
-            "互生，鳥足狀5出複葉（鳥趾狀，中間小葉最大且具長柄，兩側小葉各自分叉），葉緣具波狀鋸齒或圓鈍齒。",
-            "對生，奇數羽狀複葉（具5~9枚小葉），小葉卵狀披針形，葉基常歪斜，葉緣具銳細鋸齒。"
-          ]
-        },
-        {
-          feature: "花序與花色",
-          values: [
-            "腋生二歧聚繖花序，花細小，淡黃綠色，4瓣，中央具肉質橙黃色/黃色蜜腺花盤。",
-            "頂生大型平展複繖房花序，白色小花密生，5裂；花序間散生鮮黃色或橙黃色「杯狀蜜腺（蜜杯）」。"
-          ]
-        },
-        {
-          feature: "果實特徵",
-          values: [
-            "漿果球形（徑約6~8mm），成熟時由綠色轉為暗紫黑色。",
-            "核果球形（徑約4~5mm），成熟時由綠轉橙黃再轉鮮紅色。"
-          ]
-        },
-        {
-          feature: "莖部質感與氣味",
-          values: [
-            "細長草質藤蔓具韌性，揉搓後呈現一般清淡青草氣味。",
-            "直立粗壯具稜，髓部鬆軟如白色海綿中空（故名「冇骨」）；揉碎散發明顯濃烈特殊腥臭青草味（臭風草）。"
-          ]
-        }
-      ]
-    },
-    detailedNotes: [
-      {
-        title: "1. 看葉片外觀與生長型態",
-        content: "【葉序】：烏蘞莓互生且為「鳥足狀5出複葉」；冇骨消對生且為「奇數羽狀複葉（5~9片）」\n【型態】：烏蘞莓是趴在地上或灌木上的藤蔓；冇骨消是挺立直立的灌木，無卷鬚。"
-      },
-      {
-        title: "2. 找找看有沒有黃色「小蜜杯」",
-        content: "冇骨消開白花時，花叢中一顆顆橘黃色的小杯子是它最標誌性的腺體（蜜杯），吸引大量蝴蝶；烏蘞莓花中央為扁平肉質橙黃花盤。"
-      },
-      {
-        title: "3. 聞氣味與折莖部",
-        content: "冇骨消葉片揉搓有強烈青草腥臭味（臭風草），莖部內中空海綿狀一折即斷；烏蘞莓無異味且莖部韌性強。"
-      }
-    ],
-    galleryImages: [
-      {
-        url: "https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000",
-        caption: "烏蘞莓 (鳥足狀5出複葉與攀爬卷鬚)"
-      },
-      {
-        url: "https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop",
-        caption: "冇骨消 (羽狀複葉與亮橘黃色蜜杯)"
-      }
-    ]
   }
 ];
 
@@ -6906,14 +6833,29 @@ async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComp
   let addedCount = 0;
   let updatedCount = 0;
 
-  // 1. 處理刪除
+  // 1. 處理刪除 (支援全名、提取名與容錯比對)
   if (Array.isArray(deletedComps) && deletedComps.length > 0) {
     deletedComps.forEach(item => {
-      const targetName = typeof item === 'string' ? item.trim() : (item.name || '').trim();
+      let targetName = typeof item === 'string' ? item.trim() : (item.name || '').trim();
+      const rawFileName = typeof item === 'object' && item.fileName ? item.fileName : '';
+      
+      // 如果 targetName 因舊版腳本正則過度截斷為 "["，從 rawFileName 智慧修復還原
+      if (!targetName || targetName === '[' || targetName.length <= 1) {
+        if (rawFileName) {
+          targetName = rawFileName.replace(/^[\(\[\【]?(?:刪除|delete)[\)\]\】\_\-\s]*/gi, '')
+                                  .replace(/^[\(\[\【]?(?:鑑別|植物資料|相似鑑別)[\)\]\】\_\-\s]*/gi, '')
+                                  .replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別)\s*$/gi, '')
+                                  .replace(/\.(docx?|gdoc)$/i, '')
+                                  .trim();
+        }
+      }
       if (!targetName) return;
+
       const initialLen = currentList.length;
       currentList = currentList.filter(c => {
-        const titleMatch = (c.title || '').trim() === targetName;
+        const cleanTitle = (c.title || '').trim();
+        const cleanNoPrefix = cleanTitle.replace(/^[\(\[\【]?鑑別[\]\)\】\_\-\s]*/g, '').trim();
+        const titleMatch = cleanTitle === targetName || cleanNoPrefix === targetName;
         const speciesMatch = (c.species || []).some(s => s === targetName);
         return !(titleMatch || speciesMatch);
       });

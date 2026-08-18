@@ -112,8 +112,9 @@ function doGet(e) {
       var isComp = isComparisonFileNameOrType(fileName);
 
       if (isDel) {
-        var cleanTargetName = fileName.replace(/^[\(\[\【]?刪除[\]\)\】\_\-\s]*/g, '')
-                                      .replace(/[-_–\s]*(植物資料|相似鑑別|鑑別).*/g, '')
+        var cleanTargetName = fileName.replace(/^[\(\[\【]?(?:刪除|delete)[\)\]\】\_\-\s]*/gi, '')
+                                      .replace(/^[\(\[\【]?(?:鑑別|植物資料|相似鑑別)[\)\]\】\_\-\s]*/gi, '')
+                                      .replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別)\s*$/gi, '')
                                       .replace(/\.(docx?|gdoc)$/i, '')
                                       .trim();
         if (cleanTargetName) {
