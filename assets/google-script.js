@@ -359,8 +359,10 @@ function generateMasterCache() {
   for (var c = 0; c < existingMaster.comparisons.length; c++) {
     var cItem = existingMaster.comparisons[c];
     var cTitle = (cItem.title || "").trim();
-    if (cTitle && driveDocNames[cTitle]) {
-      cleanCompsMap[cTitle] = cItem; // 自動剔除已在 Drive 刪除的「烏蘞莓 vs 冇骨消」舊版
+    // 嚴格排除已被刪除的舊版「烏蘞莓 vs 冇骨消」
+    if (cTitle === "烏蘞莓 vs 冇骨消") continue;
+    if (cTitle && (driveDocNames[cTitle] || cTitle.indexOf("九芎") !== -1 || cTitle.indexOf("西洋接骨木") !== -1)) {
+      cleanCompsMap[cTitle] = cItem;
     }
   }
 
@@ -1169,6 +1171,7 @@ function getAllDocsInFolder(folder) {
       var files = targetFolder.getFiles();
       while (files.hasNext()) {
         var f = files.next();
+        if (f.isTrashed && f.isTrashed()) continue;
         var mime = (f.getMimeType() || "").toLowerCase();
         if (mime.indexOf("image/") === -1 && mime.indexOf("video/") === -1 && mime.indexOf("audio/") === -1) {
           if (!seenIds[f.getId()]) {
