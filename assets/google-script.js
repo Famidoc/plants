@@ -1,11 +1,11 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v95 跨分隔線穿透與標題徹底排除版
+ * Google Apps Script (GAS) 自動掃描腳本 - v96 標註索引同步防回溯版
  * 
  * 重大修復：
- * 1. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
- * 2. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
- * 3. 🎯 標註一對一消費機制：保證各圖片精確依序取得屬於自己的專屬標註
+ * 1. 🎯 全局標註消費同步：修復因未同步標記導致第 3 張圖回溯抓到第 1 張圖時地的 Bug
+ * 2. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
+ * 3. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
  * 4. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
  * ==========================================================================
  */
@@ -459,22 +459,32 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
       }
 
       if (imgUrl) {
-        // 🎯 核心演算法：一對一精確標註指派
+        // 🎯 核心演算法：一對一精確標註指派與已用標記同步
         var specificCaption = null;
         if (item.nearbyText) {
           var candidateCap = parseSpecificCaptionFromNearbyText(item.nearbyText, plantName);
           if (candidateCap && !isCaptionAlreadyUsed(candidateCap, galleryItems)) {
             specificCaption = candidateCap;
+            // ⚡ 同步標記全局隊列中對應的標註為已消費
+            var foundCIdx = allDocCaptions.indexOf(candidateCap);
+            if (foundCIdx !== -1) {
+              usedCaptionIndices[foundCIdx] = true;
+            }
           }
         }
 
-        // 若專屬文字為空或重複，從文檔全局標註序列中依序消費下一個未使用的有效標註！
+        // 若專屬文字為空或重複，優先依圖片索引指派 allDocCaptions[imgIndex]，或依序消費下一個未使用的有效標註！
         if (!specificCaption) {
-          for (var cIdx = 0; cIdx < allDocCaptions.length; cIdx++) {
-            if (!usedCaptionIndices[cIdx]) {
-              usedCaptionIndices[cIdx] = true;
-              specificCaption = allDocCaptions[cIdx];
-              break;
+          if (imgIndex < allDocCaptions.length && !usedCaptionIndices[imgIndex] && !isCaptionAlreadyUsed(allDocCaptions[imgIndex], galleryItems)) {
+            usedCaptionIndices[imgIndex] = true;
+            specificCaption = allDocCaptions[imgIndex];
+          } else {
+            for (var cIdx = 0; cIdx < allDocCaptions.length; cIdx++) {
+              if (!usedCaptionIndices[cIdx] && !isCaptionAlreadyUsed(allDocCaptions[cIdx], galleryItems)) {
+                usedCaptionIndices[cIdx] = true;
+                specificCaption = allDocCaptions[cIdx];
+                break;
+              }
             }
           }
         }
