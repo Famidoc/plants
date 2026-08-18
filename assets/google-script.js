@@ -1,12 +1,13 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v96 標註索引同步防回溯版
+ * Google Apps Script (GAS) 自動掃描腳本 - v97 深度日誌診斷版
  * 
  * 重大修復：
- * 1. 🎯 全局標註消費同步：修復因未同步標記導致第 3 張圖回溯抓到第 1 張圖時地的 Bug
- * 2. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
- * 3. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
- * 4. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
+ * 1. 🔍 深度日誌診斷：輸出全文標註清單、每張圖片鄰近段落、最終分配標註
+ * 2. 🎯 全局標註消費同步：修復因未同步標記導致第 3 張圖回溯抓到第 1 張圖時地的 Bug
+ * 3. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
+ * 4. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
+ * 5. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
  * ==========================================================================
  */
 
@@ -431,6 +432,11 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
   var allDocCaptions = extractAllOrderedDocCaptions(fullDocText, defaultDateStr, plantName);
   var usedCaptionIndices = {};
 
+  debugLog.push("🔍 [" + plantName + "] 全文解析出的標註清單 (" + allDocCaptions.length + " 筆): " + JSON.stringify(allDocCaptions));
+  for (var d = 0; d < docImages.length; d++) {
+    debugLog.push("🖼️ 圖片 " + d + " 鄰近文字: " + JSON.stringify(docImages[d].nearbyText));
+  }
+
   for (var i = 0; i < docImages.length; i++) {
     try {
       var item = docImages[i];
@@ -497,6 +503,7 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
           url: imgUrl,
           caption: specificCaption
         });
+        debugLog.push("🎯 圖片 " + imgIndex + " 最終指派標註: " + JSON.stringify(specificCaption));
       }
     } catch(eImg) {
       debugLog.push("⚠️ 處理圖片 " + i + " 異常: " + eImg.toString());
