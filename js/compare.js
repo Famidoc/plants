@@ -377,8 +377,10 @@
     }
 
     // ⚡ 關鍵修復：同時加上 open 與 active，確保 modal.css 能百分之百開啟顯示燈箱！
-    backdrop.classList.add('open');
-    backdrop.classList.add('active');
+    if (modalBackdrop) {
+      modalBackdrop.classList.add('open');
+      modalBackdrop.classList.add('active');
+    }
     document.body.style.overflow = 'hidden';
   }
 
