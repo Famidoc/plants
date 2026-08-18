@@ -32,7 +32,7 @@
     // 先找完全相等的名稱
     let matched = plants.find(p => p && (p.name || '').trim() === cleanName);
     
-    // 若無，再找別名中有完全相等的項目（嚴格相等，不用 includes，避免苞花紫薇誤命中紫薇）
+    // 若無，再找別名中有完全相等的項目
     if (!matched) {
       matched = plants.find(p => p && Array.isArray(p.aliases) && p.aliases.some(a => (a || '').trim() === cleanName));
     }
@@ -41,32 +41,24 @@
       return matched.imageUrl;
     }
 
-    // 2. 優先使用傳入的 fallbackUrl（如鑑別文件內附的照片）
-    if (fallbackUrl) {
+    // 2. 使用傳入的 fallbackUrl（僅當非假圖庫時）
+    if (fallbackUrl && fallbackUrl.startsWith('http') && !fallbackUrl.includes('images.unsplash.com')) {
       return fallbackUrl;
     }
 
-    // 3. 特殊精確對照表
+    // 3. 官方 Google Drive 確證無誤的真實照片庫
     const KNOWN_PHOTOS = {
-      '薰衣草': 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop',
-      '鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
-      '粉萼鼠尾草': 'https://drive.google.com/thumbnail?id=1eBjwwJFXhWqCu3oloNDpbR0GSZDjiyQZ&sz=w1000',
       '紫薇': 'https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000',
       '九芎': 'https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000',
-      '羊蹄甲': 'https://images.unsplash.com/photo-1520412099551-62b6bafeb5bb?w=800&auto=format&fit=crop',
-      '洋紫荊': 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop',
-      '艷紫荊': 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop',
-      '烏蘞莓': 'https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000',
-      '冇骨消': 'https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop',
-      '西洋接骨木': 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop',
-      '接骨木': 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop'
+      '烏蘞莓': 'https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000'
     };
 
     if (KNOWN_PHOTOS[cleanName]) {
       return KNOWN_PHOTOS[cleanName];
     }
 
-    return 'https://images.unsplash.com/photo-1565011523534-747a8601f10a?w=800&auto=format&fit=crop';
+    // 🛡️ 嚴謹原則：無真實圖資時回傳空字串，前端顯示「尚無圖資」佔位標籤，絕不塞假圖誤導！
+    return '';
   }
 
   /**
@@ -77,7 +69,8 @@
     const categoryChips = document.querySelectorAll('.compare-category-chip');
     const sortBtn = document.getElementById('compareSortBtn');
     const modalBackdrop = document.getElementById('compareModalBackdrop');
-    const closeBtn = document.getElementById('closeCompareModalBtn');
+    const closeBtn1 = document.getElementById('closeCompareModalBtn');
+    const closeBtn2 = document.getElementById('compareModalCloseBtn');
 
     // 搜尋輸入監聽
     if (searchInput) {
@@ -106,12 +99,15 @@
       });
     }
 
-    // 關閉燈箱
-    if (closeBtn) {
-      closeBtn.addEventListener('click', () => {
-        closeCompareModal();
-      });
-    }
+    // 關閉燈箱（綁定所有關閉按鈕）
+    [closeBtn1, closeBtn2].forEach(btn => {
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          closeCompareModal();
+        });
+      }
+    });
 
     if (modalBackdrop) {
       modalBackdrop.addEventListener('click', (e) => {
@@ -141,21 +137,15 @@
 
     // 1. 篩選 (搜尋字串 + 科別)
     let filtered = allComparisons.filter(item => {
-      // 科別篩選
       if (currentCategory !== 'ALL') {
         const itemFam = (item.family || '').toLowerCase();
-        if (!itemFam.includes(currentCategory.toLowerCase())) {
-          return false;
-        }
+        if (!itemFam.includes(currentCategory.toLowerCase())) return false;
       }
-
-      // 文字搜尋 (標題、物種名稱、科別、口訣、表格特徵)
       if (currentFilterText) {
         const titleMatch = (item.title || '').toLowerCase().includes(currentFilterText);
         const speciesMatch = (item.species || []).some(s => s.toLowerCase().includes(currentFilterText));
         const familyMatch = (item.family || '').toLowerCase().includes(currentFilterText);
         const mnemonicMatch = (item.mnemonic || '').toLowerCase().includes(currentFilterText);
-        
         let tableMatch = false;
         if (item.comparisonTable && item.comparisonTable.rows) {
           tableMatch = item.comparisonTable.rows.some(r => 
@@ -163,10 +153,8 @@
             (r.values || []).some(v => v.toLowerCase().includes(currentFilterText))
           );
         }
-
         return titleMatch || speciesMatch || familyMatch || mnemonicMatch || tableMatch;
       }
-
       return true;
     });
 
@@ -177,98 +165,100 @@
       return isReverseSort ? dateA.localeCompare(dateB) : dateB.localeCompare(dateA);
     });
 
-    // 3. 更新計數
-    if (countBadge) {
-      countBadge.textContent = `共 ${filtered.length} 組相似鑑別`;
-    }
+    if (countBadge) countBadge.textContent = `共 ${filtered.length} 組相似鑑別`;
 
-    // 4. 空資料狀態
     if (filtered.length === 0) {
-      container.innerHTML = `
-        <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-light); background: rgba(255,255,255,0.06); border-radius: var(--radius-lg); backdrop-filter: blur(8px);">
-          <div style="font-size: 3rem; margin-bottom: 0.8rem;">⚖️🔍</div>
-          <h3 style="font-size: 1.3rem; margin-bottom: 0.5rem;">未找到符合條件的相似鑑別資料</h3>
-          <p style="opacity: 0.8; font-size: 0.9rem;">請嘗試更換搜尋關鍵字或科別標籤。</p>
-        </div>
-      `;
+      container.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1rem; color: var(--text-light); background: rgba(255,255,255,0.06); border-radius: var(--radius-lg); backdrop-filter: blur(8px);"><h3>未找到符合條件的相似鑑別資料</h3></div>`;
       return;
     }
 
-    // 5. 渲染卡片 (智慧支援 2 物種對比與 3 物種三方對比)
     container.innerHTML = filtered.map(item => {
       const speciesArr = item.species || [];
       const images = item.galleryImages || [];
       
       let heroImagesHtml = '';
       if (speciesArr.length >= 3) {
-        // 三物種鼎立排版
         const imgList = speciesArr.slice(0, 3).map((sp, idx) => {
           const spImg = findSpeciesPhoto(sp, images[idx] ? images[idx].url : '');
-          return `
-            <div class="compare-hero-img-wrap" style="flex: 1;">
-              <img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy">
-              <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
-            </div>
-          `;
+          if (spImg) {
+            return `
+              <div class="compare-hero-img-wrap" style="flex: 1;">
+                <img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy">
+                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="compare-hero-img-wrap compare-hero-no-img" style="flex: 1;">
+                <div class="compare-no-img-box">
+                  <span class="no-img-icon">🪴</span>
+                  <span class="no-img-text">尚無照片</span>
+                </div>
+                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
+              </div>
+            `;
+          }
         });
         heroImagesHtml = imgList.join('<div class="compare-vs-badge" style="width: 28px; height: 28px; font-size: 0.75rem; position: static; transform: none; margin: 0 -14px; z-index: 4; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">VS</div>');
       } else {
-        // 雙物種對抗排版
         const leftLabel = speciesArr[0] || '物種 A';
         const rightLabel = speciesArr[1] || '物種 B';
         const leftImg = findSpeciesPhoto(leftLabel, images[0] ? images[0].url : '');
         const rightImg = findSpeciesPhoto(rightLabel, images[1] ? images[1].url : '');
-        heroImagesHtml = `
+
+        const leftHtml = leftImg ? `
           <div class="compare-hero-img-wrap">
             <img src="${escapeHtml(leftImg)}" alt="${escapeHtml(leftLabel)}" loading="lazy">
             <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
           </div>
-          <div class="compare-vs-badge">VS</div>
+        ` : `
+          <div class="compare-hero-img-wrap compare-hero-no-img">
+            <div class="compare-no-img-box">
+              <span class="no-img-icon">🪴</span>
+              <span class="no-img-text">尚無照片</span>
+            </div>
+            <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
+          </div>
+        `;
+
+        const rightHtml = rightImg ? `
           <div class="compare-hero-img-wrap">
             <img src="${escapeHtml(rightImg)}" alt="${escapeHtml(rightLabel)}" loading="lazy">
             <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
           </div>
+        ` : `
+          <div class="compare-hero-img-wrap compare-hero-no-img">
+            <div class="compare-no-img-box">
+              <span class="no-img-icon">🪴</span>
+              <span class="no-img-text">尚無照片</span>
+            </div>
+            <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
+          </div>
         `;
+
+        heroImagesHtml = `${leftHtml}<div class="compare-vs-badge">VS</div>${rightHtml}`;
       }
 
-      // 提取特徵預覽標籤 (前 3~4 個項目)
-      let featureTagsHtml = '';
-      if (item.comparisonTable && item.comparisonTable.rows) {
-        featureTagsHtml = item.comparisonTable.rows.slice(0, 4).map(r => `
-          <span class="compare-feature-chip">📌 ${escapeHtml(r.feature)}</span>
-        `).join('');
-      }
+      let featureTagsHtml = item.comparisonTable?.rows?.slice(0, 4).map(r => `<span class="compare-feature-chip">📌 ${escapeHtml(r.feature)}</span>`).join('') || '';
 
       return `
         <article class="compare-card" data-compare-id="${escapeHtml(item.id)}" onclick="window.openCompareModal('${escapeHtml(item.id)}')">
-          <!-- 封面與 VS 標誌 -->
-          <div class="compare-hero-banner" style="display: flex; align-items: center; position: relative;">
-            ${heroImagesHtml}
-          </div>
-
-          <!-- 卡片內容區 -->
+          <div class="compare-hero-banner" style="display: flex; align-items: center; position: relative;">${heroImagesHtml}</div>
           <div class="compare-card-body">
-            <div class="compare-card-header">
-              <h3 class="compare-card-title">${escapeHtml(item.title)}</h3>
-            </div>
-
+            <div class="compare-card-header"><h3 class="compare-card-title">${escapeHtml(item.title)}</h3></div>
             <div class="compare-card-meta">
               <span class="compare-family-badge">🌿 ${escapeHtml(item.family || '觀賞植物')}</span>
-              <span class="compare-diff-badge">⚡ 混淆度 ${escapeHtml(item.confusionLevel || '★★★★☆')}</span>
+              <span class="compare-confusion-badge">⚡ 混淆度 ${escapeHtml(item.confusionLevel || '★★★★☆')}</span>
             </div>
-
-            <!-- 一句話速記口訣 -->
-            <div class="compare-mnemonic-box">
-              <i>💡</i>
-              <div>${escapeHtml(item.mnemonic || '點擊展開查看詳細對比矩陣與特徵解析')}</div>
-            </div>
-
-            <!-- 特徵亮點 -->
+            ${item.mnemonic ? `
+              <div class="compare-mnemonic-box">
+                <span class="compare-mnemonic-icon">💡</span>
+                <p class="compare-mnemonic-text">${escapeHtml(item.mnemonic)}</p>
+              </div>
+            ` : ''}
             ${featureTagsHtml ? `<div class="compare-features-preview">${featureTagsHtml}</div>` : ''}
-
-            <!-- 底部動作 -->
             <div class="compare-action-bar">
-              <span class="compare-date-text">📅 ${escapeHtml(item.dateAdded || '')}</span>
+              <span class="compare-date-text">📅 ${escapeHtml(item.dateAdded || '最新收錄')}</span>
               <span class="compare-btn-link">深入辨析比對 ➔</span>
             </div>
           </div>
@@ -278,125 +268,84 @@
   }
 
   /**
-   * 開啟相似鑑別詳細燈箱
+   * 切換橫向全幅檢視模式
+   */
+  function toggleCompareTableWideMode() {
+    const modalBody = document.querySelector('.compare-modal-body');
+    const btn = document.getElementById('toggleCompareWideBtn');
+    if (!modalBody) return;
+    modalBody.classList.toggle('wide-table-mode');
+    const isWide = modalBody.classList.contains('wide-table-mode');
+    if (btn) {
+      btn.classList.toggle('active', isWide);
+      btn.innerHTML = isWide ? '<span>📑</span> <span>還原完整視圖</span>' : '<span>↔️</span> <span>橫向全幅檢視</span>';
+    }
+  }
+
+  /**
+   * 開啟相似鑑別詳情燈箱
    */
   function openCompareModal(compareId) {
-    const item = allComparisons.find(c => c.id === compareId);
+    const item = (allComparisons || []).find(c => String(c.id) === String(compareId));
     if (!item) return;
 
-    const backdrop = document.getElementById('compareModalBackdrop');
+    const modalBackdrop = document.getElementById('compareModalBackdrop');
     const modalTitle = document.getElementById('compareModalTitle');
     const modalSubtitle = document.getElementById('compareModalSubtitle');
     const mnemonicText = document.getElementById('compareModalMnemonicText');
     const quickJumpBar = document.getElementById('compareQuickJumpBar');
     const tableContainer = document.getElementById('compareTableContainer');
-    const galleryContainer = document.getElementById('compareGalleryContainer');
     const notesContainer = document.getElementById('compareNotesContainer');
+    const galleryContainer = document.getElementById('compareGalleryContainer');
+    const wideBtn = document.getElementById('toggleCompareWideBtn');
+    const modalBody = document.querySelector('.compare-modal-body');
 
-    if (!backdrop) return;
+    if (modalBody) modalBody.classList.remove('wide-table-mode');
+    if (wideBtn) {
+      wideBtn.classList.remove('active');
+      wideBtn.innerHTML = '<span>↔️</span> <span>橫向全幅檢視</span>';
+    }
 
-    // 1. 設定標題與副標
     if (modalTitle) modalTitle.textContent = item.title;
-    if (modalSubtitle) {
-      modalSubtitle.innerHTML = `
-        <span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span>
-        <span>•</span>
-        <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>
-      `;
-    }
+    if (modalSubtitle) modalSubtitle.innerHTML = `<span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span> <span>•</span> <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>`;
+    if (mnemonicText) mnemonicText.textContent = item.mnemonic || '觀察葉片、花序與氣味特徵進行精確鑑別。';
 
-    // 2. 口訣 Banner
-    if (mnemonicText) {
-      mnemonicText.textContent = item.mnemonic || '觀察葉片、花序與氣味特徵進行精確鑑別。';
-    }
-
-    // 3. 關聯植物快速導覽 Chips
     if (quickJumpBar) {
       const speciesList = item.species || [];
-      if (speciesList.length > 0) {
-        quickJumpBar.innerHTML = `
-          <span class="compare-quick-jump-title">🔍 關聯圖鑑速查：</span>
-          ${speciesList.map(name => `
-            <button class="compare-plant-jump-btn" onclick="window.jumpToPlantFromCompare('${escapeHtml(name)}')">
-              <span>🪴</span>
-              <span>查看「${escapeHtml(name)}」完整圖鑑</span>
-            </button>
-          `).join('')}
-        `;
-        quickJumpBar.style.display = 'flex';
-      } else {
-        quickJumpBar.style.display = 'none';
-      }
+      quickJumpBar.innerHTML = speciesList.length > 0 ? `<span class="compare-quick-jump-title">🔍 關聯圖鑑速查：</span>` + speciesList.map(name => `<button class="compare-plant-jump-btn" onclick="window.jumpToPlantFromCompare('${escapeHtml(name)}')"><span>🪴</span> <span>查看「${escapeHtml(name)}」</span></button>`).join('') : '';
+      quickJumpBar.style.display = speciesList.length > 0 ? 'flex' : 'none';
     }
 
-    // 4. 特徵對比矩陣表格
     if (tableContainer) {
-      if (item.comparisonTable && item.comparisonTable.headers && item.comparisonTable.rows && item.comparisonTable.rows.length > 0) {
-        const headers = item.comparisonTable.headers;
-        const rows = item.comparisonTable.rows;
-
-        tableContainer.innerHTML = `
-          <div class="compare-table-wrapper">
-            <table class="compare-matrix-table">
-              <thead>
-                <tr>
-                  ${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${rows.map(r => `
-                  <tr>
-                    <td class="feature-name">📌 ${escapeHtml(r.feature)}</td>
-                    ${(r.values || []).map(v => `<td>${escapeHtml(v)}</td>`).join('')}
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        `;
+      if (item.comparisonTable?.rows?.length > 0) {
+        tableContainer.innerHTML = `<div class="compare-table-wrapper"><table class="compare-matrix-table"><thead><tr>${item.comparisonTable.headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${item.comparisonTable.rows.map(r => `<tr><td class="feature-name">📌 ${escapeHtml(r.feature)}</td>${(r.values || []).map(v => `<td>${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
         tableContainer.parentElement.style.display = 'block';
       } else {
         tableContainer.parentElement.style.display = 'none';
       }
     }
 
-    // 5. 高清圖文對照區
     if (galleryContainer) {
       const images = item.galleryImages || [];
-      if (images.length > 0) {
-        galleryContainer.innerHTML = `
-          <div class="compare-gallery-grid">
-            ${images.map(img => {
-              const realImgUrl = findSpeciesPhoto(img.caption ? img.caption.split(/[\(\s@\-]/)[1] || '' : '', img.url);
-              return `
-                <div class="compare-gallery-item">
-                  <img src="${escapeHtml(realImgUrl)}" alt="${escapeHtml(img.caption || '鑑別特徵圖')}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(realImgUrl)}', '${escapeHtml(img.caption || '')}') : window.open('${escapeHtml(realImgUrl)}', '_blank')">
-                  <div class="compare-gallery-caption">${escapeHtml(img.caption || '特徵特寫照')}</div>
-                </div>
-              `;
-            }).join('')}
-          </div>
-        `;
-        galleryContainer.parentElement.style.display = 'block';
-      } else {
-        galleryContainer.parentElement.style.display = 'none';
-      }
+      const speciesList = item.species || [];
+      let galleryItemsHtml = images.length > 0 ? images.map(img => {
+        if (!img.url || img.url.includes('unsplash.com')) {
+          return `<div class="compare-gallery-item no-img-item"><span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span><span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(img.caption || '植物照片')}</span><span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span></div>`;
+        }
+        return `<div class="compare-gallery-item"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.caption || '鑑別特徵圖')}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(img.url)}', '${escapeHtml(img.caption || '')}') : window.open('${escapeHtml(img.url)}', '_blank')"><div class="compare-gallery-caption">${escapeHtml(img.caption || '特徵特寫照')}</div></div>`;
+      }).join('') : speciesList.map(sp => {
+        const spImg = findSpeciesPhoto(sp, '');
+        return spImg ? `<div class="compare-gallery-item"><img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(spImg)}', '${escapeHtml(sp)}') : window.open('${escapeHtml(spImg)}', '_blank')"><div class="compare-gallery-caption">${escapeHtml(sp)} (圖鑑資料庫照片)</div></div>` : `<div class="compare-gallery-item no-img-item"><span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span><span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(sp)}</span><span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span></div>`;
+      }).join('');
+
+      galleryContainer.innerHTML = `<div class="compare-gallery-grid">${galleryItemsHtml}</div>`;
+      galleryContainer.parentElement.style.display = 'block';
     }
 
-    // 6. 鑑別重點詳解條列
     if (notesContainer) {
       const notes = item.detailedNotes || [];
       if (notes.length > 0) {
-        notesContainer.innerHTML = `
-          <div class="compare-notes-list">
-            ${notes.map(n => `
-              <div class="compare-note-card">
-                <div class="compare-note-title">🎯 ${escapeHtml(n.title)}</div>
-                <div class="compare-note-content">${escapeHtml(n.content)}</div>
-              </div>
-            `).join('')}
-          </div>
-        `;
+        notesContainer.innerHTML = `<div class="compare-notes-list">${notes.map((n, idx) => `<div class="compare-note-item"><div class="compare-note-header"><span class="compare-note-badge">${idx + 1}</span><h4 class="compare-note-title">${escapeHtml(n.title || `鑑別要點 ${idx + 1}`)}</h4></div><div class="compare-note-content">${escapeHtml(n.content || '').replace(/\n/g, '<br>')}</div></div>`).join('')}</div>`;
         notesContainer.parentElement.style.display = 'block';
       } else {
         notesContainer.parentElement.style.display = 'none';

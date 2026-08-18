@@ -6776,14 +6776,6 @@ const DEFAULT_COMPARISON_DATA = [
       {
         url: "https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000",
         caption: "烏蘞莓 (鳥足狀5出複葉與攀爬卷鬚)"
-      },
-      {
-        url: "https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop",
-        caption: "冇骨消 (羽狀複葉與亮橘黃色蜜杯)"
-      },
-      {
-        url: "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop",
-        caption: "西洋接骨木 (木本灌木、無蜜杯純白聚傘花)"
       }
     ]
   }
