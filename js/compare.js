@@ -133,15 +133,6 @@
       }
     });
 
-    // 橫向全幅檢視按鈕
-    const wideBtn = document.getElementById('toggleCompareWideBtn');
-    if (wideBtn) {
-      wideBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleCompareTableWideMode();
-      });
-    }
-
     if (modalBackdrop) {
       modalBackdrop.addEventListener('click', (e) => {
         if (e.target === modalBackdrop) {
@@ -301,31 +292,6 @@
   }
 
   /**
-   * 切換橫向全幅檢視模式
-   */
-  function toggleCompareTableWideMode(forceState) {
-    const modalContainer = document.getElementById('compareModalContainer');
-    const modalBody = document.querySelector('.compare-modal-body');
-    const btn = document.getElementById('toggleCompareWideBtn');
-    if (!modalBody) return;
-    
-    let isWide;
-    if (typeof forceState === 'boolean') {
-      isWide = forceState;
-      modalBody.classList.toggle('wide-table-mode', isWide);
-      if (modalContainer) modalContainer.classList.toggle('wide-modal-mode', isWide);
-    } else {
-      isWide = modalBody.classList.toggle('wide-table-mode');
-      if (modalContainer) modalContainer.classList.toggle('wide-modal-mode', isWide);
-    }
-    
-    if (btn) {
-      btn.classList.toggle('active', isWide);
-      btn.innerHTML = isWide ? '<span>📑</span> <span>還原完整視圖</span>' : '<span>↔️</span> <span>橫向全幅檢視</span>';
-    }
-  }
-
-  /**
    * 開啟相似鑑別詳情燈箱
    */
   function openCompareModal(compareId) {
@@ -340,9 +306,6 @@
     const tableContainer = document.getElementById('compareTableContainer');
     const notesContainer = document.getElementById('compareNotesContainer');
     const galleryContainer = document.getElementById('compareGalleryContainer');
-
-    // 每次開啟燈箱重設為預設完整視圖
-    toggleCompareTableWideMode(false);
 
     if (modalTitle) modalTitle.textContent = item.title;
     if (modalSubtitle) modalSubtitle.innerHTML = `<span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span> <span>•</span> <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>`;
@@ -541,7 +504,6 @@
   window.renderCompareCards = renderCompareCards;
   window.openCompareModal = openCompareModal;
   window.closeCompareModal = closeCompareModal;
-  window.toggleCompareTableWideMode = toggleCompareTableWideMode;
   window.scrollCompareTableToColumn = scrollCompareTableToColumn;
   window.jumpToPlantFromCompare = jumpToPlantFromCompare;
   window.findSpeciesPhoto = findSpeciesPhoto;
