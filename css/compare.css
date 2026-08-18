@@ -235,6 +235,7 @@
 
 #compareModalContainer {
   max-width: 920px;
+  width: 92%;
   max-height: 90vh;
   background: #ffffff;
   border-radius: var(--radius-lg);
@@ -243,6 +244,16 @@
   overflow: hidden;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: max-width 0.3s ease, width 0.3s ease, max-height 0.3s ease;
+}
+
+/* 橫向全幅劇院模式 (Wide Modal Mode) */
+#compareModalContainer.wide-modal-mode {
+  max-width: 96vw !important;
+  width: 96vw !important;
+  max-height: 95vh !important;
+  height: 95vh !important;
+  border-radius: 12px;
 }
 
 .compare-modal-header {
@@ -423,9 +434,10 @@
   box-shadow: 0 2px 8px rgba(27, 59, 43, 0.2);
 }
 
-/* 橫向全幅展開模式 */
+/* 橫向全幅展開模式 (Wide Table Mode) */
 .compare-modal-body.wide-table-mode {
-  padding: 0.8rem !important;
+  padding: 1rem !important;
+  flex: 1;
 }
 
 .compare-modal-body.wide-table-mode .compare-modal-mnemonic-card,
@@ -436,9 +448,32 @@
 }
 
 .compare-modal-body.wide-table-mode .compare-table-section {
-  padding: 0.8rem;
-  box-shadow: none;
-  border-color: #b8d4be;
+  padding: 1rem;
+  box-shadow: 0 4px 20px rgba(27, 59, 43, 0.08);
+  border: 2px solid #a4c9ad;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-modal-body.wide-table-mode #compareTableContainer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.compare-modal-body.wide-table-mode .compare-table-wrapper {
+  flex: 1;
+  max-height: calc(95vh - 160px);
+}
+
+.compare-modal-body.wide-table-mode .compare-matrix-table {
+  font-size: 0.98rem;
+}
+
+.compare-modal-body.wide-table-mode .compare-matrix-table td {
+  padding: 14px 18px;
+  min-width: 240px;
 }
 
 .compare-table-wrapper {

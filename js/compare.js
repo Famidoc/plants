@@ -295,11 +295,17 @@
    * 切換橫向全幅檢視模式
    */
   function toggleCompareTableWideMode() {
+    const modalContainer = document.getElementById('compareModalContainer');
     const modalBody = document.querySelector('.compare-modal-body');
     const btn = document.getElementById('toggleCompareWideBtn');
     if (!modalBody) return;
+    
     modalBody.classList.toggle('wide-table-mode');
+    if (modalContainer) {
+      modalContainer.classList.toggle('wide-modal-mode');
+    }
     const isWide = modalBody.classList.contains('wide-table-mode');
+    
     if (btn) {
       btn.classList.toggle('active', isWide);
       btn.innerHTML = isWide ? '<span>📑</span> <span>還原完整視圖</span>' : '<span>↔️</span> <span>橫向全幅檢視</span>';
@@ -314,6 +320,7 @@
     if (!item) return;
 
     const modalBackdrop = document.getElementById('compareModalBackdrop');
+    const modalContainer = document.getElementById('compareModalContainer');
     const modalTitle = document.getElementById('compareModalTitle');
     const modalSubtitle = document.getElementById('compareModalSubtitle');
     const mnemonicText = document.getElementById('compareModalMnemonicText');
@@ -325,6 +332,7 @@
     const modalBody = document.querySelector('.compare-modal-body');
 
     if (modalBody) modalBody.classList.remove('wide-table-mode');
+    if (modalContainer) modalContainer.classList.remove('wide-modal-mode');
     if (wideBtn) {
       wideBtn.classList.remove('active');
       wideBtn.innerHTML = '<span>↔️</span> <span>橫向全幅檢視</span>';
@@ -349,17 +357,38 @@
       }
     }
 
+    // 5. 高清圖文對照區 (每個物種均建立獨立特寫卡片，點擊使用內建全螢幕檢視)
     if (galleryContainer) {
       const images = item.galleryImages || [];
       const speciesList = item.species || [];
-      let galleryItemsHtml = images.length > 0 ? images.map(img => {
-        if (!img.url || img.url.includes('unsplash.com')) {
-          return `<div class="compare-gallery-item no-img-item"><span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span><span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(img.caption || '植物照片')}</span><span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span></div>`;
+
+      let galleryItemsHtml = speciesList.map(sp => {
+        // (1) 優先從文章附圖中尋找對應該物種的照片
+        let foundImg = images.find(img => img && img.caption && img.caption.includes(sp));
+        let imgUrl = foundImg && foundImg.url && !foundImg.url.includes('unsplash.com') ? foundImg.url : '';
+        let caption = foundImg && foundImg.caption ? foundImg.caption : `${sp} (圖鑑實物照片)`;
+
+        // (2) 若文章附圖沒有，從圖鑑資料庫中尋找
+        if (!imgUrl) {
+          imgUrl = findSpeciesPhoto(sp, '');
         }
-        return `<div class="compare-gallery-item"><img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.caption || '鑑別特徵圖')}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(img.url)}', '${escapeHtml(img.caption || '')}') : window.open('${escapeHtml(img.url)}', '_blank')"><div class="compare-gallery-caption">${escapeHtml(img.caption || '特徵特寫照')}</div></div>`;
-      }).join('') : speciesList.map(sp => {
-        const spImg = findSpeciesPhoto(sp, '');
-        return spImg ? `<div class="compare-gallery-item"><img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy" onclick="window.openEnlargedImage ? window.openEnlargedImage('${escapeHtml(spImg)}', '${escapeHtml(sp)}') : window.open('${escapeHtml(spImg)}', '_blank')"><div class="compare-gallery-caption">${escapeHtml(sp)} (圖鑑資料庫照片)</div></div>` : `<div class="compare-gallery-item no-img-item"><span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span><span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(sp)}</span><span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span></div>`;
+
+        if (imgUrl) {
+          return `
+            <div class="compare-gallery-item">
+              <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(caption)}" loading="lazy" onclick="window.openFullScreenPhoto ? window.openFullScreenPhoto('${escapeHtml(imgUrl)}', '${escapeHtml(caption)}') : null">
+              <div class="compare-gallery-caption">${escapeHtml(caption)}</div>
+            </div>
+          `;
+        } else {
+          return `
+            <div class="compare-gallery-item no-img-item">
+              <span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span>
+              <span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(sp)}</span>
+              <span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span>
+            </div>
+          `;
+        }
       }).join('');
 
       galleryContainer.innerHTML = `<div class="compare-gallery-grid">${galleryItemsHtml}</div>`;
