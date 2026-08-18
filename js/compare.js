@@ -356,7 +356,42 @@
 
     if (tableContainer) {
       if (item.comparisonTable?.rows?.length > 0) {
-        tableContainer.innerHTML = `<div class="compare-table-wrapper"><table class="compare-matrix-table"><thead><tr>${item.comparisonTable.headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${item.comparisonTable.rows.map(r => `<tr><td class="feature-name">📌 ${escapeHtml(r.feature)}</td>${(r.values || []).map(v => `<td>${escapeHtml(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+        const headers = item.comparisonTable.headers || [];
+        const speciesCols = headers.slice(1);
+        
+        // 生成手機專屬的快速聚焦切換列
+        const mobileNavHtml = speciesCols.length > 1 ? `
+          <div class="compare-mobile-table-nav">
+            <span class="mobile-nav-hint">👈 左右滑動或點擊聚焦：</span>
+            <div class="mobile-nav-chips">
+              <button class="mobile-col-chip active" onclick="window.scrollCompareTableToColumn(-1, this)">全覽</button>
+              ${speciesCols.map((name, idx) => `
+                <button class="mobile-col-chip" onclick="window.scrollCompareTableToColumn(${idx}, this)">${escapeHtml(name.split(/[\(（]/)[0] || name)}</button>
+              `).join('')}
+            </div>
+          </div>
+        ` : '';
+
+        tableContainer.innerHTML = `
+          ${mobileNavHtml}
+          <div class="compare-table-wrapper" id="compareTableWrapper">
+            <table class="compare-matrix-table" id="compareMatrixTable">
+              <thead>
+                <tr>
+                  ${headers.map((h, i) => `<th class="${i === 0 ? 'col-feature' : 'col-species'}" data-col-index="${i - 1}">${escapeHtml(h)}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${item.comparisonTable.rows.map(r => `
+                  <tr>
+                    <td class="feature-name">📌 ${escapeHtml(r.feature)}</td>
+                    ${(r.values || []).map((v, i) => `<td class="col-species" data-col-index="${i}">${escapeHtml(v)}</td>`).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
         tableContainer.parentElement.style.display = 'block';
       } else {
         tableContainer.parentElement.style.display = 'none';
@@ -467,6 +502,30 @@
     }
   }
 
+  /**
+   * 手機版點擊標籤平滑滑動至指定物種特徵欄位
+   */
+  function scrollCompareTableToColumn(colIndex, chipEl) {
+    const wrapper = document.getElementById('compareTableWrapper');
+    if (!wrapper) return;
+    
+    // 更新 chip active 狀態
+    const chips = document.querySelectorAll('.mobile-col-chip');
+    chips.forEach(c => c.classList.remove('active'));
+    if (chipEl) chipEl.classList.add('active');
+
+    if (colIndex === -1) {
+      wrapper.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      const th = wrapper.querySelector(`th[data-col-index="${colIndex}"]`);
+      if (th) {
+        const featureColWidth = 85;
+        const targetScroll = Math.max(0, th.offsetLeft - featureColWidth);
+        wrapper.scrollTo({ left: targetScroll, behavior: 'smooth' });
+      }
+    }
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -483,6 +542,7 @@
   window.openCompareModal = openCompareModal;
   window.closeCompareModal = closeCompareModal;
   window.toggleCompareTableWideMode = toggleCompareTableWideMode;
+  window.scrollCompareTableToColumn = scrollCompareTableToColumn;
   window.jumpToPlantFromCompare = jumpToPlantFromCompare;
   window.findSpeciesPhoto = findSpeciesPhoto;
 
