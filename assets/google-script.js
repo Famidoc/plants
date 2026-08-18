@@ -1,13 +1,13 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v93 精準附圖與特徵標註雙行版
+ * Google Apps Script (GAS) 自動掃描腳本 - v94 附圖一對一精準標註分發版
  * 
  * 重大修復：
- * 1. ⚡ 圖片雜湊快取機制 (MD5)：修復 Google Doc 換新圖後因同名快取導致 App 主圖無法更新的問題
- * 2. 🏷️ 精準附圖段落配對：修復多張附圖間標註相互干擾、重複取到同一說明的 Bug
+ * 1. 🎯 一對一精準標註防重複消費：徹底解決第 3 張圖（葉基腺盃）被前面圖片標註（油桐果）誤植的 Bug
+ * 2. ⚡ 支援 Google Doc 表格（Table）排版內的附圖與說明提取
  * 3. 🧹 自動剔除章節大標題：自動過濾「其他附圖」、「植物附圖」等冗贅章節詞
- * 4. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
- * 5. ⚡ [增修刪] 零等待保護：當 [增修刪] 為空時，0.1秒直接回傳 0 筆異動
+ * 4. ⚡ 圖片雜湊快取機制 (MD5)：修復換新圖後因同名快取導致 App 主圖無法更新的問題
+ * 5. 🔍 相似鑑別解析器：自動提取特徵矩陣表、一句話口訣、星級、高清特寫照片與詳解
  * ==========================================================================
  */
 
@@ -428,6 +428,10 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
   var seenBlobKeys = {};
   var defaultDocCaption = parseDefaultCaptionFromText(fullDocText, defaultDateStr);
 
+  // ⚡ 抽取文檔中所有依序出現的標註行清單 (例如: [主圖時地, 油桐果時地, 葉基腺盃時地...])
+  var allDocCaptions = extractAllOrderedDocCaptions(fullDocText, defaultDateStr);
+  var usedCaptionIndices = {};
+
   for (var i = 0; i < docImages.length; i++) {
     try {
       var item = docImages[i];
@@ -442,8 +446,6 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
       if (seenBlobKeys[blobKey]) continue;
       seenBlobKeys[blobKey] = true;
 
-      // ⚡ 核心修復：使用圖片內容 MD5 雜湊命名 (如 油桐_0_a1b2c3d4.jpg)
-      // 若使用者在 Doc 中替換新圖，Hash 自動改變，保證即時生成新圖並更新 URL，絕不被舊圖快取卡住！
       var imgIndex = galleryItems.length;
       var hashStr = Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, bytes))
                              .replace(/[^a-zA-Z0-9]/g, '')
@@ -458,7 +460,31 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
       }
 
       if (imgUrl) {
-        var specificCaption = parseSpecificCaptionFromNearbyText(item.nearbyText) || defaultDocCaption || ("特徵照片 " + (imgIndex + 1));
+        // 🎯 核心演算法：一對一精確標註指派
+        // 1. 優先嘗試解析該圖片下方緊鄰的專屬說明段落 (且排除已被前面圖片消費過的文字)
+        var specificCaption = null;
+        if (item.nearbyText) {
+          var candidateCap = parseSpecificCaptionFromNearbyText(item.nearbyText);
+          if (candidateCap && !isCaptionAlreadyUsed(candidateCap, galleryItems)) {
+            specificCaption = candidateCap;
+          }
+        }
+
+        // 2. 若專屬文字為空或重複，從文檔全局標註序列中依序消費下一個未使用的標註！
+        if (!specificCaption) {
+          for (var cIdx = 0; cIdx < allDocCaptions.length; cIdx++) {
+            if (!usedCaptionIndices[cIdx]) {
+              usedCaptionIndices[cIdx] = true;
+              specificCaption = allDocCaptions[cIdx];
+              break;
+            }
+          }
+        }
+
+        if (!specificCaption) {
+          specificCaption = defaultDocCaption || ("特徵照片 " + (imgIndex + 1));
+        }
+
         galleryItems.push({
           url: imgUrl,
           caption: specificCaption
@@ -473,6 +499,42 @@ function getPlantGalleryFromDoc(doc, folder, plantName, imagesFolder, fullDocTex
   return galleryItems;
 }
 
+function isCaptionAlreadyUsed(caption, galleryItems) {
+  if (!caption || !galleryItems) return false;
+  for (var k = 0; k < galleryItems.length; k++) {
+    if (galleryItems[k].caption === caption) return true;
+  }
+  return false;
+}
+
+/**
+ * ⚡ 全文標註行依序提取器
+ * 依文檔由上而下順序，提取出所有含有日期/地點或特徵說明的獨立行，保證一對一順序分發
+ */
+function extractAllOrderedDocCaptions(text, defaultDateStr) {
+  var captions = [];
+  if (!text) return captions;
+
+  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+
+    // 若為一般章節標題則跳過
+    if (/^(基本資料|形態特徵|特殊作用|用途|養護|參考資料|【?其他附圖】?|【?植物附圖】?)$/.test(line)) {
+      continue;
+    }
+
+    var cap = parseSpecificCaptionFromNearbyText(line);
+    if (cap && captions.indexOf(cap) === -1) {
+      captions.push(cap);
+    }
+  }
+  return captions;
+}
+
+/**
+ * ⚡ 遍歷文檔中所有段落與表格內的圖片，並提取各圖片緊鄰的下方文字
+ */
 function getDocImagesWithNearbyText(doc) {
   var results = [];
   if (!doc) return results;
@@ -486,61 +548,24 @@ function getDocImagesWithNearbyText(doc) {
       var type = child.getType();
 
       if (type === DocumentApp.ElementType.PARAGRAPH) {
-        var para = child.asParagraph();
-        var numParaChildren = para.getNumChildren();
-        
-        for (var j = 0; j < numParaChildren; j++) {
-          var pChild = para.getChild(j);
-          if (pChild.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
-            var img = pChild.asInlineImage();
-            var nearbyText = "";
-
-            // 1. 先抓取圖片同一段落內的文字 (若有)
-            var sameParaText = (para.getText() || "").trim();
-            if (sameParaText) {
-              nearbyText += sameParaText + "\n";
-            }
-
-            // 2. 依序往下尋找「緊接在該圖片下方」的專屬說明段落
-            for (var nextIdx = i + 1; nextIdx < Math.min(i + 4, numChildren); nextIdx++) {
-              var nextChild = body.getChild(nextIdx);
-              if (nextChild.getType() === DocumentApp.ElementType.PARAGRAPH) {
-                var nextPara = nextChild.asParagraph();
-                
-                // 🛡️ 關鍵防護：若下一個段落本身包含其他圖片，立刻停止往下！避免抓到下一張圖的說明
-                var hasOtherImg = false;
-                for (var nj = 0; nj < nextPara.getNumChildren(); nj++) {
-                  if (nextPara.getChild(nj).getType() === DocumentApp.ElementType.INLINE_IMAGE) {
-                    hasOtherImg = true;
-                    break;
-                  }
-                }
-                if (hasOtherImg) {
-                  break;
-                }
-
-                var nt = (nextPara.getText() || "").trim();
-                if (nt) {
-                  // 若遇到其他大章節標題 (基本資料、形態特徵、養護、用途、參考資料) 則停止
-                  if (/^(基本資料|形態特徵|特殊作用|用途|養護|參考資料)/.test(nt)) {
-                    break;
-                  }
-                  nearbyText += nt + "\n";
-                  // 找到第一個包含拍攝日期、地點或實質說明的段落後即可停止
-                  if (nt.indexOf("@") !== -1 || /\d{4}/.test(nt) || nt.length > 2) {
-                    break;
-                  }
-                }
-              } else if (nextChild.getType() === DocumentApp.ElementType.TABLE) {
-                break;
+        processParagraphImages(child.asParagraph(), body, i, numChildren, results);
+      } else if (type === DocumentApp.ElementType.TABLE) {
+        var table = child.asTable();
+        var numRows = table.getNumRows();
+        for (var r = 0; r < numRows; r++) {
+          var row = table.getRow(r);
+          var numCells = row.getNumCells();
+          for (var c = 0; c < numCells; c++) {
+            var cell = row.getCell(c);
+            var numCellChildren = cell.getNumChildren();
+            for (var cc = 0; cc < numCellChildren; cc++) {
+              var cellChild = cell.getChild(cc);
+              if (cellChild.getType() === DocumentApp.ElementType.PARAGRAPH) {
+                processParagraphImages(cellChild.asParagraph(), cell, cc, numCellChildren, results);
               }
             }
-
-            results.push({ image: img, nearbyText: nearbyText.trim() });
           }
         }
-      } else if (type === DocumentApp.ElementType.INLINE_IMAGE) {
-        results.push({ image: child.asInlineImage(), nearbyText: "" });
       }
     }
   } catch(e) {}
@@ -548,11 +573,61 @@ function getDocImagesWithNearbyText(doc) {
   return results;
 }
 
+function processParagraphImages(para, container, childIndex, totalChildren, results) {
+  if (!para) return;
+  var numParaChildren = para.getNumChildren();
+  
+  for (var j = 0; j < numParaChildren; j++) {
+    var pChild = para.getChild(j);
+    if (pChild.getType() === DocumentApp.ElementType.INLINE_IMAGE) {
+      var img = pChild.asInlineImage();
+      var nearbyText = "";
+
+      // 1. 同段落內的純文字
+      var sameParaText = (para.getText() || "").trim();
+      if (sameParaText) {
+        nearbyText += sameParaText + "\n";
+      }
+
+      // 2. 緊接在該圖片下方的專屬說明段落 (遇到下一張圖即刻停止)
+      for (var nextIdx = childIndex + 1; nextIdx < Math.min(childIndex + 4, totalChildren); nextIdx++) {
+        var nextChild = container.getChild(nextIdx);
+        if (nextChild.getType() === DocumentApp.ElementType.PARAGRAPH) {
+          var nextPara = nextChild.asParagraph();
+          
+          var hasOtherImg = false;
+          for (var nj = 0; nj < nextPara.getNumChildren(); nj++) {
+            if (nextPara.getChild(nj).getType() === DocumentApp.ElementType.INLINE_IMAGE) {
+              hasOtherImg = true;
+              break;
+            }
+          }
+          if (hasOtherImg) {
+            break;
+          }
+
+          var nt = (nextPara.getText() || "").trim();
+          if (nt) {
+            if (/^(基本資料|形態特徵|特殊作用|用途|養護|參考資料)/.test(nt)) {
+              break;
+            }
+            nearbyText += nt + "\n";
+            if (nt.indexOf("@") !== -1 || /\d{4}/.test(nt) || nt.length > 2) {
+              break;
+            }
+          }
+        } else {
+          break;
+        }
+      }
+
+      results.push({ image: img, nearbyText: nearbyText.trim() });
+    }
+  }
+}
+
 /**
- * ⚡ 智慧特徵與拍攝日期地點解析器 (v93 強化版)
- * 範例 1: "其他附圖 油桐果 (照片拍攝：20260506@大甲水東流桐花步道)" -> "油桐果 (20260506@大甲水東流桐花步道)"
- * 範例 2: "葉基的腺盃 (20260422@挑水古道+碧山古道)" -> "葉基的腺盃 (20260422@挑水古道+碧山古道)"
- * 範例 3: "(20260422@挑水古道)" -> "(20260422@挑水古道)"
+ * ⚡ 智慧特徵與拍攝日期地點解析器 (v94 強化版)
  */
 function parseSpecificCaptionFromNearbyText(text) {
   if (!text) return null;
