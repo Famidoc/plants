@@ -13,10 +13,43 @@
 
 const MASTER_CACHE_FILENAME = "master_plants_cache.json";
 
+function doPost(e) {
+  try {
+    var raw = e && e.postData && e.postData.contents ? e.postData.contents : "";
+    if (!raw) {
+      return ContentService.createTextOutput(JSON.stringify({ status: "error", error: "No post data" })).setMimeType(ContentService.MimeType.JSON);
+    }
+    var data = JSON.parse(raw);
+    if (data && (Array.isArray(data.plants) || Array.isArray(data.comparisons))) {
+      var mainFolder = getMainFolder();
+      var imagesFolder = getOrCreateImagesFolder(mainFolder);
+      var now = new Date().toISOString();
+      var masterData = {
+        version: now,
+        updatedAt: now,
+        plants: data.plants || [],
+        comparisons: data.comparisons || []
+      };
+      writeMasterCache(imagesFolder, mainFolder, masterData, []);
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Master 快照已成功透過 POST 寫入雲端！",
+        count: masterData.plants.length,
+        comparisonCount: masterData.comparisons.length,
+        updatedAt: now
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: "Invalid data format" })).setMimeType(ContentService.MimeType.JSON);
+  } catch(err) {
+    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
 function doGet(e) {
   var debugLog = [];
+  var startTime = Date.now();
   try {
-    debugLog.push("🚀 GAS 腳本版本: v100-雲端全量主快取版");
+    debugLog.push("🚀 GAS 腳本版本: v101-高可用秒級主快取版");
     var targetInfo = findTargetFolder();
 
     if (!targetInfo || !targetInfo.folder) {
@@ -48,14 +81,10 @@ function doGet(e) {
     if (syncMode === "INCREMENTAL" && docsInTarget.length > 0) {
       debugLog.push("⚡ 偵測到 [增修刪] 中有 " + docsInTarget.length + " 筆檔案待處理，進行增量解析並合流 Master 快取");
       
-      var incrementalRes = parseDocsList(docsInTarget, syncMode, folder, imagesFolder, debugLog);
+      var incrementalRes = parseDocsList(docsInTarget, syncMode, folder, imagesFolder, debugLog, 0);
       
-      // 讀取既有 Master 快取（若無則全量掃描主資料夾建立基底）
-      var currentMaster = readMasterCache(imagesFolder, mainFolder, debugLog);
-      if (!currentMaster || !Array.isArray(currentMaster.plants) || currentMaster.plants.length === 0) {
-        debugLog.push("⚠️ 未找到既有 Master 快取，先執行主資料夾全量掃描以建立基準庫");
-        currentMaster = buildFullMasterCache(mainFolder, imagesFolder, debugLog);
-      }
+      // 讀取既有 Master 快取
+      var currentMaster = readMasterCache(imagesFolder, mainFolder, debugLog) || { plants: [], comparisons: [] };
 
       // 將 [增修刪] 異動合流至 Master 快取中
       var mergedMaster = mergeChangesIntoMaster(currentMaster, incrementalRes, debugLog);
@@ -63,7 +92,7 @@ function doGet(e) {
 
       var resA = {
         status: "success",
-        scriptVersion: "v100",
+        scriptVersion: "v101",
         syncMode: "INCREMENTAL",
         folderFound: folderName,
         count: incrementalRes.plants.length,
@@ -91,11 +120,13 @@ function doGet(e) {
       masterCache = readMasterCache(imagesFolder, mainFolder, debugLog);
     }
 
-    // 若快取不存在或使用者手動要求強制重建
+    // 若快取不存在且為 GET 請求：執行受時間保護的安全掃描 (最長 20 秒)，絕不卡死手機！
     if (!masterCache || !Array.isArray(masterCache.plants) || masterCache.plants.length === 0) {
-      debugLog.push("🔄 Master 快取不存在或請求強制重建，開始掃描雲端全量文件...");
-      masterCache = buildFullMasterCache(mainFolder, imagesFolder, debugLog);
-      writeMasterCache(imagesFolder, mainFolder, masterCache, debugLog);
+      debugLog.push("🔄 Master 快取不存在，執行安全掃描以建立基準庫...");
+      masterCache = buildFullMasterCache(mainFolder, imagesFolder, debugLog, 20000);
+      if (masterCache && masterCache.plants && masterCache.plants.length > 0) {
+        writeMasterCache(imagesFolder, mainFolder, masterCache, debugLog);
+      }
     }
 
     // 比對用戶端傳來的 last_synced 與 plant_count
@@ -112,7 +143,7 @@ function doGet(e) {
       debugLog.push("⚡ 本機版本 (" + clientLastSynced + ") 與雲端 Master 快照一致，0.1秒秒回無異動");
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        scriptVersion: "v100",
+        scriptVersion: "v101",
         syncMode: "INCREMENTAL",
         folderFound: mainFolder.getName(),
         count: 0,
@@ -129,20 +160,20 @@ function doGet(e) {
     }
 
     // 用戶端需要更新（如太太的手機、新用戶登入、或有新版快照發布）
-    debugLog.push("🌟 傳送最新雲端 Master 全量快照至用戶端 (" + masterCache.plants.length + " 筆圖鑑, " + (masterCache.comparisons ? masterCache.comparisons.length : 0) + " 篇鑑別)");
+    debugLog.push("🌟 傳送最新雲端 Master 全量快照至用戶端 (" + (masterCache ? masterCache.plants.length : 0) + " 筆圖鑑, " + (masterCache && masterCache.comparisons ? masterCache.comparisons.length : 0) + " 篇鑑別)");
     var resB = {
       status: "success",
-      scriptVersion: "v100",
+      scriptVersion: "v101",
       syncMode: "FULL",
       folderFound: mainFolder.getName(),
-      count: masterCache.plants.length,
+      count: masterCache ? masterCache.plants.length : 0,
       deletedCount: 0,
-      comparisonCount: masterCache.comparisons ? masterCache.comparisons.length : 0,
+      comparisonCount: masterCache && masterCache.comparisons ? masterCache.comparisons.length : 0,
       deletedComparisonCount: 0,
-      updatedAt: masterCache.updatedAt,
-      plants: masterCache.plants,
+      updatedAt: masterCache ? masterCache.updatedAt : new Date().toISOString(),
+      plants: masterCache ? masterCache.plants : [],
       deletedPlants: [],
-      comparisons: masterCache.comparisons || [],
+      comparisons: masterCache && masterCache.comparisons ? masterCache.comparisons : [],
       deletedComparisons: [],
       debugLog: debugLog
     };
@@ -291,7 +322,19 @@ function mergeChangesIntoMaster(masterData, changes, debugLog) {
   };
 }
 
-function buildFullMasterCache(mainFolder, imagesFolder, debugLog) {
+function generateMasterCache() {
+  Logger.log("=== 開始執行手動生成 Master 全量快照 ===");
+  var mainFolder = getMainFolder();
+  if (!mainFolder) throw new Error("找不到 [捻花惹草] 資料夾");
+  var imagesFolder = getOrCreateImagesFolder(mainFolder);
+  
+  var debugLog = [];
+  var masterData = buildFullMasterCache(mainFolder, imagesFolder, debugLog, 0);
+  writeMasterCache(imagesFolder, mainFolder, masterData, debugLog);
+  Logger.log("=== 生成完成！共 " + masterData.plants.length + " 筆花草，" + (masterData.comparisons ? masterData.comparisons.length : 0) + " 篇鑑別 ===");
+}
+
+function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {
   var allDocs = getAllDocsInFolder(mainFolder);
   var compFolder = getComparisonFolder();
   if (compFolder && compFolder.getId() !== mainFolder.getId()) {
@@ -301,7 +344,7 @@ function buildFullMasterCache(mainFolder, imagesFolder, debugLog) {
   }
 
   if (debugLog) debugLog.push("📁 開始全量解析雲端 " + allDocs.length + " 篇文檔...");
-  var parsed = parseDocsList(allDocs, "FULL", mainFolder, imagesFolder, debugLog);
+  var parsed = parseDocsList(allDocs, "FULL", mainFolder, imagesFolder, debugLog, maxDurationMs || 0);
 
   var now = new Date().toISOString();
   return {
@@ -312,8 +355,20 @@ function buildFullMasterCache(mainFolder, imagesFolder, debugLog) {
   };
 }
 
-function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog) {
+function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog, maxDurationMs) {
   var plantList = [];
+  var deletedList = [];
+  var comparisonList = [];
+  var deletedComparisonList = [];
+  var parseStart = Date.now();
+
+  for (var i = 0; i < docs.length; i++) {
+    if (maxDurationMs > 0 && (Date.now() - parseStart) > maxDurationMs) {
+      if (debugLog) debugLog.push("⏱️ 已達單次最大安全執行時間限制 (" + (maxDurationMs / 1000) + "秒)，先行結束本輪解析");
+      break;
+    }
+
+    var file = docs[i];
   var deletedList = [];
   var comparisonList = [];
   var deletedComparisonList = [];
