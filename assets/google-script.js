@@ -1,9 +1,9 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v97 深度日誌診斷版
+ * Google Apps Script (GAS) 自動掃描腳本 - v98 終極 \r 換行相容版
  * 
  * 重大修復：
- * 1. 🔍 深度日誌診斷：輸出全文標註清單、每張圖片鄰近段落、最終分配標註
+ * 1. ⚡ 徹底修復 Google Docs 的 \r / \r\n 換行符號問題：解決附圖多行標註被合併導致第 3 張圖無法識別的根本原因
  * 2. 🎯 全局標註消費同步：修復因未同步標記導致第 3 張圖回溯抓到第 1 張圖時地的 Bug
  * 3. 🛡️ 穿透水平分割線 (HORIZONTAL_RULE)：修復兩張附圖間有橫線導致下方說明被阻斷的 Bug
  * 4. 🚫 徹底排除文章標題：嚴格過濾「油桐 - 植物資料」等標題，絕不誤當作圖片標註
@@ -525,14 +525,15 @@ function isCaptionAlreadyUsed(caption, galleryItems) {
 }
 
 /**
- * ⚡ 全文標註行依序提取器 (v95 嚴格純化版)
+ * ⚡ 全文標註行依序提取器 (v98 支援 \r 換行與嚴格純化版)
  * 提取所有包含日期/地點或特徵時地的有效行，100% 排除「油桐 - 植物資料」等標題
  */
 function extractAllOrderedDocCaptions(text, defaultDateStr, plantName) {
   var captions = [];
   if (!text) return captions;
 
-  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  // ⚡ 關鍵修復：相容 Google Docs 的 \r / \r\n 換行符號！
+  var lines = text.split(/[\r\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
 
@@ -640,7 +641,6 @@ function processParagraphImages(para, container, childIndex, totalChildren, resu
               break;
             }
             nearbyText += nt + "\n";
-            // 只要找到含有 @、日期或有效特徵的文字即鎖定完成
             if (nt.indexOf("@") !== -1 || /\d{4}/.test(nt)) {
               break;
             }
@@ -654,15 +654,13 @@ function processParagraphImages(para, container, childIndex, totalChildren, resu
 }
 
 /**
- * ⚡ 智慧特徵與拍攝日期地點解析器 (v95 嚴格純化版)
- * 範例 1: "油桐果 (照片拍攝：20260506@大甲水東流桐花步道)" -> "油桐果 (20260506@大甲水東流桐花步道)"
- * 範例 2: "葉基的腺盃 (20260422@挑水古道+碧山古道)" -> "葉基的腺盃 (20260422@挑水古道+碧山古道)"
- * 範例 3: "20260422@挑水古道+碧山古道" -> "(20260422@挑水古道+碧山古道)"
+ * ⚡ 智慧特徵與拍攝日期地點解析器 (v98 支援 \r 換行版)
  */
 function parseSpecificCaptionFromNearbyText(text, plantName) {
   if (!text) return null;
 
-  var lines = text.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  // ⚡ 關鍵修復：相容 Google Docs 的 \r / \r\n 換行符號！
+  var lines = text.split(/[\r\n]+/).map(function(l){ return l.trim(); }).filter(Boolean);
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
 
