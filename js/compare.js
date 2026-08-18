@@ -57,7 +57,9 @@
       '洋紫荊': 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?w=800&auto=format&fit=crop',
       '艷紫荊': 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?w=800&auto=format&fit=crop',
       '烏蘞莓': 'https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000',
-      '冇骨消': 'https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop'
+      '冇骨消': 'https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop',
+      '西洋接骨木': 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop',
+      '接骨木': 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop'
     };
 
     if (KNOWN_PHOTOS[cleanName]) {
@@ -68,48 +70,34 @@
   }
 
   /**
-   * 設定控制元件監聽 (搜尋、類別標籤、燈箱關閉等)
+   * 設置互動事件監聽器
    */
   function setupCompareControls() {
     const searchInput = document.getElementById('compareSearchInput');
-    const searchClearBtn = document.getElementById('compareSearchClearBtn');
-    const categoryChips = document.getElementById('compareCategoryChips');
-    const sortBtn = document.getElementById('compareSortToggleBtn');
+    const categoryChips = document.querySelectorAll('.compare-category-chip');
+    const sortBtn = document.getElementById('compareSortBtn');
     const modalBackdrop = document.getElementById('compareModalBackdrop');
-    const modalCloseBtn = document.getElementById('compareModalCloseBtn');
+    const closeBtn = document.getElementById('closeCompareModalBtn');
 
+    // 搜尋輸入監聽
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
         currentFilterText = e.target.value.trim().toLowerCase();
-        if (searchClearBtn) {
-          if (currentFilterText) searchClearBtn.classList.add('visible');
-          else searchClearBtn.classList.remove('visible');
-        }
         renderCompareCards();
       });
     }
 
-    if (searchClearBtn && searchInput) {
-      searchClearBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        currentFilterText = '';
-        searchClearBtn.classList.remove('visible');
-        renderCompareCards();
-        searchInput.focus();
-      });
-    }
-
-    if (categoryChips) {
-      categoryChips.addEventListener('click', (e) => {
-        const btn = e.target.closest('.chip-btn');
-        if (!btn) return;
-        categoryChips.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        currentCategory = btn.getAttribute('data-category') || 'ALL';
+    // 科別標籤點擊
+    categoryChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        categoryChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        currentCategory = chip.getAttribute('data-family') || 'ALL';
         renderCompareCards();
       });
-    }
+    });
 
+    // 排序切換
     if (sortBtn) {
       sortBtn.addEventListener('click', () => {
         isReverseSort = !isReverseSort;
@@ -118,9 +106,9 @@
       });
     }
 
-    if (modalCloseBtn) {
-      modalCloseBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+    // 關閉燈箱
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
         closeCompareModal();
       });
     }
@@ -206,17 +194,42 @@
       return;
     }
 
-    // 5. 渲染卡片
+    // 5. 渲染卡片 (智慧支援 2 物種對比與 3 物種三方對比)
     container.innerHTML = filtered.map(item => {
       const speciesArr = item.species || [];
       const images = item.galleryImages || [];
       
-      const leftLabel = speciesArr[0] || '物種 A';
-      const rightLabel = speciesArr[1] || (speciesArr.length > 2 ? speciesArr.slice(1).join(' / ') : '物種 B');
-
-      // 取得左右真實精確封面圖
-      const leftImg = findSpeciesPhoto(leftLabel, images[0] ? images[0].url : '');
-      const rightImg = findSpeciesPhoto(rightLabel, images[1] ? images[1].url : '');
+      let heroImagesHtml = '';
+      if (speciesArr.length >= 3) {
+        // 三物種鼎立排版
+        const imgList = speciesArr.slice(0, 3).map((sp, idx) => {
+          const spImg = findSpeciesPhoto(sp, images[idx] ? images[idx].url : '');
+          return `
+            <div class="compare-hero-img-wrap" style="flex: 1;">
+              <img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy">
+              <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
+            </div>
+          `;
+        });
+        heroImagesHtml = imgList.join('<div class="compare-vs-badge" style="width: 28px; height: 28px; font-size: 0.75rem; position: static; transform: none; margin: 0 -14px; z-index: 4; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">VS</div>');
+      } else {
+        // 雙物種對抗排版
+        const leftLabel = speciesArr[0] || '物種 A';
+        const rightLabel = speciesArr[1] || '物種 B';
+        const leftImg = findSpeciesPhoto(leftLabel, images[0] ? images[0].url : '');
+        const rightImg = findSpeciesPhoto(rightLabel, images[1] ? images[1].url : '');
+        heroImagesHtml = `
+          <div class="compare-hero-img-wrap">
+            <img src="${escapeHtml(leftImg)}" alt="${escapeHtml(leftLabel)}" loading="lazy">
+            <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
+          </div>
+          <div class="compare-vs-badge">VS</div>
+          <div class="compare-hero-img-wrap">
+            <img src="${escapeHtml(rightImg)}" alt="${escapeHtml(rightLabel)}" loading="lazy">
+            <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
+          </div>
+        `;
+      }
 
       // 提取特徵預覽標籤 (前 3~4 個項目)
       let featureTagsHtml = '';
@@ -228,17 +241,9 @@
 
       return `
         <article class="compare-card" data-compare-id="${escapeHtml(item.id)}" onclick="window.openCompareModal('${escapeHtml(item.id)}')">
-          <!-- 雙圖封面與中央 VS -->
-          <div class="compare-hero-banner">
-            <div class="compare-hero-img-wrap">
-              <img src="${escapeHtml(leftImg)}" alt="${escapeHtml(leftLabel)}" loading="lazy">
-              <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
-            </div>
-            <div class="compare-vs-badge">VS</div>
-            <div class="compare-hero-img-wrap">
-              <img src="${escapeHtml(rightImg)}" alt="${escapeHtml(rightLabel)}" loading="lazy">
-              <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
-            </div>
+          <!-- 封面與 VS 標誌 -->
+          <div class="compare-hero-banner" style="display: flex; align-items: center; position: relative;">
+            ${heroImagesHtml}
           </div>
 
           <!-- 卡片內容區 -->
