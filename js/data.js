@@ -6682,6 +6682,112 @@ const DEFAULT_COMPARISON_DATA = [
     ]
   },
   {
+    id: "comp-cayratia-sambucus-elder",
+    title: "烏蘞莓 vs 冇骨消 vs 西洋接骨木",
+    species: ["烏蘞莓", "冇骨消", "西洋接骨木"],
+    family: "葡萄科 / 五福花科",
+    confusionLevel: "★★★★☆",
+    mnemonic: "烏蘞莓是草質藤本5出鳥足葉、花盤橙黃果紫黑；冇骨消直立粗草具黃色蜜杯、莖脆髓軟有腥臭果鮮紅；西洋接骨木大型木本灌木無蜜杯、花純白芬芳成串果紫黑。",
+    dateAdded: "20260818",
+    comparisonTable: {
+      headers: ["比對項目", "烏蘞莓（Cayratia japonica）", "冇骨消（Sambucus chinensis）", "西洋接骨木（Sambucus nigra）"],
+      rows: [
+        {
+          feature: "生長型態與株型",
+          values: [
+            "多年生草質蔓性藤本，具 2~3 叉狀卷鬚（與葉對生），攀緣於灌木或雜草上生長。",
+            "多年生大型直立草本或半灌木（亞灌木），株高約 1~2 公尺，直立挺拔，無卷鬚。",
+            "落葉大型木質灌木或小喬木，株高可達 3~6 公尺（甚至 10 公尺），老幹粗壯木質化，無卷鬚。"
+          ]
+        },
+        {
+          feature: "葉片構造與葉序",
+          values: [
+            "互生，鳥足狀 5 出複葉（中央小葉最大具長柄，兩側小葉基部各自二分叉）；葉緣具波狀或圓鈍鋸齒。",
+            "對生，一回奇數羽狀複葉（具 5~9 枚小葉，通常 2~4 對），小葉卵狀披針形，葉基常歪斜不對稱，葉緣具細銳鋸齒。",
+            "對生，一回奇數羽狀複葉（具 5~7 枚小葉，通常 2~3 對），小葉卵形至橢圓形，葉基鈍圓或闊楔形，葉緣具細密銳鋸齒。"
+          ]
+        },
+        {
+          feature: "花序型態與著生位置",
+          values: [
+            "腋生二歧聚繖花序（分枝呈珊瑚狀），花朵極小（徑 2~3 mm），花瓣 4 枚，淡黃綠色。",
+            "頂生大型平展複繖房花序（直徑 15~30 公分），密集開白色小花，花瓣 5 深裂。",
+            "頂生大型扁平繖房狀聚傘花序（直徑 12~25 公分，通常 5 主分枝），密集開乳白至黃白色小花，花瓣 5 裂。"
+          ]
+        },
+        {
+          feature: "特殊蜜腺 / 花盤構造",
+          values: [
+            "花朵中央具發達肉質扁平橙黃色花盤（蜜盤），分泌蜜露，隨花期轉為淡黃色。",
+            "花序分枝間散生鮮黃色或橙紅色「杯狀蜜腺（蜜杯）」，能分泌大量蜜液，吸引大量蜂蝶。",
+            "花序間無任何杯狀蜜腺，僅花朵基部微量泌蜜；花朵具清雅麝香葡萄甜香。"
+          ]
+        },
+        {
+          feature: "成熟果實特徵",
+          values: [
+            "漿果球形（徑約 6~8 mm），成熟時由綠轉為暗紫黑色，內含種子 2~4 粒。",
+            "漿果狀核果球形（徑約 4~5 mm），成熟時由綠轉橙黃再轉為晶瑩鮮紅色。",
+            "漿果狀核果球形（徑約 3~6 mm），成熟時由綠轉為光澤黑紫色或黑色（接骨木莓），成串下垂。"
+          ]
+        },
+        {
+          feature: "莖部質感與髓心",
+          values: [
+            "細長柔軟草質藤蔓，具縱稜，富韌性，節部生卷鬚。",
+            "直立粗壯具縱稜，內部髓心發達鬆軟如白色海綿或中空，極脆易折斷（故名「冇骨」）。",
+            "老幹高度木質化，樹皮灰褐具深縱裂與顯著皮孔；嫩枝內部亦具白色鬆軟髓心。"
+          ]
+        },
+        {
+          feature: "氣味辨識",
+          values: [
+            "全株無顯著強烈異味，揉搓葉片後僅有一般清淡青草氣味。",
+            "全株搓揉或折斷時散發濃烈特殊青草腥臭味（民間俗稱「臭風草」、「臭風仔」）。",
+            "枝葉揉碎具青草味（無強烈腥臭）；盛開花序散發甜美清雅香氣。"
+          ]
+        },
+        {
+          feature: "主要用途與生態價值",
+          values: [
+            "中藥材（清熱解毒、活血散瘀、治癰瘡）、野生蜜源植物。",
+            "台灣本土頂級蜜源植物（鳳蝶/斑蝶最愛）、民俗藥用（活血舒筋、消腫止痛）。",
+            "歐美傳統藥用大藥箱、觀賞花木、接骨木花糖漿、接骨木莓果醬與釀酒（具豐富花青素抗感冒）。"
+          ]
+        }
+      ]
+    },
+    detailedNotes: [
+      {
+        title: "1. 看生長型態與葉片排列",
+        content: "【藤本 vs 直立】：烏蘞莓為典型草質藤本，節上長有卷鬚攀爬；冇骨消為 1–2m 直立粗壯大型草本/亞灌木；西洋接骨木則為 3–6m 木本大灌木或小喬木。\n【葉序】：烏蘞莓「互生」且為「鳥足狀5出複葉」；冇骨消與西洋接骨木皆為「對生」且為「一回奇數羽狀複葉」。"
+      },
+      {
+        title: "2. 查花序構造與特殊蜜腺（最關鍵）",
+        content: "【蜜杯構造】：\n・冇骨消：花序分枝間散生顯著凸起、鮮黃或橙黃色「杯狀蜜腺（蜜杯）」，蜜汁充沛吸引大量蜂蝶。\n・烏蘞莓：花朵中央具橙黃色肉質花盤。\n・西洋接骨木：花序上完全「無蜜杯」，整面花序皆為乳白小花，散發清雅麝香葡萄香氣。"
+      },
+      {
+        title: "3. 辨成熟果實色澤與莖部質感",
+        content: "【果實】：冇骨消成熟為「晶瑩鮮紅色」；烏蘞莓與西洋接骨木成熟為「紫黑色或黑色」。\n【莖部】：冇骨消直立莖內充滿白色海綿狀髓心中空極脆易折斷（冇骨）；西洋接骨木老幹高度木質化；烏蘞莓為柔軟富韌性草質藤蔓。"
+      }
+    ],
+    galleryImages: [
+      {
+        url: "https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000",
+        caption: "烏蘞莓 (鳥足狀5出複葉與攀爬卷鬚)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1507290439931-a861b5a38200?w=800&auto=format&fit=crop",
+        caption: "冇骨消 (羽狀複葉與亮橘黃色蜜杯)"
+      },
+      {
+        url: "https://images.unsplash.com/photo-1597848212624-a19eb35e2651?w=800&auto=format&fit=crop",
+        caption: "西洋接骨木 (木本灌木、無蜜杯純白聚傘花)"
+      }
+    ]
+  },
+  {
     id: "comp-cayratia-sambucus",
     title: "烏蘞莓 vs 冇骨消",
     species: ["烏蘞莓", "冇骨消"],
@@ -6778,27 +6884,6 @@ function getStoredComparisons() {
 async function loadStoredComparisonsAsync() {
   let idbComps = await getFromIndexedDB('synced_comparisons_v3');
 
-  // 檢查 synced_plants 是否有尚未轉移的鑑別資料
-  const idbPlants = await getFromIndexedDB('synced_plants');
-  if (idbPlants && Array.isArray(idbPlants)) {
-    const compPlants = idbPlants.filter(p => isComparisonPlantOrDoc(p));
-    if (compPlants.length > 0) {
-      const converted = compPlants.map(convertPlantToComparison).filter(Boolean);
-      const demoIds = ['comp-lavender-sage', 'comp-crape-subcostate', 'comp-bauhinia-trio', 'comp-cayratia-sambucus'];
-      const isPureDemo = !idbComps || (Array.isArray(idbComps) && idbComps.every(c => c.isDemo || demoIds.includes(c.id)));
-      let baseList = isPureDemo ? [] : (Array.isArray(idbComps) ? [...idbComps] : []);
-
-      converted.forEach(item => {
-        const existIdx = baseList.findIndex(c => c.title === item.title);
-        if (existIdx !== -1) baseList[existIdx] = item;
-        else baseList.unshift(item);
-      });
-
-      saveStoredComparisons(baseList);
-      idbComps = baseList;
-    }
-  }
-
   if (idbComps && Array.isArray(idbComps) && idbComps.length > 0) {
     inMemoryComparisonsList = idbComps;
     return idbComps;
@@ -6820,12 +6905,6 @@ async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComp
   let deletedCount = 0;
   let addedCount = 0;
   let updatedCount = 0;
-
-  // ⚡ 聰明機制：只要雲端有新的鑑別資料傳入，自動將 4 筆預設示範資料徹底清空！
-  const demoIds = ['comp-lavender-sage', 'comp-crape-subcostate', 'comp-bauhinia-trio', 'comp-cayratia-sambucus'];
-  if (Array.isArray(newOrUpdatedComps) && newOrUpdatedComps.length > 0) {
-    currentList = currentList.filter(c => !demoIds.includes(c.id) && !c.isDemo);
-  }
 
   // 1. 處理刪除
   if (Array.isArray(deletedComps) && deletedComps.length > 0) {
