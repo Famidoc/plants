@@ -586,14 +586,39 @@ function openPlantDetailModal(plant) {
     galleryOption.textContent = `📷 植物圖集 (${galleryImages.length})`;
   }
 
+  // 輔助函式：將 caption 結構化為精美的雙行 HTML
+  function renderCaptionHtml(rawCap, fallbackIdx) {
+    let cleanCap = String(rawCap || '').trim();
+    // 移除可能殘留的章節性大標題
+    cleanCap = cleanCap.replace(/^[\(\[\【]?\s*(?:其他附圖|植物附圖|附圖|特徵照片|更多附圖|照片記錄|植物特徵)\s*[\)\]\】]?\s*/gi, '').trim();
+    if (!cleanCap) cleanCap = `特徵照片 ${fallbackIdx + 1}`;
+
+    // 檢查是否符合 "特徵名稱 (時間@地點)" 結構
+    const match = cleanCap.match(/^(.+?)\s*(\([^\)]+\))$/);
+    if (match) {
+      const title = match[1].trim();
+      const sub = match[2].trim();
+      return `<span class="gallery-caption-title">${title}</span><span class="gallery-caption-sub">${sub}</span>`;
+    }
+    // 若只有時間地點括號
+    if (cleanCap.startsWith('(') && cleanCap.endsWith(')')) {
+      return `<span class="gallery-caption-title" style="font-size:0.75rem; font-weight:600;">${cleanCap}</span>`;
+    }
+    return `<span class="gallery-caption-title">${cleanCap}</span>`;
+  }
+
   if (galleryContainer) {
     if (galleryImages.length > 0) {
       galleryContainer.innerHTML = galleryImages.map((img, idx) => {
         const itemUrl = formatDriveImageUrl(img.url);
+        let rawCap = String(img.caption || '').trim();
+        rawCap = rawCap.replace(/^[\(\[\【]?\s*(?:其他附圖|植物附圖|附圖|特徵照片|更多附圖|照片記錄|植物特徵)\s*[\)\]\】]?\s*/gi, '').trim();
+        const captionText = rawCap || `特徵照片 ${idx + 1}`;
+        const captionHtml = renderCaptionHtml(captionText, idx);
         return `
-          <div class="gallery-item-card" data-url="${itemUrl}" data-caption="${img.caption || `特徵照片 ${idx + 1}`}">
-            <img src="${itemUrl}" alt="${img.caption || '特徵照片'}" class="gallery-item-img" loading="lazy">
-            <div class="gallery-item-caption">${img.caption || `特徵照片 ${idx + 1}`}</div>
+          <div class="gallery-item-card" data-url="${itemUrl}" data-caption="${captionText}" title="${captionText}">
+            <img src="${itemUrl}" alt="${captionText}" class="gallery-item-img" loading="lazy">
+            <div class="gallery-item-caption">${captionHtml}</div>
           </div>
         `;
       }).join('');
