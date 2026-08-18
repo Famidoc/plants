@@ -369,12 +369,6 @@ function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog, maxDurati
     }
 
     var file = docs[i];
-  var deletedList = [];
-  var comparisonList = [];
-  var deletedComparisonList = [];
-
-  for (var i = 0; i < docs.length; i++) {
-    var file = docs[i];
     var docId = file.getId();
     var fileName = file.getName();
 
