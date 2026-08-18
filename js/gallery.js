@@ -65,6 +65,9 @@ async function initGallery() {
       currentPlantsList = loadedList;
       renderGallery();
       checkAndOpenUrlPlant();
+      if (typeof window.renderCompareCards === 'function') {
+        window.renderCompareCards();
+      }
     }
   } catch(e) {
     console.warn("IndexedDB 載入警告:", e);

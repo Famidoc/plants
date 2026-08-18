@@ -14,6 +14,11 @@
    * 初始化相似鑑別模組
    */
   async function initCompareModule() {
+    if (typeof window.loadStoredPlantsAsync === 'function') {
+      try {
+        await window.loadStoredPlantsAsync();
+      } catch (e) {}
+    }
     allComparisons = await window.loadStoredComparisonsAsync();
     setupCompareControls();
     renderCompareCards();
@@ -26,19 +31,38 @@
     if (!speciesName) return fallbackUrl || '';
     const cleanName = speciesName.trim().replace(/\s*\(.*?\)/g, '');
     
-    // 1. 嚴格名稱比對 (優先中文名稱完全相等)
+    // 1. 取得圖鑑資料庫 (包含已從 IndexedDB 增量同步之所有植物)
     const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
     
-    // 先找完全相等的名稱
+    // (1) 先找完全相等的名稱
     let matched = plants.find(p => p && (p.name || '').trim() === cleanName);
     
-    // 若無，再找別名中有完全相等的項目
+    // (2) 若無，找去除「- 植物資料」或副標題後相等的名稱
     if (!matched) {
-      matched = plants.find(p => p && Array.isArray(p.aliases) && p.aliases.some(a => (a || '').trim() === cleanName));
+      matched = plants.find(p => {
+        if (!p || !p.name) return false;
+        const pClean = p.name.replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '').trim();
+        return pClean === cleanName || p.name.trim() === cleanName || p.name.includes(cleanName) || cleanName.includes(pClean);
+      });
     }
 
-    if (matched && matched.imageUrl) {
-      return matched.imageUrl;
+    // (3) 若無，再找別名中有相等的項目
+    if (!matched) {
+      matched = plants.find(p => p && Array.isArray(p.aliases) && p.aliases.some(a => {
+        const aClean = (a || '').replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '').trim();
+        return aClean === cleanName || (a || '').includes(cleanName) || cleanName.includes(aClean);
+      }));
+    }
+
+    if (matched) {
+      if (matched.imageUrl && matched.imageUrl.startsWith('http')) {
+        return matched.imageUrl;
+      }
+      if (Array.isArray(matched.images) && matched.images.length > 0) {
+        const firstImg = matched.images[0];
+        const imgUrl = typeof firstImg === 'string' ? firstImg : (firstImg.url || firstImg.thumbnailUrl);
+        if (imgUrl && imgUrl.startsWith('http')) return imgUrl;
+      }
     }
 
     // 2. 使用傳入的 fallbackUrl（僅當非假圖庫時）
