@@ -416,10 +416,36 @@ function setupGalleryEventListeners() {
     });
   }
 
+  // 點擊背景空白處關閉燈箱
+  const plantBackdrop = document.getElementById('plantModalBackdrop');
+  if (plantBackdrop && !plantBackdrop.dataset.clickBound) {
+    plantBackdrop.dataset.clickBound = 'true';
+    plantBackdrop.addEventListener('click', (e) => {
+      if (e.target === plantBackdrop) closePlantDetailModal();
+    });
+  }
+
+  const posterBackdrop = document.getElementById('posterModalBackdrop');
+  if (posterBackdrop && !posterBackdrop.dataset.clickBound) {
+    posterBackdrop.dataset.clickBound = 'true';
+    posterBackdrop.addEventListener('click', (e) => {
+      if (e.target === posterBackdrop) closePlantPosterModal();
+    });
+  }
+
   // 鍵盤 ← / → / Esc 快速導覽燈箱
   if (!window.modalKeyNavBound) {
     window.modalKeyNavBound = true;
     window.addEventListener('keydown', (e) => {
+      const posterModal = document.getElementById('posterModalBackdrop');
+      if (posterModal && (posterModal.classList.contains('open') || posterModal.classList.contains('active'))) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closePlantPosterModal();
+          return;
+        }
+      }
+
       const modalBackdrop = document.getElementById('plantModalBackdrop');
       if (modalBackdrop && modalBackdrop.classList.contains('open')) {
         if (e.key === 'ArrowLeft') {
@@ -1045,9 +1071,549 @@ async function checkAndOpenUrlPlant() {
   return false;
 }
 
+/**
+ * 跨域圖片加載 Helper（含 CORS 與 Weserv 代理備援）
+ */
+function loadImageWithCors(url) {
+  return new Promise((resolve) => {
+    if (!url || typeof url !== 'string') return resolve(null);
+    const cleanUrl = url.trim();
+    if (!cleanUrl) return resolve(null);
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      // 嘗試透過 weserv 圖片代理跨域
+      const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(cleanUrl)}&w=1000&output=jpg`;
+      const pImg = new Image();
+      pImg.crossOrigin = 'anonymous';
+      pImg.onload = () => resolve(pImg);
+      pImg.onerror = () => resolve(null);
+      pImg.src = proxyUrl;
+    };
+    img.src = cleanUrl;
+  });
+}
+
+/**
+ * 載入專屬 QR Code 圖片
+ */
+function loadQrCodeImage(shareUrl) {
+  return new Promise((resolve) => {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(shareUrl)}`;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => {
+      const proxyUrl = `https://images.weserv.nl/?url=${encodeURIComponent(qrUrl)}`;
+      const pImg = new Image();
+      pImg.crossOrigin = 'anonymous';
+      pImg.onload = () => resolve(pImg);
+      pImg.onerror = () => resolve(null);
+      pImg.src = proxyUrl;
+    };
+    img.src = qrUrl;
+  });
+}
+
+/**
+ * Canvas 繪製圓角矩形 Helper
+ */
+function drawCanvasRoundedRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+/**
+ * Canvas 繪製自適應折行文字 Helper
+ */
+function drawCanvasWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 3) {
+  if (!text) return y;
+  const words = text.split('');
+  let line = '';
+  let lineCount = 0;
+  let currentY = y;
+
+  for (let n = 0; n < words.length; n++) {
+    const testLine = line + words[n];
+    const metrics = ctx.measureText(testLine);
+    const testWidth = metrics.width;
+    if (testWidth > maxWidth && n > 0) {
+      lineCount++;
+      if (lineCount >= maxLines) {
+        ctx.fillText(line.slice(0, -1) + '...', x, currentY);
+        return currentY + lineHeight;
+      }
+      ctx.fillText(line, x, currentY);
+      line = words[n];
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
+  return currentY + lineHeight;
+}
+
+/**
+ * 輔助繪製海報膠囊 Badge
+ */
+function drawPosterBadge(ctx, x, y, w, h, icon, text, bg, color) {
+  ctx.save();
+  ctx.fillStyle = bg;
+  drawCanvasRoundedRect(ctx, x, y, w, h, h / 2);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.06)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.fillStyle = color;
+  ctx.font = 'bold 20px "Noto Sans TC", sans-serif';
+  ctx.textAlign = 'center';
+  const fullLabel = icon ? `${icon} ${text}` : text;
+  ctx.fillText(fullLabel, x + w / 2, y + h / 2 + 7);
+  ctx.restore();
+}
+
+/**
+ * 繪製植物名片海報至 Canvas
+ */
+async function generatePlantPosterCanvas(plant) {
+  const canvas = document.getElementById('plantPosterCanvas');
+  if (!canvas || !plant) return null;
+
+  const W = 1080;
+  const H = 1440;
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // 1. 底色優雅漸層 (自然米白與薄荷綠感)
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#fbfcf9');
+  bgGrad.addColorStop(0.5, '#f5f8f4');
+  bgGrad.addColorStop(1, '#ebf2e9');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // 2. 裝飾雙邊框與細節
+  ctx.strokeStyle = 'rgba(27, 59, 43, 0.16)';
+  ctx.lineWidth = 4;
+  drawCanvasRoundedRect(ctx, 32, 32, W - 64, H - 64, 32);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(27, 59, 43, 0.08)';
+  ctx.lineWidth = 1.5;
+  drawCanvasRoundedRect(ctx, 44, 44, W - 88, H - 88, 24);
+  ctx.stroke();
+
+  // 3. 頂部 Bar (品牌與科別)
+  ctx.fillStyle = '#1b3b2b';
+  ctx.font = 'bold 26px "Noto Sans TC", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('🪴 捻花惹草 • 花草圖鑑典藏', 64, 88);
+
+  ctx.textAlign = 'right';
+  ctx.font = '500 22px "Noto Sans TC", sans-serif';
+  ctx.fillStyle = '#496b58';
+  const familyText = plant.family ? (plant.family.split('/')[0] || plant.family).trim() : '觀賞植物';
+  ctx.fillText(`🌿 ${familyText}`, W - 64, 88);
+
+  // 頂部分隔細線
+  ctx.strokeStyle = 'rgba(27, 59, 43, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(64, 108);
+  ctx.lineTo(W - 64, 108);
+  ctx.stroke();
+
+  // 4. 植物大圖區 (952 x 620 px)
+  const imgX = 64;
+  const imgY = 126;
+  const imgW = W - 128;
+  const imgH = 620;
+  const imgR = 24;
+
+  // 陰影
+  ctx.save();
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+  ctx.fillStyle = '#ffffff';
+  drawCanvasRoundedRect(ctx, imgX, imgY, imgW, imgH, imgR);
+  ctx.fill();
+  ctx.restore();
+
+  // 載入主圖
+  const rawImgUrl = formatDriveImageUrl(plant.imageUrl);
+  const plantImg = await loadImageWithCors(rawImgUrl);
+
+  ctx.save();
+  drawCanvasRoundedRect(ctx, imgX, imgY, imgW, imgH, imgR);
+  ctx.clip();
+
+  if (plantImg && plantImg.width > 0) {
+    // 居中滿版裁切繪製 (Cover)
+    const aspect = plantImg.width / plantImg.height;
+    const targetAspect = imgW / imgH;
+    let sW, sH, sX, sY;
+    if (aspect > targetAspect) {
+      sH = plantImg.height;
+      sW = plantImg.height * targetAspect;
+      sX = (plantImg.width - sW) / 2;
+      sY = 0;
+    } else {
+      sW = plantImg.width;
+      sH = plantImg.width / targetAspect;
+      sX = 0;
+      sY = (plantImg.height - sH) / 2;
+    }
+    ctx.drawImage(plantImg, sX, sY, sW, sH, imgX, imgY, imgW, imgH);
+  } else {
+    // 無圖/跨域失敗備援圖示
+    const noImgGrad = ctx.createLinearGradient(imgX, imgY, imgX + imgW, imgY + imgH);
+    noImgGrad.addColorStop(0, '#2e5b3f');
+    noImgGrad.addColorStop(1, '#1b3b2b');
+    ctx.fillStyle = noImgGrad;
+    ctx.fillRect(imgX, imgY, imgW, imgH);
+
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '72px sans-serif';
+    ctx.fillText('🪴', imgX + imgW / 2, imgY + imgH / 2 - 20);
+    ctx.font = 'bold 36px "Noto Sans TC", sans-serif';
+    ctx.fillText(plant.name, imgX + imgW / 2, imgY + imgH / 2 + 50);
+  }
+  ctx.restore();
+
+  // 5. 植物名稱與學名區塊
+  let textY = 798;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#11261c';
+  ctx.font = 'bold 50px "Noto Sans TC", sans-serif';
+  ctx.fillText(plant.name, 64, textY);
+
+  // 英文名稱 (若有)
+  if (plant.englishName && plant.englishName.trim()) {
+    ctx.font = '600 24px "Outfit", sans-serif';
+    ctx.fillStyle = '#557a66';
+    ctx.textAlign = 'right';
+    ctx.fillText(plant.englishName, W - 64, textY - 8);
+  }
+
+  // 學名 (Italic)
+  textY += 46;
+  ctx.textAlign = 'left';
+  ctx.font = 'italic 600 26px "Outfit", "Noto Sans TC", sans-serif';
+  ctx.fillStyle = '#2b6343';
+  const sciNameText = plant.scientificName ? plant.scientificName : '–';
+  ctx.fillText(sciNameText, 64, textY);
+
+  // 別名 (若有)
+  if (plant.aliases && Array.isArray(plant.aliases) && plant.aliases.length > 0) {
+    textY += 36;
+    ctx.font = '400 22px "Noto Sans TC", sans-serif';
+    ctx.fillStyle = '#5c7265';
+    const aliasesStr = `別名：${plant.aliases.slice(0, 5).join('、')}`;
+    ctx.fillText(aliasesStr, 64, textY);
+  }
+
+  // 6. 三大照護關鍵指標膠囊 (Pill Badges)
+  const badgeY = 926;
+  const badgeH = 54;
+  const badgeW = (W - 128 - 32) / 3;
+
+  // Badge 1: ☀️ 日照
+  const lightStr = (plant.careNotes?.light || '日照適中').split(/[,，。]/)[0] || '半日照至全日照';
+  drawPosterBadge(ctx, 64, badgeY, badgeW, badgeH, '☀️', lightStr.slice(0, 10), '#e8f4ec', '#1b4d2e');
+
+  // Badge 2: 💧 水分
+  const waterStr = (plant.careNotes?.humidity || '水分適中').split(/[,，。]/)[0] || '保持介質濕潤';
+  drawPosterBadge(ctx, 64 + badgeW + 16, badgeY, badgeW, badgeH, '💧', waterStr.slice(0, 10), '#e6f3f8', '#1a5276');
+
+  // Badge 3: 🐾 寵物安全
+  let petLabel = '🐾 寵物友善';
+  let petBg = '#e8f5e9';
+  let petColor = '#2e7d32';
+  if (plant.petFriendly === false) {
+    petLabel = '⚠️ 具毒性/請留意';
+    petBg = '#fff3e0';
+    petColor = '#d35400';
+  } else if (plant.petFriendly === undefined || plant.petFriendly === null) {
+    petLabel = 'ℹ️ 毒性未明';
+    petBg = '#f5f5f5';
+    petColor = '#616161';
+  }
+  drawPosterBadge(ctx, 64 + (badgeW + 16) * 2, badgeY, badgeW, badgeH, '', petLabel, petBg, petColor);
+
+  // 7. 特色摘錄卡片 (Highlight Box)
+  const boxX = 64;
+  const boxY = 1006;
+  const boxW = W - 128;
+  const boxH = 200;
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  drawCanvasRoundedRect(ctx, boxX, boxY, boxW, boxH, 20);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(27, 59, 43, 0.1)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // 摘錄標題
+  ctx.fillStyle = '#1b3b2b';
+  ctx.font = 'bold 22px "Noto Sans TC", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('📌 形態特色與照護叮嚀', boxX + 24, boxY + 40);
+
+  // 抓取文字內容
+  let snippet = '';
+  if (plant.morphologyDetails && Array.isArray(plant.morphologyDetails) && plant.morphologyDetails.length > 0) {
+    snippet = plant.morphologyDetails.map(m => `${m.label}：${m.value}`).join(' ');
+  } else if (plant.careNotes) {
+    snippet = `${plant.careNotes.light || ''} ${plant.careNotes.humidity || ''} ${plant.careNotes.waterQuality || ''}`;
+  }
+  if (!snippet || snippet.length < 5) snippet = '適合居家擺設與花園種植，四季呈現不同觀賞價值。';
+
+  ctx.fillStyle = '#4a5b51';
+  ctx.font = '400 21px/1.6 "Noto Sans TC", sans-serif';
+  drawCanvasWrappedText(ctx, snippet, boxX + 24, boxY + 76, boxW - 48, 34, 3);
+
+  // 8. 底部品牌與 QR Code Bar
+  const bottomY = 1236;
+  const shareUrl = generatePlantShareUrl(plant);
+  const qrImg = await loadQrCodeImage(shareUrl);
+
+  // 左側品牌與引導
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#1b3b2b';
+  ctx.font = 'bold 26px "Noto Sans TC", sans-serif';
+  ctx.fillText('🌿 捻花惹草 | 綠意生活與花草知識庫', 64, bottomY + 34);
+
+  ctx.fillStyle = '#5c7265';
+  ctx.font = '500 20px "Noto Sans TC", sans-serif';
+  ctx.fillText('掃描右側 QR Code 探索圖鑑、相似鑑別與知識測驗', 64, bottomY + 72);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#839b8c';
+  ctx.fillText(shareUrl.length > 50 ? shareUrl.slice(0, 48) + '...' : shareUrl, 64, bottomY + 104);
+
+  // 右側 QR Code
+  const qrX = W - 64 - 130;
+  const qrY = bottomY - 6;
+  const qrSize = 130;
+
+  ctx.save();
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 4;
+  drawCanvasRoundedRect(ctx, qrX - 8, qrY - 8, qrSize + 16, qrSize + 16, 16);
+  ctx.fill();
+  ctx.restore();
+
+  if (qrImg && qrImg.width > 0) {
+    ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+  }
+
+  return canvas;
+}
+
+/**
+ * 開啟花草名片海報 Modal 並自動繪製海報
+ */
+async function openPlantPosterModal(event) {
+  if (event) event.stopPropagation();
+  if (!currentActivePlant) {
+    if (typeof showToast === 'function') {
+      showToast('⚠️ 未能取得花草資料', 2000);
+    }
+    return;
+  }
+
+  const backdrop = document.getElementById('posterModalBackdrop');
+  const spinner = document.getElementById('posterLoadingSpinner');
+  const canvas = document.getElementById('plantPosterCanvas');
+  const imgPreview = document.getElementById('plantPosterImg');
+
+  if (backdrop) {
+    backdrop.classList.add('open');
+    backdrop.classList.add('active');
+  }
+  if (spinner) spinner.style.display = 'flex';
+  if (imgPreview) imgPreview.style.display = 'none';
+
+  try {
+    const renderedCanvas = await generatePlantPosterCanvas(currentActivePlant);
+    if (renderedCanvas) {
+      const dataUrl = renderedCanvas.toDataURL('image/png');
+      if (imgPreview) {
+        imgPreview.src = dataUrl;
+        imgPreview.style.display = 'block';
+      }
+    }
+  } catch(e) {
+    console.error('產生花草名片海報失敗:', e);
+    if (typeof showToast === 'function') {
+      showToast('⚠️ 產生名片圖卡失敗，請稍後重試', 3000);
+    }
+  } finally {
+    if (spinner) spinner.style.display = 'none';
+  }
+}
+
+/**
+ * 關閉花草名片海報 Modal
+ */
+function closePlantPosterModal() {
+  const backdrop = document.getElementById('posterModalBackdrop');
+  if (backdrop) {
+    backdrop.classList.remove('open');
+    backdrop.classList.remove('active');
+  }
+}
+
+/**
+ * 下載花草名片 PNG 圖檔
+ */
+function downloadPosterImage() {
+  const canvas = document.getElementById('plantPosterCanvas');
+  if (!canvas || !currentActivePlant) return;
+
+  try {
+    const link = document.createElement('a');
+    const plantName = currentActivePlant.name || '花草';
+    link.download = `捻花惹草_${plantName}_植物名片.png`;
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (typeof showToast === 'function') {
+      showToast(`📥 已開始下載《${plantName}》名片圖卡！`, 3500);
+    }
+  } catch(e) {
+    console.error('下載海報失敗:', e);
+    if (typeof showToast === 'function') {
+      showToast('⚠️ 下載圖卡失敗，請長按圖片手動儲存', 3500);
+    }
+  }
+}
+
+/**
+ * 原生社群分享海報圖片 (調用 Web Share API)
+ */
+async function sharePosterImage() {
+  const canvas = document.getElementById('plantPosterCanvas');
+  if (!canvas || !currentActivePlant) return;
+
+  const plantName = currentActivePlant.name || '花草';
+  const shareUrl = generatePlantShareUrl(currentActivePlant);
+
+  try {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        downloadPosterImage();
+        return;
+      }
+      const file = new File([blob], `捻花惹草_${plantName}.png`, { type: 'image/png' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: `🌿 捻花惹草 - ${plantName}`,
+            text: `分享【${plantName}】花草植物名片！點擊連結查看完整圖鑑與照護要點：`,
+            url: shareUrl,
+            files: [file]
+          });
+          return;
+        } catch(shareErr) {
+          if (shareErr.name !== 'AbortError') {
+            console.warn('原生檔案分享失敗，降級為純連結分享:', shareErr);
+          } else {
+            return; // 使用者主動取消
+          }
+        }
+      }
+
+      // 若不支援檔案分享，嘗試純文字與網址分享
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `🌿 捻花惹草 - ${plantName}`,
+            text: `分享【${plantName}】花草植物名片！點擊連結查看完整圖鑑：`,
+            url: shareUrl
+          });
+          return;
+        } catch(e) {}
+      }
+
+      // 降級為下載圖片並複製連結
+      downloadPosterImage();
+      await copyTextToClipboard(shareUrl);
+      if (typeof showToast === 'function') {
+        showToast('📥 圖卡已下載，且分享網址已複製到剪貼簿！', 3500);
+      }
+    }, 'image/png');
+  } catch(e) {
+    downloadPosterImage();
+  }
+}
+
+/**
+ * 複製名片海報圖片至剪貼簿
+ */
+async function copyPosterImage() {
+  const canvas = document.getElementById('plantPosterCanvas');
+  if (!canvas || !currentActivePlant) return;
+
+  try {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        downloadPosterImage();
+        return;
+      }
+      if (navigator.clipboard && window.ClipboardItem) {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          if (typeof showToast === 'function') {
+            showToast(`📋 已將《${currentActivePlant.name}》名片圖卡複製到剪貼簿！`, 3500);
+          }
+          return;
+        } catch(clipErr) {
+          console.warn('ClipboardItem 圖片寫入失敗:', clipErr);
+        }
+      }
+      // 降級為直接下載
+      downloadPosterImage();
+    }, 'image/png');
+  } catch(e) {
+    downloadPosterImage();
+  }
+}
+
 window.openFullScreenPhoto = openFullScreenPhoto;
 window.closeFullScreenPhoto = closeFullScreenPhoto;
+window.copyTextToClipboard = copyTextToClipboard;
 window.copyPlantShareLink = copyPlantShareLink;
 window.copyFullScreenPhotoShareLink = copyFullScreenPhotoShareLink;
 window.copyAppUrl = copyAppUrl;
 window.checkAndOpenUrlPlant = checkAndOpenUrlPlant;
+window.openPlantPosterModal = openPlantPosterModal;
+window.closePlantPosterModal = closePlantPosterModal;
+window.downloadPosterImage = downloadPosterImage;
+window.sharePosterImage = sharePosterImage;
+window.copyPosterImage = copyPosterImage;
+window.generatePlantPosterCanvas = generatePlantPosterCanvas;

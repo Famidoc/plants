@@ -9,6 +9,7 @@
   let currentFilterText = '';
   let currentCategory = 'ALL';
   let isReverseSort = false; // 預設依新增時間排序 (最新在先)
+  let currentActiveCompare = null; // 當前正在燈箱檢視的比對物件
 
   /**
    * 初始化相似鑑別模組
@@ -22,6 +23,7 @@
     allComparisons = await window.loadStoredComparisonsAsync();
     setupCompareControls();
     renderCompareCards();
+    checkAndOpenUrlCompare();
   }
 
   /**
@@ -361,6 +363,8 @@
     const item = (allComparisons || []).find(c => String(c.id) === String(compareId));
     if (!item) return;
 
+    currentActiveCompare = item;
+
     const modalBackdrop = document.getElementById('compareModalBackdrop');
     const modalTitle = document.getElementById('compareModalTitle');
     const modalSubtitle = document.getElementById('compareModalSubtitle');
@@ -560,6 +564,105 @@
     }
   }
 
+  /**
+   * 產生相似鑑別專屬分享連結 URL
+   */
+  function generateCompareShareUrl(compareItem) {
+    if (!compareItem) return window.location.href;
+    const baseUrl = window.location.origin + window.location.pathname;
+    return `${baseUrl}?compare=${encodeURIComponent(compareItem.title || compareItem.id)}`;
+  }
+
+  /**
+   * 複製相似鑑別詳細頁分享連結
+   */
+  async function copyCompareShareLink(event) {
+    if (event) event.stopPropagation();
+    if (!currentActiveCompare) {
+      if (typeof showToast === 'function') {
+        showToast('⚠️ 未能取得鑑別資料', 2000);
+      }
+      return;
+    }
+
+    const shareUrl = generateCompareShareUrl(currentActiveCompare);
+    const btn = document.getElementById('compareShareBtn');
+    const success = typeof window.copyTextToClipboard === 'function'
+      ? await window.copyTextToClipboard(shareUrl)
+      : await (async () => {
+          try {
+            if (navigator.clipboard && window.isSecureContext) {
+              await navigator.clipboard.writeText(shareUrl);
+              return true;
+            }
+          } catch(e) {}
+          return false;
+        })();
+
+    if (success) {
+      if (btn) {
+        btn.classList.add('copied');
+        const iconEl = btn.querySelector('.share-icon');
+        const fullTextEl = btn.querySelector('.share-text-full');
+        const shortTextEl = btn.querySelector('.share-text-short');
+        const origIcon = iconEl ? iconEl.textContent : '🔗';
+        if (iconEl) iconEl.textContent = '✅';
+        if (fullTextEl) fullTextEl.textContent = '已複製連結！';
+        if (shortTextEl) shortTextEl.textContent = '已複製';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          if (iconEl) iconEl.textContent = origIcon;
+          if (fullTextEl) fullTextEl.textContent = '複製分享連結';
+          if (shortTextEl) shortTextEl.textContent = '分享';
+        }, 2000);
+      }
+      if (typeof showToast === 'function') {
+        showToast(`🔗 已成功複製《${currentActiveCompare.title}》專屬比對分享連結！`, 3500);
+      }
+    } else {
+      prompt('請手動複製以下鑑別分享網址：', shareUrl);
+    }
+  }
+
+  /**
+   * 檢查網址列是否有 ?compare=... 或 ?c=... 並自動切換至比對頁面彈出詳細燈箱
+   */
+  async function checkAndOpenUrlCompare() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const target = params.get('compare') || params.get('c');
+      if (!target || !target.trim()) return false;
+
+      const query = decodeURIComponent(target).trim().toLowerCase();
+      const list = Array.isArray(allComparisons) && allComparisons.length > 0
+        ? allComparisons
+        : (await window.loadStoredComparisonsAsync() || []);
+
+      const matched = list.find(c => {
+        if (!c) return false;
+        if (c.title && c.title.toLowerCase().includes(query)) return true;
+        if (c.id && String(c.id).toLowerCase() === query) return true;
+        if (c.species && Array.isArray(c.species) && c.species.some(s => s.toLowerCase().includes(query))) return true;
+        return false;
+      });
+
+      if (matched) {
+        // 切換至相似鑑別導覽標籤
+        const compareNavBtn = document.querySelector('[data-target-view="compareView"]');
+        if (compareNavBtn && !compareNavBtn.classList.contains('active')) {
+          compareNavBtn.click();
+        }
+        setTimeout(() => {
+          openCompareModal(matched.id);
+        }, 150);
+        return true;
+      }
+    } catch(e) {
+      console.warn('解析 compare URL 參數錯誤:', e);
+    }
+    return false;
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     return String(str)
@@ -578,5 +681,8 @@
   window.scrollCompareTableToColumn = scrollCompareTableToColumn;
   window.jumpToPlantFromCompare = jumpToPlantFromCompare;
   window.findSpeciesPhoto = findSpeciesPhoto;
+  window.copyCompareShareLink = copyCompareShareLink;
+  window.generateCompareShareUrl = generateCompareShareUrl;
+  window.checkAndOpenUrlCompare = checkAndOpenUrlCompare;
 
 })();

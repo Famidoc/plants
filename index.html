@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#1b3b2b">
 
   <!-- PWA Manifest & Icons -->
-  <link rel="manifest" href="./manifest.json?v=107">
+  <link rel="manifest" href="./manifest.json?v=108">
   <link rel="icon" type="image/png" href="./assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
 
@@ -44,11 +44,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=107">
-  <link rel="stylesheet" href="./css/gallery.css?v=107">
-  <link rel="stylesheet" href="./css/compare.css?v=107">
-  <link rel="stylesheet" href="./css/modal.css?v=107">
-  <link rel="stylesheet" href="./css/quiz.css?v=107">
+  <link rel="stylesheet" href="./css/main.css?v=108">
+  <link rel="stylesheet" href="./css/gallery.css?v=108">
+  <link rel="stylesheet" href="./css/compare.css?v=108">
+  <link rel="stylesheet" href="./css/modal.css?v=108">
+  <link rel="stylesheet" href="./css/quiz.css?v=108">
 </head>
 <body>
 
@@ -64,7 +64,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v107</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v108</small></span>
         </div>
       </div>
 
@@ -240,6 +240,11 @@
           <h2 id="modalTitle" class="modal-top-title">花草名稱</h2>
         </div>
         <div class="modal-top-actions">
+          <button id="modalPosterBtn" class="modal-poster-btn" onclick="openPlantPosterModal(event)" title="產生精美花草名片圖卡">
+            <span class="share-icon">🎨</span>
+            <span class="share-text-full">名片圖卡</span>
+            <span class="share-text-short">名片</span>
+          </button>
           <button id="modalShareBtn" class="modal-share-btn" onclick="copyPlantShareLink(event)" title="複製此花草專屬分享連結">
             <span class="share-icon">🔗</span>
             <span class="share-text-full">複製分享連結</span>
@@ -525,6 +530,40 @@
     </div>
   </div>
 
+  <!-- 花草名片海報生成與預覽 Modal (Plant Share Poster Modal) -->
+  <div id="posterModalBackdrop" class="modal-backdrop">
+    <div id="posterModalContainer" class="modal-container poster-modal-container">
+      <div class="poster-modal-header">
+        <div class="poster-modal-title-group">
+          <span class="poster-modal-icon">🎨</span>
+          <h3 class="poster-modal-title">花草名片海報生成器</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closePlantPosterModal()" title="關閉 (Esc)">✕</button>
+      </div>
+      <div class="poster-modal-body">
+        <div class="poster-preview-wrapper" id="posterPreviewWrapper">
+          <div id="posterLoadingSpinner" class="poster-loading-spinner">
+            <span class="spinner-icon">🪴</span>
+            <p>正在繪製植物名片圖卡，請稍候...</p>
+          </div>
+          <canvas id="plantPosterCanvas" class="plant-poster-canvas" style="display: none;"></canvas>
+          <img id="plantPosterImg" class="plant-poster-img" alt="花草名片預覽" style="display: none;">
+        </div>
+        <div class="poster-actions-bar">
+          <button id="downloadPosterBtn" class="btn-primary poster-action-btn" onclick="downloadPosterImage()" title="下載高解析 PNG 圖檔">
+            <span>📥</span> <span>下載圖卡 (PNG)</span>
+          </button>
+          <button id="sharePosterBtn" class="btn-secondary poster-action-btn" onclick="sharePosterImage()" title="直接傳送至 LINE / 社群">
+            <span>📤</span> <span>社群分享</span>
+          </button>
+          <button id="copyPosterBtn" class="btn-secondary poster-action-btn" onclick="copyPosterImage()" title="複製圖片至剪貼簿">
+            <span>📋</span> <span>複製圖片</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 相似鑑別詳細燈箱 Modal (Compare Detail Modal) -->
   <div id="compareModalBackdrop" class="modal-backdrop">
     <div id="compareModalContainer" class="modal-container">
@@ -542,7 +581,14 @@
             </div>
           </div>
         </div>
-        <button id="compareModalCloseBtn" class="compare-modal-close-btn" onclick="closeCompareModal()" title="關閉 (Esc)">✕</button>
+        <div class="compare-modal-header-actions">
+          <button id="compareShareBtn" class="compare-modal-share-btn" onclick="window.copyCompareShareLink(event)" title="複製此鑑別專屬分享連結">
+            <span class="share-icon">🔗</span>
+            <span class="share-text-full">複製分享連結</span>
+            <span class="share-text-short">分享</span>
+          </button>
+          <button id="compareModalCloseBtn" class="compare-modal-close-btn" onclick="closeCompareModal()" title="關閉 (Esc)">✕</button>
+        </div>
       </div>
 
       <!-- Modal 內容區 -->
@@ -609,13 +655,13 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=107 Cache Buster -->
-  <script src="./js/data.js?v=107"></script>
-  <script src="./js/sync.js?v=107"></script>
-  <script src="./js/compare.js?v=107"></script>
-  <script src="./js/gallery.js?v=107"></script>
-  <script src="./js/quiz.js?v=107"></script>
-  <script src="./js/app.js?v=107"></script>
+  <!-- JavaScript Scripts with ?v=108 Cache Buster -->
+  <script src="./js/data.js?v=108"></script>
+  <script src="./js/sync.js?v=108"></script>
+  <script src="./js/compare.js?v=108"></script>
+  <script src="./js/gallery.js?v=108"></script>
+  <script src="./js/quiz.js?v=108"></script>
+  <script src="./js/app.js?v=108"></script>
 
 </body>
 </html>

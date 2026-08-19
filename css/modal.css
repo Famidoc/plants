@@ -146,6 +146,47 @@
   display: none;
 }
 
+/* 燈箱頂部「產生名片圖卡」按鈕 */
+.modal-poster-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(229, 186, 115, 0.3), rgba(198, 148, 67, 0.3));
+  color: #fffdf5;
+  border: 1px solid rgba(229, 186, 115, 0.65);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  user-select: none;
+  white-space: nowrap;
+}
+
+.modal-poster-btn:hover {
+  background: linear-gradient(135deg, rgba(229, 186, 115, 0.55), rgba(198, 148, 67, 0.55));
+  border-color: #ffd580;
+  color: #ffffff;
+  box-shadow: 0 2px 12px rgba(229, 186, 115, 0.35);
+  transform: translateY(-1px);
+}
+
+.modal-poster-btn:active {
+  transform: scale(0.96);
+}
+
+.modal-poster-btn .share-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.modal-poster-btn .share-text-short {
+  display: none;
+}
+
 .modal-close-btn {
   width: 32px;
   height: 32px;
@@ -808,7 +849,8 @@
   .modal-top-actions {
     gap: 5px;
   }
-  .modal-share-btn {
+  .modal-share-btn,
+  .modal-poster-btn {
     width: 32px;
     height: 32px;
     padding: 0;
@@ -818,10 +860,13 @@
     flex-shrink: 0;
   }
   .modal-share-btn .share-text-full,
-  .modal-share-btn .share-text-short {
+  .modal-share-btn .share-text-short,
+  .modal-poster-btn .share-text-full,
+  .modal-poster-btn .share-text-short {
     display: none !important;
   }
-  .modal-share-btn .share-icon {
+  .modal-share-btn .share-icon,
+  .modal-poster-btn .share-icon {
     font-size: 1rem;
     line-height: 1;
     margin: 0;
@@ -871,3 +916,133 @@
 #adminAuthModalBackdrop .modal-close-btn:hover {
   background: rgba(255, 255, 255, 0.3);
 }
+
+/* ==========================================================================
+   花草名片海報生成器 Modal 專用樣式 (Plant Poster Modal CSS)
+   ========================================================================== */
+.poster-modal-container {
+  max-width: 500px !important;
+  height: auto !important;
+  max-height: 94vh !important;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.poster-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.25rem;
+  background: #11261c;
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  flex-shrink: 0;
+}
+
+.poster-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.poster-modal-icon {
+  font-size: 1.3rem;
+}
+
+.poster-modal-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.poster-modal-body {
+  padding: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  overflow-y: auto;
+  background: #f2f5f2;
+}
+
+.poster-preview-wrapper {
+  width: 100%;
+  max-width: 360px;
+  min-height: 300px;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(27, 59, 43, 0.12);
+}
+
+.poster-loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--primary-dark);
+  font-size: 0.92rem;
+  font-weight: 600;
+  padding: 3.5rem 1rem;
+  text-align: center;
+}
+
+.poster-loading-spinner .spinner-icon {
+  font-size: 2.8rem;
+  animation: pulseRotate 2s infinite ease-in-out;
+}
+
+@keyframes pulseRotate {
+  0% { transform: scale(0.9) rotate(0deg); }
+  50% { transform: scale(1.15) rotate(15deg); }
+  100% { transform: scale(0.9) rotate(0deg); }
+}
+
+.plant-poster-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 14px;
+}
+
+.poster-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.poster-action-btn {
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.poster-action-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.poster-action-btn:active {
+  transform: scale(0.96);
+}
+
