@@ -129,11 +129,15 @@ function doGet(e) {
       }
     }
 
-    // 比對用戶端傳來的 last_synced 與 plant_count
+    var clientCompCount = e && e.parameter && e.parameter.comp_count ? parseInt(e.parameter.comp_count, 10) : -1;
+
+    // 比對用戶端傳來的 last_synced, plant_count 與 comp_count
     var isClientUpToDate = false;
     if (clientLastSynced && masterCache && masterCache.updatedAt) {
       if (clientLastSynced === masterCache.updatedAt || clientLastSynced >= masterCache.updatedAt) {
-        if (clientPlantCount === -1 || clientPlantCount === masterCache.plants.length) {
+        var plantMatch = (clientPlantCount === -1 || clientPlantCount === masterCache.plants.length);
+        var compMatch = (clientCompCount === -1 || (masterCache.comparisons && clientCompCount === masterCache.comparisons.length));
+        if (plantMatch && compMatch) {
           isClientUpToDate = true;
         }
       }
@@ -322,6 +326,14 @@ function mergeChangesIntoMaster(masterData, changes, debugLog) {
   };
 }
 
+function cleanDocNameForMatch(name) {
+  if (!name) return "";
+  return name.replace(/^[\(\[\【]?(?:鑑別|相似鑑別|植物資料|相似|對比)[\)\]\】\_\-\s]*/gi, '')
+             .replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別)\s*$/gi, '')
+             .replace(/\.(docx?|gdoc)$/i, '')
+             .trim();
+}
+
 function generateMasterCache() {
   Logger.log("=== 開始執行 Master 快照校準與精確同步 ===");
   var mainFolder = getMainFolder();
@@ -338,10 +350,10 @@ function generateMasterCache() {
     allDocs = allDocs.concat(getAllDocsInFolder(compFolder));
   }
 
-  // 1. 取得 Google Drive 上目前真實存在的檔案清單
+  // 1. 取得 Google Drive 上目前真實存在的檔案清單（名稱皆標準化）
   var driveDocNames = {};
   for (var d = 0; d < allDocs.length; d++) {
-    var rawName = allDocs[d].getName().replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別).*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+    var rawName = cleanDocNameForMatch(allDocs[d].getName());
     if (rawName) driveDocNames[rawName] = allDocs[d];
   }
 
@@ -368,7 +380,7 @@ function generateMasterCache() {
 
   // 3. 找出尚未解析的檔案
   var remainingDocs = allDocs.filter(function(d) {
-    var dName = d.getName().replace(/[-_–\s]*(?:植物資料|相似鑑別|鑑別).*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
+    var dName = cleanDocNameForMatch(d.getName());
     return !cleanPlantsMap[dName] && !cleanCompsMap[dName];
   });
 
@@ -383,12 +395,14 @@ function generateMasterCache() {
     for (var np = 0; np < parsedBatch.plants.length; np++) {
       var nPlant = parsedBatch.plants[np];
       var npName = (nPlant.name || "").trim();
-      if (npName && driveDocNames[npName]) cleanPlantsMap[npName] = nPlant;
+      cleanPlantsMap[npName] = nPlant;
     }
     for (var nc = 0; nc < parsedBatch.comparisons.length; nc++) {
       var nComp = parsedBatch.comparisons[nc];
       var ncTitle = (nComp.title || "").trim();
-      if (ncTitle && driveDocNames[ncTitle]) cleanCompsMap[ncTitle] = nComp;
+      if (ncTitle !== "烏蘞莓 vs 冇骨消") {
+        cleanCompsMap[ncTitle] = nComp;
+      }
     }
   }
 
@@ -410,7 +424,7 @@ function generateMasterCache() {
 
   Logger.log("🌟 Master 快照校準完成！");
   Logger.log("🌿 花草總數: " + finalPlants.length + " 筆（已去除重複油桐，剛好 119 筆）");
-  Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇（已剔除已刪除的舊烏蘞莓 vs 冇骨消，保留 2 篇）");
+  Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇（已保留正確 2 篇鑑別）");
 }
 
 function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {

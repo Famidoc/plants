@@ -122,13 +122,20 @@ async function fetchLatestDataFromGAS() {
     throw new Error('未設定 API 網址。請先貼入 Google Apps Script Web App 網址。');
   }
 
-  // 取得本機的最後同步時間與植物總筆數
+  // 取得本機的最後同步時間、植物總筆數與鑑別篇數
   const lastSynced = getLastSyncedTime();
   let plantCount = -1;
+  let compCount = -1;
   if (typeof getStoredPlants === 'function') {
     try {
       const currentPlants = getStoredPlants() || [];
       plantCount = currentPlants.length;
+    } catch (e) {}
+  }
+  if (typeof getStoredComparisons === 'function') {
+    try {
+      const currentComps = getStoredComparisons() || [];
+      compCount = currentComps.length;
     } catch (e) {}
   }
 
@@ -142,6 +149,9 @@ async function fetchLatestDataFromGAS() {
     if (plantCount !== -1) {
       parsedUrl.searchParams.set('plant_count', plantCount.toString());
     }
+    if (compCount !== -1) {
+      parsedUrl.searchParams.set('comp_count', compCount.toString());
+    }
     parsedUrl.searchParams.set('t', Date.now().toString());
     requestUrl = parsedUrl.toString();
   } catch (urlErr) {
@@ -150,6 +160,7 @@ async function fetchLatestDataFromGAS() {
     requestUrl = url + separator + 't=' + Date.now();
     if (lastSynced) requestUrl += '&last_synced=' + encodeURIComponent(lastSynced);
     if (plantCount !== -1) requestUrl += '&plant_count=' + plantCount;
+    if (compCount !== -1) requestUrl += '&comp_count=' + compCount;
   }
 
   const controller = new AbortController();
