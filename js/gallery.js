@@ -1399,15 +1399,15 @@ async function generatePlantPosterCanvas(plant) {
   ctx.textAlign = 'left';
   ctx.fillStyle = '#1b3b2b';
   ctx.font = 'bold 26px "Noto Sans TC", sans-serif';
-  ctx.fillText('🌿 捻花惹草 | 綠意生活與花草知識庫', 64, bottomY + 34);
+  ctx.fillText('🌿 捻花惹草 | 綠意生活與花草知識庫', 64, bottomY + 30);
 
   ctx.fillStyle = '#5c7265';
   ctx.font = '500 20px "Noto Sans TC", sans-serif';
-  ctx.fillText('掃描右側 QR Code 探索圖鑑、相似鑑別與知識測驗', 64, bottomY + 72);
+  ctx.fillText('掃描右側 QR Code 探索圖鑑、相似鑑別與知識測驗', 64, bottomY + 66);
 
-  ctx.font = '16px monospace';
-  ctx.fillStyle = '#839b8c';
-  ctx.fillText(shareUrl.length > 50 ? shareUrl.slice(0, 48) + '...' : shareUrl, 64, bottomY + 104);
+  ctx.font = '500 18px "Outfit", "Noto Sans TC", sans-serif';
+  ctx.fillStyle = '#7a9686';
+  ctx.fillText('@2026 by Famidoc Chang & Antigravity', 64, bottomY + 102);
 
   // 右側 QR Code
   const qrX = W - 64 - 130;
