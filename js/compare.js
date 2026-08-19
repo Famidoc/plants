@@ -25,34 +25,64 @@
   }
 
   /**
-   * 智慧取得物種真實照片（優先從已儲存的圖鑑資料庫比對）
+   * 清理物種名稱（去除所有全形/半形括號內容如學名與別名、後綴標記）
+   */
+  /**
+   * 清理物種名稱（去除所有全形/半形括號內容如學名與別名、後綴標記）
+   */
+  function cleanSpeciesName(rawName) {
+    if (!rawName) return '';
+    return rawName.toString()
+      .replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '') // 去除所有全半形括號及內容
+      .replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '')
+      .replace(/[\/\\].*$/g, '')
+      .trim();
+  }
+
+  /**
+   * 從鑑別文檔附圖中尋找「專屬」於特定物種的照片 (嚴格排除同時包含其他對比物種名稱的文章總圖)
+   */
+  function findDocImageForSpecies(speciesName, images, allSpecies) {
+    if (!speciesName || !Array.isArray(images) || images.length === 0) return '';
+    const cleanTarget = cleanSpeciesName(speciesName);
+    if (!cleanTarget) return '';
+
+    const otherSpecies = (allSpecies || [])
+      .map(s => cleanSpeciesName(s))
+      .filter(s => s && s !== cleanTarget);
+
+    const matched = images.find(img => {
+      if (!img || !img.url || img.url.includes('unsplash.com')) return false;
+      const cap = (img.caption || '').trim();
+      if (!cap) return false;
+
+      // 1. caption 必須包含該物種名稱
+      if (!cap.includes(cleanTarget)) return false;
+
+      // 2. caption 絕不能同時包含其他對比物種名稱 (例如避免「三色堇 vs 香堇菜」這種全篇對比標題圖被誤判為單一物種特寫)
+      const hasOther = otherSpecies.some(os => cap.includes(os));
+      if (hasOther) return false;
+
+      return true;
+    });
+
+    return matched ? matched.url : '';
+  }
+
+  /**
+   * 智慧取得物種真實照片（只從圖鑑庫以主名稱精確匹配，絕不使用別名以免跨物種污染）
    */
   function findSpeciesPhoto(speciesName, fallbackUrl) {
     if (!speciesName) return fallbackUrl || '';
-    const cleanName = speciesName.trim().replace(/\s*\(.*?\)/g, '');
+    const targetName = cleanSpeciesName(speciesName);
+    if (!targetName) return fallbackUrl || '';
     
-    // 1. 取得圖鑑資料庫 (包含已從 IndexedDB 增量同步之所有植物)
+    // 1. 取得圖鑑資料庫
     const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
     
-    // (1) 先找完全相等的名稱
-    let matched = plants.find(p => p && (p.name || '').trim() === cleanName);
-    
-    // (2) 若無，找去除「- 植物資料」或副標題後相等的名稱
-    if (!matched) {
-      matched = plants.find(p => {
-        if (!p || !p.name) return false;
-        const pClean = p.name.replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '').trim();
-        return pClean === cleanName || p.name.trim() === cleanName || p.name.includes(cleanName) || cleanName.includes(pClean);
-      });
-    }
-
-    // (3) 若無，再找別名中有相等的項目
-    if (!matched) {
-      matched = plants.find(p => p && Array.isArray(p.aliases) && p.aliases.some(a => {
-        const aClean = (a || '').replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '').trim();
-        return aClean === cleanName || (a || '').includes(cleanName) || cleanName.includes(aClean);
-      }));
-    }
+    // 🛡️ 核心原則：只比對植物卡片的「主名稱」！絕不比對別名！
+    // 鑑別場景下，近緣物種別名常互相包含俗名（例如香堇菜別名常被寫為小三色堇或三色堇），若比對別名會導致錯將香堇菜圖資塞給三色堇！
+    let matched = plants.find(p => p && cleanSpeciesName(p.name) === targetName);
 
     if (matched) {
       if (matched.imageUrl && matched.imageUrl.startsWith('http')) {
@@ -65,23 +95,23 @@
       }
     }
 
-    // 2. 使用傳入的 fallbackUrl（僅當非假圖庫時）
-    if (fallbackUrl && fallbackUrl.startsWith('http') && !fallbackUrl.includes('images.unsplash.com')) {
-      return fallbackUrl;
-    }
-
-    // 3. 官方 Google Drive 確證無誤的真實照片庫
+    // 2. 官方 Google Drive 確證無誤的真實照片庫
     const KNOWN_PHOTOS = {
       '紫薇': 'https://drive.google.com/thumbnail?id=1R-vb55hXNXe0yrGYn1N1PzQDgYlutVJw&sz=w1000',
       '九芎': 'https://drive.google.com/thumbnail?id=1VHAphc4Scup2oqCujS24ihZBtIH4JWNF&sz=w1000',
       '烏蘞莓': 'https://drive.google.com/thumbnail?id=1nl_V8Msgx-xGtvit9UxTwqsEaYFkVboB&sz=w1000'
     };
 
-    if (KNOWN_PHOTOS[cleanName]) {
-      return KNOWN_PHOTOS[cleanName];
+    if (KNOWN_PHOTOS[targetName]) {
+      return KNOWN_PHOTOS[targetName];
     }
 
-    // 🛡️ 嚴謹原則：無真實圖資時回傳空字串，前端顯示「尚無圖資」佔位標籤，絕不塞假圖誤導！
+    // 3. 使用傳入的專屬 fallbackUrl
+    if (fallbackUrl && fallbackUrl.startsWith('http') && !fallbackUrl.includes('images.unsplash.com')) {
+      return fallbackUrl;
+    }
+
+    // 🛡️ 嚴謹原則：無真實圖資時回傳空字串，前端顯示「尚無照片」佔位標籤，絕不塞錯圖！
     return '';
   }
 
@@ -202,13 +232,24 @@
       
       let heroImagesHtml = '';
       if (speciesArr.length >= 3) {
+        const imgUrls = [];
         const imgList = speciesArr.slice(0, 3).map((sp, idx) => {
-          const spImg = findSpeciesPhoto(sp, images[idx] ? images[idx].url : '');
+          let docImg = findDocImageForSpecies(sp, images, speciesArr);
+          let spImg = findSpeciesPhoto(sp, docImg);
+          const cleanSp = cleanSpeciesName(sp) || sp;
+          
+          if (spImg && imgUrls.includes(spImg)) {
+            const hasExactMain = typeof window.getStoredPlants === 'function' &&
+              (window.getStoredPlants() || []).some(p => p && cleanSpeciesName(p.name) === cleanSp);
+            if (!hasExactMain) spImg = '';
+          }
+          if (spImg) imgUrls.push(spImg);
+
           if (spImg) {
             return `
               <div class="compare-hero-img-wrap" style="flex: 1;">
-                <img src="${escapeHtml(spImg)}" alt="${escapeHtml(sp)}" loading="lazy">
-                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
+                <img src="${escapeHtml(spImg)}" alt="${escapeHtml(cleanSp)}" loading="lazy">
+                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(cleanSp)}</span>
               </div>
             `;
           } else {
@@ -218,7 +259,7 @@
                   <span class="no-img-icon">🪴</span>
                   <span class="no-img-text">尚無照片</span>
                 </div>
-                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(sp)}</span>
+                <span class="compare-hero-label" style="font-size: 0.72rem; padding: 2px 6px;">${escapeHtml(cleanSp)}</span>
               </div>
             `;
           }
@@ -227,13 +268,35 @@
       } else {
         const leftLabel = speciesArr[0] || '物種 A';
         const rightLabel = speciesArr[1] || '物種 B';
-        const leftImg = findSpeciesPhoto(leftLabel, images[0] ? images[0].url : '');
-        const rightImg = findSpeciesPhoto(rightLabel, images[1] ? images[1].url : '');
+        const cleanLeft = cleanSpeciesName(leftLabel) || leftLabel;
+        const cleanRight = cleanSpeciesName(rightLabel) || rightLabel;
+
+        let leftDocImg = findDocImageForSpecies(leftLabel, images, speciesArr);
+        let rightDocImg = findDocImageForSpecies(rightLabel, images, speciesArr);
+
+        let leftImg = findSpeciesPhoto(leftLabel, leftDocImg);
+        let rightImg = findSpeciesPhoto(rightLabel, rightDocImg);
+
+        // 🛡️ 關鍵互斥守衛：如果左右兩側拿到同一張照片（非空），必須判定誰才是真正持有者
+        if (leftImg && rightImg && leftImg === rightImg) {
+          const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
+          const leftHasMain = plants.some(p => p && cleanSpeciesName(p.name) === cleanLeft);
+          const rightHasMain = plants.some(p => p && cleanSpeciesName(p.name) === cleanRight);
+          if (leftHasMain && !rightHasMain) {
+            rightImg = '';
+          } else if (rightHasMain && !leftHasMain) {
+            leftImg = '';
+          } else {
+            // 兩者皆無主名圖鑑（文章總圖），皆顯示尚無特寫照片以防誤導
+            leftImg = '';
+            rightImg = '';
+          }
+        }
 
         const leftHtml = leftImg ? `
           <div class="compare-hero-img-wrap">
-            <img src="${escapeHtml(leftImg)}" alt="${escapeHtml(leftLabel)}" loading="lazy">
-            <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
+            <img src="${escapeHtml(leftImg)}" alt="${escapeHtml(cleanLeft)}" loading="lazy">
+            <span class="compare-hero-label">${escapeHtml(cleanLeft)}</span>
           </div>
         ` : `
           <div class="compare-hero-img-wrap compare-hero-no-img">
@@ -241,14 +304,14 @@
               <span class="no-img-icon">🪴</span>
               <span class="no-img-text">尚無照片</span>
             </div>
-            <span class="compare-hero-label">${escapeHtml(leftLabel)}</span>
+            <span class="compare-hero-label">${escapeHtml(cleanLeft)}</span>
           </div>
         `;
 
         const rightHtml = rightImg ? `
           <div class="compare-hero-img-wrap">
-            <img src="${escapeHtml(rightImg)}" alt="${escapeHtml(rightLabel)}" loading="lazy">
-            <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
+            <img src="${escapeHtml(rightImg)}" alt="${escapeHtml(cleanRight)}" loading="lazy">
+            <span class="compare-hero-label">${escapeHtml(cleanRight)}</span>
           </div>
         ` : `
           <div class="compare-hero-img-wrap compare-hero-no-img">
@@ -256,7 +319,7 @@
               <span class="no-img-icon">🪴</span>
               <span class="no-img-text">尚無照片</span>
             </div>
-            <span class="compare-hero-label">${escapeHtml(rightLabel)}</span>
+            <span class="compare-hero-label">${escapeHtml(cleanRight)}</span>
           </div>
         `;
 
@@ -365,17 +428,28 @@
     if (galleryContainer) {
       const images = item.galleryImages || [];
       const speciesList = item.species || [];
+      const assignedUrls = new Set();
 
       let galleryItemsHtml = speciesList.map(sp => {
-        // (1) 優先從文章附圖中尋找對應該物種的照片
-        let foundImg = images.find(img => img && img.caption && img.caption.includes(sp));
-        let imgUrl = foundImg && foundImg.url && !foundImg.url.includes('unsplash.com') ? foundImg.url : '';
-        let caption = foundImg && foundImg.caption ? foundImg.caption : `${sp} (圖鑑實物照片)`;
+        const cleanSp = cleanSpeciesName(sp) || sp;
+        // (1) 優先從文章附圖中尋找專屬於該物種的照片
+        let docImg = findDocImageForSpecies(sp, images, speciesList);
+        let imgUrl = docImg;
+        let caption = `${cleanSp} (鑑別專屬照片)`;
 
-        // (2) 若文章附圖沒有，從圖鑑資料庫中尋找
+        // (2) 若無專屬附圖，從圖鑑資料庫中精確尋找
         if (!imgUrl) {
           imgUrl = findSpeciesPhoto(sp, '');
+          caption = `${cleanSp} (圖鑑實物照片)`;
         }
+
+        // 🛡️ 防重守衛：避免不同物種拿到同一張圖片
+        if (imgUrl && assignedUrls.has(imgUrl)) {
+          const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
+          const hasMain = plants.some(p => p && cleanSpeciesName(p.name) === cleanSp);
+          if (!hasMain) imgUrl = '';
+        }
+        if (imgUrl) assignedUrls.add(imgUrl);
 
         if (imgUrl) {
           return `
@@ -388,7 +462,7 @@
           return `
             <div class="compare-gallery-item no-img-item">
               <span style="font-size: 2.2rem; opacity: 0.6; margin-bottom: 6px;">📷</span>
-              <span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(sp)}</span>
+              <span style="font-size: 0.88rem; font-weight: 700; color: var(--primary-dark);">${escapeHtml(cleanSp)}</span>
               <span style="font-size: 0.76rem; color: var(--text-muted); margin-top: 4px;">(尚無實物特寫圖資)</span>
             </div>
           `;
@@ -443,13 +517,10 @@
 
     // 搜尋該植物並自動開啟
     const plants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
-    const cleanTargetName = plantName.trim().replace(/\s*\(.*?\)/g, '');
-    const matchedPlant = plants.find(p => 
-      p.name === cleanTargetName ||
-      p.name.includes(cleanTargetName) || 
-      cleanTargetName.includes(p.name) ||
-      (p.aliases && p.aliases.some(a => a.includes(cleanTargetName) || cleanTargetName.includes(a)))
-    );
+    const cleanTargetName = cleanSpeciesName(plantName);
+    const matchedPlant = plants.find(p => cleanSpeciesName(p.name) === cleanTargetName) ||
+                         plants.find(p => p.aliases && p.aliases.some(a => cleanSpeciesName(a) === cleanTargetName)) ||
+                         plants.find(p => p.name.includes(cleanTargetName) || cleanTargetName.includes(p.name));
 
     if (matchedPlant && typeof window.openPlantModal === 'function') {
       setTimeout(() => {

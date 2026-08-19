@@ -555,29 +555,47 @@ function isComparisonText(text) {
 function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog, defaultDateStr) {
   function getField(pattern) { var m = text.match(pattern); return m ? m[1].trim() : ''; }
 
-  var titleMatch = text.match(/【?(?:相似植物鑑別|相似鑑別)】?[：:\s]*([^\n]+)/i);
+  var titleMatch = text.match(/[【\[\(]?(?:相似植物鑑別|相似鑑別)[】\]\)]?[：:\s]*([^\n]+)/i);
   var rawTitle = titleMatch ? titleMatch[1].trim() : fileName.replace(/^[\(\[\【]?鑑別[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
 
-  // 提取對比物種
-  var speciesField = getField(/(?:對比物種|比較物種|鑑別物種)[：:\s]+([^\n]+)/);
+  // 提取對比物種 (支援【對比物種】：物種A（學名） vs 物種B（學名）)
+  var speciesRaw = getField(/[【\[\(]?(?:對比物種|比較物種|鑑別物種)[】\]\)]?[：:\s]+([^\n]+)/);
   var speciesList = [];
-  if (speciesField) {
-    speciesList = speciesField.split(/[、,，\/\s+與和vsVS]+/).map(function(s){ return s.trim(); }).filter(Boolean);
+  if (speciesRaw) {
+    var rawParts = [];
+    if (/\s*(?:vs|VS|與|和)\s*/i.test(speciesRaw)) {
+      rawParts = speciesRaw.split(/\s*(?:vs|VS|與|和)\s*/i);
+    } else {
+      rawParts = speciesRaw.split(/[、，,]+/);
+    }
+    speciesList = rawParts.map(function(s) {
+      return s.replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '').replace(/[\/\\].*$/g, '').trim();
+    }).filter(Boolean);
   }
   if (speciesList.length === 0) {
     // 從標題嘗試提取 (如: 薰衣草 vs 鼠尾草)
     var vsParts = rawTitle.split(/[-–—vsVS與和、,]+/i).map(function(s){ return s.trim(); }).filter(Boolean);
-    if (vsParts.length >= 2) speciesList = vsParts;
+    if (vsParts.length >= 2) {
+      speciesList = vsParts.map(function(s) {
+        return s.replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '').replace(/[\/\\].*$/g, '').trim();
+      }).filter(Boolean);
+    }
   }
 
-  var family = getField(/(?:所屬科別|科別)[：:\s]+([^\n]+)/) || "觀賞植物";
-  var confusionLevel = getField(/(?:混淆程度|混淆指數|難度)[：:\s]+([^\n]+)/) || "★★★★☆";
-  var mnemonic = getField(/(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣)[：:\s]+([^\n]+)/);
+  var family = getField(/[【\[\(]?(?:所屬科別|科別)[】\]\)]?[：:\s]+([^\n]+)/) || "觀賞植物";
+  var confusionLevel = getField(/[【\[\(]?(?:混淆程度|混淆指數|難度)[】\]\)]?[：:\s]+([^\n]+)/) || "★★★★☆";
+  var mnemonic = getField(/[【\[\(]?(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣)[】\]\)]?[：:\s]+([^\n]+)/);
 
-  // 提取日期地點
+  // 提取日期：鑑別文章以 Google Drive 檔案建立/修改日期 (defaultDateStr) 為準
+  // 避免全文掃描抓到內文各物種照片下方的拍攝日期 (如 20260128@青年公園)
   var dateAdded = defaultDateStr;
-  var parsedDl = parseDateAndLocationFromLine(text);
-  if (parsedDl && parsedDl.dateAdded) dateAdded = parsedDl.dateAdded;
+  var explicitDate = getField(/[【\[\(]?(?:建立日期|整理日期|收錄日期|發布日期|文章日期)[】\]\)]?[：:\s]+([^\n]+)/);
+  if (explicitDate) {
+    var parsedExp = parseDateAndLocationFromLine(explicitDate);
+    if (parsedExp && parsedExp.dateAdded) {
+      dateAdded = parsedExp.dateAdded;
+    }
+  }
 
   // 提取特徵照片
   var galleryItems = getPlantGalleryFromDoc(doc, folder, "compare_" + rawTitle.replace(/[^\w\u4e00-\u9fa5]/g, '_'), imagesFolder, text, defaultDateStr, debugLog);
@@ -1292,23 +1310,23 @@ function parseDocText(text, fileName, defaultDateStr, imageUrl, galleryItems, do
   return {
     id: "plant-" + Math.random().toString(36).substr(2, 9),
     name: name || "花草植物",
-    scientificName: getField(/(?:學名)[：:\s]+([^\n]+)/),
-    englishName: getField(/(?:英文名)[：:\s]+([^\n]+)/),
-    aliases: (getField(/(?:別名)[：:\s]+([^\n]+)/) || "").split(/[、,]/).map(function(s){ return s.trim(); }).filter(Boolean),
-    family: getField(/(?:科別)[：:\s]+([^\n]+)/) || "觀賞植物",
+    scientificName: getField(/[【\[\(]?(?:學名)[】\]\)]?[：:\s]+([^\n]+)/),
+    englishName: getField(/[【\[\(]?(?:英文名)[】\]\)]?[：:\s]+([^\n]+)/),
+    aliases: (getField(/[【\[\(]?(?:別名)[】\]\)]?[：:\s]+([^\n]+)/) || "").split(/[、,]/).map(function(s){ return s.trim(); }).filter(Boolean),
+    family: getField(/[【\[\(]?(?:科別|所屬科別)[】\]\)]?[：:\s]+([^\n]+)/) || "觀賞植物",
     dateAdded: dateAdded,
     locationNote: locationNote,
     imageUrl: imageUrl,
     petFriendly: text.indexOf("無毒") !== -1 || text.indexOf("寵物友善") !== -1,
-    bloomPeriod: getField(/(?:花期)[：:\s]+([^\n]+)/),
-    fruitPeriod: getField(/(?:果期)[：:\s]+([^\n]+)/),
-    sporePeriod: getField(/(?:孢子期)[：:\s]+([^\n]+)/),
+    bloomPeriod: getField(/[【\[\(]?(?:花期)[】\]\)]?[：:\s]+([^\n]+)/),
+    fruitPeriod: getField(/[【\[\(]?(?:果期)[】\]\)]?[：:\s]+([^\n]+)/),
+    sporePeriod: getField(/[【\[\(]?(?:孢子期)[】\]\)]?[：:\s]+([^\n]+)/),
     morphologyDetails: extractMorphologyDetails(text),
     uses: [text.indexOf("觀賞") !== -1 ? "觀賞：熱門觀葉植物" : "園藝栽培"],
     careNotes: {
-      light: getField(/(?:光照)[：:\s]+([^\n]+)/),
-      humidity: getField(/(?:水分與濕度|濕度)[：:\s]+([^\n]+)/),
-      waterQuality: getField(/(?:水質)[：:\s]+([^\n]+)/)
+      light: getField(/[【\[\(]?(?:光照|日照)[】\]\)]?[：:\s]+([^\n]+)/),
+      humidity: getField(/[【\[\(]?(?:水分與濕度|濕度|水分)[】\]\)]?[：:\s]+([^\n]+)/),
+      waterQuality: getField(/[【\[\(]?(?:水質)[】\]\)]?[：:\s]+([^\n]+)/)
     },
     references: extractReferences(text, doc),
     galleryImages: galleryItems || []
