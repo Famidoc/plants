@@ -342,7 +342,7 @@
             ${item.mnemonic ? `
               <div class="compare-mnemonic-box">
                 <span class="compare-mnemonic-icon">💡</span>
-                <p class="compare-mnemonic-text">${escapeHtml(item.mnemonic)}</p>
+                <p class="compare-mnemonic-text">${escapeHtml(item.mnemonic).replace(/\n/g, '<br>')}</p>
               </div>
             ` : ''}
             ${featureTagsHtml ? `<div class="compare-features-preview">${featureTagsHtml}</div>` : ''}
@@ -376,7 +376,10 @@
 
     if (modalTitle) modalTitle.textContent = item.title;
     if (modalSubtitle) modalSubtitle.innerHTML = `<span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span> <span>•</span> <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>`;
-    if (mnemonicText) mnemonicText.textContent = item.mnemonic || '觀察葉片、花序與氣味特徵進行精確鑑別。';
+    if (mnemonicText) {
+      const rawMnemonic = item.mnemonic || '觀察葉片、花序與氣味特徵進行精確鑑別。';
+      mnemonicText.innerHTML = escapeHtml(rawMnemonic).replace(/\n/g, '<br>');
+    }
 
     if (quickJumpBar) {
       const speciesList = item.species || [];

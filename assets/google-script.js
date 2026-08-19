@@ -584,7 +584,7 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
 
   var family = getField(/[【\[\(]?(?:所屬科別|科別)[】\]\)]?[：:\s]+([^\n]+)/) || "觀賞植物";
   var confusionLevel = getField(/[【\[\(]?(?:混淆程度|混淆指數|難度)[】\]\)]?[：:\s]+([^\n]+)/) || "★★★★☆";
-  var mnemonic = getField(/[【\[\(]?(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣)[】\]\)]?[：:\s]+([^\n]+)/);
+  var mnemonic = extractMnemonic(text);
 
   // 提取日期：鑑別文章以 Google Drive 檔案建立/修改日期 (defaultDateStr) 為準
   // 避免全文掃描抓到內文各物種照片下方的拍攝日期 (如 20260128@青年公園)
@@ -619,6 +619,25 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
     dateAdded: dateAdded,
     fileName: fileName
   };
+}
+
+/**
+ * 提取一句話核心鑑別速記要訣（支援單行及多行條列）
+ */
+function extractMnemonic(text) {
+  if (!text) return "";
+  var match = text.match(/[【\[\(]?(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣|速記口訣)[】\]\)]?[：:\s]*([\s\S]*?)(?=(?:【|\|[\s\S]*?\||===|---|鑑別重點詳解|重點特徵對比|特徵實物特寫|$))/i);
+  if (!match || !match[1]) return "";
+  
+  var block = match[1].trim();
+  if (!block) return "";
+  
+  // 移除開頭可能多出的冒號或換行
+  block = block.replace(/^[:：\s]+/, '').trim();
+  
+  // 逐行清理並過濾空行
+  var lines = block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
+  return lines.join('\n');
 }
 
 function formattedDateFromDate(d) {

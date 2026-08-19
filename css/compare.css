@@ -168,18 +168,25 @@
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 0.88rem;
   color: #244231;
-  line-height: 1.5;
+  line-height: 1.55;
   font-weight: 500;
   display: flex;
   align-items: flex-start;
-  gap: 6px;
+  gap: 8px;
 }
 
 .compare-mnemonic-box i {
   font-style: normal;
-  font-size: 1rem;
+  font-size: 1.05rem;
   flex-shrink: 0;
   line-height: 1.4;
+}
+
+.compare-mnemonic-text {
+  margin: 0;
+  white-space: pre-line;
+  word-break: break-word;
+  line-height: 1.55;
 }
 
 /* 特徵亮點標籤 */
@@ -408,8 +415,10 @@
 .compare-modal-mnemonic-text {
   font-size: 1rem;
   font-weight: 600;
-  line-height: 1.5;
+  line-height: 1.65;
   color: #f4fdf6;
+  white-space: pre-line;
+  word-break: break-word;
 }
 
 /* 關聯植物快速導覽按鈕群 (Quick Plant Jump Chips) */
