@@ -330,6 +330,8 @@
 
       let featureTagsHtml = item.comparisonTable?.rows?.slice(0, 4).map(r => `<span class="compare-feature-chip">📌 ${escapeHtml(r.feature)}</span>`).join('') || '';
 
+      const cardMnemonic = getDisplayMnemonic(item);
+
       return `
         <article class="compare-card" data-compare-id="${escapeHtml(item.id)}" onclick="window.openCompareModal('${escapeHtml(item.id)}')">
           <div class="compare-hero-banner" style="display: flex; align-items: center; position: relative;">${heroImagesHtml}</div>
@@ -339,10 +341,10 @@
               <span class="compare-family-badge">🌿 ${escapeHtml(item.family || '觀賞植物')}</span>
               <span class="compare-confusion-badge">⚡ 混淆度 ${escapeHtml(item.confusionLevel || '★★★★☆')}</span>
             </div>
-            ${item.mnemonic ? `
+            ${cardMnemonic ? `
               <div class="compare-mnemonic-box">
                 <span class="compare-mnemonic-icon">💡</span>
-                <p class="compare-mnemonic-text">${escapeHtml(item.mnemonic).replace(/\n/g, '<br>')}</p>
+                <p class="compare-mnemonic-text">${escapeHtml(cardMnemonic).replace(/\n/g, '<br>')}</p>
               </div>
             ` : ''}
             ${featureTagsHtml ? `<div class="compare-features-preview">${featureTagsHtml}</div>` : ''}
@@ -354,6 +356,18 @@
         </article>
       `;
     }).join('');
+  }
+
+  function getDisplayMnemonic(item) {
+    if (!item) return '';
+    let text = (item.mnemonic || '').trim();
+    if (!text || text.endsWith('特徵差異對比')) {
+      const defaultMatch = (window.DEFAULT_COMPARISON_DATA || []).find(d => (d.title || '').trim() === (item.title || '').trim());
+      if (defaultMatch && defaultMatch.mnemonic && !defaultMatch.mnemonic.endsWith('特徵差異對比')) {
+        text = defaultMatch.mnemonic;
+      }
+    }
+    return text;
   }
 
   /**
@@ -377,8 +391,8 @@
     if (modalTitle) modalTitle.textContent = item.title;
     if (modalSubtitle) modalSubtitle.innerHTML = `<span>🌿 ${escapeHtml(item.family || '觀賞植物')}</span> <span>•</span> <span>⚡ 混淆指數：${escapeHtml(item.confusionLevel || '★★★★☆')}</span>`;
     if (mnemonicText) {
-      const rawMnemonic = item.mnemonic || '觀察葉片、花序與氣味特徵進行精確鑑別。';
-      mnemonicText.innerHTML = escapeHtml(rawMnemonic).replace(/\n/g, '<br>');
+      const displayMnemonic = getDisplayMnemonic(item) || '觀察葉片、花序與氣味特徵進行精確鑑別。';
+      mnemonicText.innerHTML = escapeHtml(displayMnemonic).replace(/\n/g, '<br>');
     }
 
     if (quickJumpBar) {

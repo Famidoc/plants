@@ -92,7 +92,7 @@ function doGet(e) {
 
       var resA = {
         status: "success",
-        scriptVersion: "v101",
+        scriptVersion: "v102",
         syncMode: "INCREMENTAL",
         folderFound: folderName,
         count: incrementalRes.plants.length,
@@ -147,7 +147,7 @@ function doGet(e) {
       debugLog.push("⚡ 本機版本 (" + clientLastSynced + ") 與雲端 Master 快照一致，0.1秒秒回無異動");
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        scriptVersion: "v101",
+        scriptVersion: "v102",
         syncMode: "INCREMENTAL",
         folderFound: mainFolder.getName(),
         count: 0,
@@ -167,7 +167,7 @@ function doGet(e) {
     debugLog.push("🌟 傳送最新雲端 Master 全量快照至用戶端 (" + (masterCache ? masterCache.plants.length : 0) + " 筆圖鑑, " + (masterCache && masterCache.comparisons ? masterCache.comparisons.length : 0) + " 篇鑑別)");
     var resB = {
       status: "success",
-      scriptVersion: "v101",
+      scriptVersion: "v102",
       syncMode: "FULL",
       folderFound: mainFolder.getName(),
       count: masterCache ? masterCache.plants.length : 0,
@@ -622,11 +622,15 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
 }
 
 /**
- * 提取一句話核心鑑別速記要訣（支援單行及多行條列）
+ * 提取一句話核心鑑別速記要訣（支援單行及多行條列，相容多種標題格式）
  */
 function extractMnemonic(text) {
   if (!text) return "";
-  var match = text.match(/[【\[\(]?(?:一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣|速記口訣)[】\]\)]?[：:\s]*([\s\S]*?)(?=(?:【|\|[\s\S]*?\||===|---|鑑別重點詳解|重點特徵對比|特徵實物特寫|$))/i);
+  // 正規化換行符號
+  var normalizedText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  
+  // 支援包含「核心鑑別速記要訣」、「速記要訣」、「鑑別要訣」、「一句話速記」、「秒殺要訣」等
+  var match = normalizedText.match(/[【\[\(]?(?:核心鑑別速記要訣|鑑別速記要訣|核心鑑別要訣|核心速記要訣|秒殺速記要訣|速記要訣|一句話速記|秒殺要訣|鑑別速記|一句話要訣|核心口訣|速記口訣|鑑別口訣|辨識要訣|辨識口訣|特徵速記|特徵要訣|速記)[】\]\)]?[：:\s]*([\s\S]*?)(?=(?:【(?:重點特徵對比|比對表格|鑑別重點|特徵實物|詳細解說|圖鑑對比|實物特寫|比對項目)[】\]\)]|\|[^\n]+\|[^\n]+\||\n\s*===|\n\s*---|鑑別重點詳解|重點特徵對比|特徵實物特寫|$))/i);
   if (!match || !match[1]) return "";
   
   var block = match[1].trim();

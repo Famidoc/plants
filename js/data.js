@@ -6862,6 +6862,21 @@ async function mergeAndSaveStoredComparisons(newOrUpdatedComps = [], deletedComp
       const cleanIncomingTitle = incomingComp.title.trim();
       const existingIdx = currentList.findIndex(c => (c.title || '').trim() === cleanIncomingTitle);
 
+      // 智慧保護 mnemonic：若雲端回傳的是自動產生的兜底標題 (結尾為特徵差異對比) 或為空，優先保留既有或預設完整要訣
+      let preservedMnemonic = incomingComp.mnemonic || '';
+      if (!preservedMnemonic || preservedMnemonic.endsWith('特徵差異對比')) {
+        const defaultMatch = DEFAULT_COMPARISON_DATA.find(d => (d.title || '').trim() === cleanIncomingTitle);
+        const existingMnemonic = existingIdx !== -1 ? currentList[existingIdx].mnemonic : '';
+        if (existingMnemonic && !existingMnemonic.endsWith('特徵差異對比')) {
+          preservedMnemonic = existingMnemonic;
+        } else if (defaultMatch && defaultMatch.mnemonic && !defaultMatch.mnemonic.endsWith('特徵差異對比')) {
+          preservedMnemonic = defaultMatch.mnemonic;
+        }
+      }
+      if (preservedMnemonic) {
+        incomingComp.mnemonic = preservedMnemonic;
+      }
+
       if (existingIdx !== -1) {
         const oldId = currentList[existingIdx].id;
         currentList[existingIdx] = {
