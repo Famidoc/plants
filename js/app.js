@@ -333,18 +333,15 @@ function openQrModal() {
   const qrModalBackdrop = document.getElementById('qrModalBackdrop');
   if (!qrModalBackdrop) return;
   try {
-    const currentGasUrl = typeof getSavedGasUrl === 'function' ? getSavedGasUrl() : '';
+    const cleanAppUrl = window.location.origin + window.location.pathname;
     const qrImg = qrModalBackdrop.querySelector('img');
-    const qrText = qrModalBackdrop.querySelector('p:last-of-type');
+    const qrText = document.getElementById('qrModalUrlText') || qrModalBackdrop.querySelector('p:last-of-type');
 
-    if (currentGasUrl) {
-      const fullShareUrl = `https://famidoc.github.io/plants/?gas_url=${encodeURIComponent(currentGasUrl)}`;
-      if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(fullShareUrl)}`;
-      }
-      if (qrText) {
-        qrText.textContent = `📱 掃碼全自動同步網址：\n${fullShareUrl}`;
-      }
+    if (qrImg) {
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(cleanAppUrl)}`;
+    }
+    if (qrText) {
+      qrText.textContent = cleanAppUrl;
     }
   } catch(e) {}
   qrModalBackdrop.classList.add('open');
@@ -629,25 +626,7 @@ function setupQrModal() {
         e.preventDefault();
         e.stopPropagation();
       }
-
-      // 動態產生帶有 API 網址的「一鍵掃碼全自動同步」QR Code
-      const currentGasUrl = getSavedGasUrl();
-      const qrImg = qrModalBackdrop.querySelector('img');
-      const qrText = document.getElementById('qrModalUrlText') || qrModalBackdrop.querySelector('p:last-of-type');
-
-      let targetShareUrl = window.location.origin + window.location.pathname;
-      if (currentGasUrl) {
-        targetShareUrl = `${window.location.origin}${window.location.pathname}?gas_url=${encodeURIComponent(currentGasUrl)}`;
-      }
-
-      if (qrImg) {
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(targetShareUrl)}`;
-      }
-      if (qrText) {
-        qrText.textContent = targetShareUrl;
-      }
-
-      qrModalBackdrop.classList.add('open');
+      openQrModal();
     });
   }
 
