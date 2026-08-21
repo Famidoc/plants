@@ -1,11 +1,53 @@
 /**
  * 「捻花惹草」花草知識測驗引擎 (Quiz Engine)
  * 5 題照片選擇題、每題 20 分、滿分 100 分、答完一併結算
+ * 支援「錯題強化複習機制」：答錯自動加入複習池優先出題，答對後自動消除
  */
+
+const QUIZ_WRONG_POOL_KEY = 'nian_hua_re_cao_quiz_wrong_pool';
 
 let quizQuestions = [];
 let currentQuestionIndex = 0;
 let userAnswers = []; // 儲存 { questionIndex, selectedPlantName, correctPlantName, isCorrect }
+
+/**
+ * 取得目前錯題池中的植物 ID 清單
+ */
+function getWrongPlantIds() {
+  try {
+    const raw = localStorage.getItem(QUIZ_WRONG_POOL_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * 更新錯題池記錄：
+ * - 答錯的植物加入錯題池
+ * - 答對的植物從錯題池中移除（代表已學會/消除）
+ */
+function updateWrongPlantPool(correctPlantIds, wrongPlantIds) {
+  try {
+    const currentPool = new Set(getWrongPlantIds());
+    
+    // 1. 答錯的加入錯題池
+    wrongPlantIds.forEach(id => {
+      if (id) currentPool.add(id);
+    });
+
+    // 2. 答對的從錯題池中移除
+    correctPlantIds.forEach(id => {
+      currentPool.delete(id);
+    });
+
+    localStorage.setItem(QUIZ_WRONG_POOL_KEY, JSON.stringify(Array.from(currentPool)));
+  } catch (e) {
+    console.warn('無法儲存測驗錯題池記錄:', e);
+  }
+}
 
 function startNewQuiz() {
   const allPlants = getStoredPlants();
@@ -14,10 +56,27 @@ function startNewQuiz() {
     return;
   }
 
-  // 1. 隨機選出 5 個不重複的主題花草 (若總數小於 5 則取全部)
   const quizCount = Math.min(5, allPlants.length);
-  const shuffled = [...allPlants].sort(() => 0.5 - Math.random());
-  const selectedTargetPlants = shuffled.slice(0, quizCount);
+
+  // 1. 智慧抽題：錯題優先抽取 + 剩餘花草隨機補足
+  const wrongIds = getWrongPlantIds();
+  // 找出目前仍存在資料庫中的錯題花草
+  const wrongPlants = allPlants.filter(p => wrongIds.includes(p.id));
+
+  // 錯題最多抽取 3 題（若錯題少於 3 題則取全部，保留至少 2 題給新題目）
+  const maxWrongCount = Math.min(3, wrongPlants.length);
+  const shuffledWrong = [...wrongPlants].sort(() => 0.5 - Math.random());
+  const selectedWrongPlants = shuffledWrong.slice(0, maxWrongCount);
+
+  // 剩餘題數從未被選取的花草中隨機補足
+  const selectedWrongIds = new Set(selectedWrongPlants.map(p => p.id));
+  const remainingPlants = allPlants.filter(p => !selectedWrongIds.has(p.id));
+  const shuffledRemaining = [...remainingPlants].sort(() => 0.5 - Math.random());
+  const neededCount = quizCount - selectedWrongPlants.length;
+  const selectedRemainingPlants = shuffledRemaining.slice(0, neededCount);
+
+  // 合併錯題與隨機題目，並再次隨機洗牌打散題目順序
+  const selectedTargetPlants = [...selectedWrongPlants, ...selectedRemainingPlants].sort(() => 0.5 - Math.random());
 
   // 2. 為每題構建 4 個隨機選項 (包含 1 個正解與 3 個干擾項)
   quizQuestions = selectedTargetPlants.map((target, idx) => {
@@ -33,7 +92,8 @@ function startNewQuiz() {
     return {
       index: idx + 1,
       targetPlant: target,
-      options: options.map(o => o.name)
+      options: options.map(o => o.name),
+      isReview: selectedWrongIds.has(target.id) // 標記是否為弱點強化題
     };
   });
 
@@ -109,8 +169,14 @@ function finishQuizAndShowResults() {
   resultContainer.style.display = 'block';
 
   // 每題 20 分，計算總分 (滿分 100)
-  const correctCount = userAnswers.filter(a => a.isCorrect).length;
-  const totalScore = correctCount * 20;
+  const correctAnswers = userAnswers.filter(a => a.isCorrect);
+  const wrongAnswers = userAnswers.filter(a => !a.isCorrect);
+  const totalScore = correctAnswers.length * 20;
+
+  // 1. 自動更新錯題強化池（答錯加入，答對消除）
+  const correctIds = correctAnswers.map(a => a.targetPlant.id);
+  const wrongIds = wrongAnswers.map(a => a.targetPlant.id);
+  updateWrongPlantPool(correctIds, wrongIds);
 
   // 評語與稱號
   let rankTitle = "";
@@ -123,10 +189,10 @@ function finishQuizAndShowResults() {
     rankDesc = "相當優異的表現！您對大部分的花草外觀都非常熟悉。";
   } else if (totalScore >= 60) {
     rankTitle = "🌱 綠植同好者！";
-    rankDesc = "合格！再多翻閱幾次「捻花惹草」圖鑑，很快就能拿滿分囉！";
+    rankDesc = "合格！答錯的花草已自動加入複習庫，下次測驗會優先為您加強！";
   } else {
     rankTitle = "🌾 花草實習生";
-    rankDesc = "別灰心！點擊下方答題明細中的「複習卡片」，立即重溫這些花草吧！";
+    rankDesc = "別灰心！答錯的花草已納入複習庫，點擊下方「檢視卡片」或重測立即加強！";
   }
 
   // 填入成績圓環
@@ -136,12 +202,20 @@ function finishQuizAndShowResults() {
 
   // 產生成績單明細列表
   const breakdownList = document.getElementById('quizBreakdownList');
-  breakdownList.innerHTML = userAnswers.map((ans, idx) => `
+  breakdownList.innerHTML = userAnswers.map((ans, idx) => {
+    // 檢查該題在出題時是否為弱點複習題
+    const originalQ = quizQuestions.find(q => q.index === ans.questionIndex);
+    const isReview = originalQ ? originalQ.isReview : false;
+
+    return `
     <div class="breakdown-item ${ans.isCorrect ? 'correct' : 'wrong'}">
       <div class="breakdown-info">
         <img src="${ans.targetPlant.imageUrl}" alt="${ans.targetPlant.name}" class="breakdown-thumb" onerror="this.src='./assets/images/ferns.jpg'">
         <div>
-          <div class="breakdown-text-title">第 ${idx + 1} 題：${ans.targetPlant.name}</div>
+          <div class="breakdown-text-title">
+            第 ${idx + 1} 題：${ans.targetPlant.name}
+            ${isReview ? (ans.isCorrect ? '<span style="font-size:0.75rem; color:#2e7d32; background:#e8f5e9; padding:1px 6px; border-radius:4px; margin-left:6px; font-weight:normal;">🎯 弱點克服！</span>' : '<span style="font-size:0.75rem; color:#e65100; background:#fff3e0; padding:1px 6px; border-radius:4px; margin-left:6px; font-weight:normal;">🔄 弱點複習題</span>') : ''}
+          </div>
           <div class="breakdown-answers">
             您的回答：<strong style="color: ${ans.isCorrect ? '#388e3c' : '#d32f2f'};">${ans.selectedName}</strong> 
             ${!ans.isCorrect ? `(正確答案：<strong style="color:#388e3c;">${ans.correctName}</strong>)` : ''}
@@ -157,7 +231,8 @@ function finishQuizAndShowResults() {
         </button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   // 綁定檢視卡片按鈕
   breakdownList.querySelectorAll('.review-btn').forEach(btn => {
