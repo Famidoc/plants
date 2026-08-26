@@ -694,9 +694,9 @@ function openPlantDetailModal(plant) {
     }
   }
 
-  // 重置預設啟用第一個 Tab (除非是點擊 [上一筆/下一筆] 連續瀏覽)
+  // 重置預設啟用「📷 植物圖集」Tab (除非是點擊 [上一筆/下一筆] 連續瀏覽)
   if (!modalBackdrop.classList.contains('open')) {
-    switchModalTab('tab-basic');
+    switchModalTab('tab-gallery');
   }
 
   // 強制 JS 響應式雙重防護：根據實際螢幕寬度與觸控裝置強制動態切換 Tab 選單顯示
@@ -738,7 +738,7 @@ function navigatePlantModal(direction) {
     const activeTabBtn = document.querySelector('#plantModalContainer .tab-btn.active');
     const activeTabId = (tabSelect && tabSelect.offsetParent !== null)
       ? tabSelect.value
-      : (activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'tab-basic');
+      : (activeTabBtn ? activeTabBtn.getAttribute('data-tab') : 'tab-gallery');
     
     openPlantDetailModal(nextPlant);
     

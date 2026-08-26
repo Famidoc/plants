@@ -78,12 +78,17 @@
 
 .quiz-photo-box {
   width: 100%;
-  height: 280px;
+  max-width: 400px;
+  aspect-ratio: 1 / 1;
+  height: auto;
   border-radius: var(--radius-md);
   overflow: hidden;
   box-shadow: 0 6px 16px rgba(0,0,0,0.2);
   margin: 0 auto;
   background: #2a3a30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .quiz-photo-img {
