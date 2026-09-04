@@ -52,9 +52,29 @@ async function autoBackgroundSyncGAS() {
     console.log('[背景同步] 尚未設定 API URL，跳過自動同步');
     return;
   }
+
+  const localPlants = typeof window.getStoredPlants === 'function' ? window.getStoredPlants() : [];
+  const lastSyncTime = typeof getLastSyncedTime === 'function' ? getLastSyncedTime() : '';
+  const isInitialFirstRun = !lastSyncTime || !localPlants || localPlants.length <= 2;
+
+  let timer1 = null;
+  let timer2 = null;
+
   try {
-    console.log('[背景同步] 開始自動檢查...', url.substring(0, 50) + '...');
-    showSyncProgressBanner('loading', '🔄 雲端資料增修中..... 正在檢查與解析 [增修刪] 圖資與照片');
+    console.log('[背景同步] 開始檢查...', url.substring(0, 50) + '...');
+    
+    if (isInitialFirstRun) {
+      showSyncProgressBanner('loading', '🌱 初次使用載入中... 正在為您同步 240+ 筆完整圖鑑與鑑別知識庫（初次約需 10~15 秒，請耐心稍候；完成後即可離線秒開！）');
+      timer1 = setTimeout(() => {
+        showSyncProgressBanner('loading', '🌿 雲端 240+ 筆圖鑑資料龐大，正在全力下載中，請勿關閉網頁，即將完成...');
+      }, 6000);
+      timer2 = setTimeout(() => {
+        showSyncProgressBanner('loading', '⏳ 正在解析植物形態特徵與高清圖庫，就快好了，感謝您的耐心等候...');
+      }, 14000);
+    } else {
+      showSyncProgressBanner('loading', '🔄 雲端資料增修中..... 正在檢查與解析 [增修刪] 圖資與照片');
+    }
+
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes) {
       const { syncMode, plants, deletedPlants, comparisons, deletedComparisons } = syncRes;
@@ -93,12 +113,17 @@ async function autoBackgroundSyncGAS() {
           saveStoredComparisons(comparisons);
           if (typeof renderCompareCards === 'function') renderCompareCards();
         }
-        showSyncProgressBanner('success', `✅ 自動同步完成！載入 ${plants ? plants.length : 0} 筆圖鑑與 ${comparisons ? comparisons.length : 0} 篇鑑別`, 3500);
+        if (isInitialFirstRun) {
+          showSyncProgressBanner('success', `✅ 初次載入完成！已成功儲存 ${plants ? plants.length : 0} 筆圖鑑與 ${comparisons ? comparisons.length : 0} 篇鑑別，之後開啟皆可秒開！`, 5000);
+        } else {
+          showSyncProgressBanner('success', `✅ 自動同步完成！載入 ${plants ? plants.length : 0} 筆圖鑑與 ${comparisons ? comparisons.length : 0} 篇鑑別`, 3500);
+        }
       }
 
       const modalBackdrop = document.getElementById('plantModalBackdrop');
       if (!modalBackdrop || !modalBackdrop.classList.contains('open')) {
-        initGallery();
+        // 背景同步完成後只需重渲染畫面，不需要重跑 initGallery()（會觸發 IDB 雙層載入與重綁 event）
+        if (typeof renderGallery === 'function') renderGallery();
       }
       console.log('[背景同步] 檢查完成');
     } else {
@@ -107,6 +132,9 @@ async function autoBackgroundSyncGAS() {
   } catch(e) {
     console.warn('[背景同步] 檢查失敗:', e.message || e);
     hideSyncProgressBanner();
+  } finally {
+    if (timer1) clearTimeout(timer1);
+    if (timer2) clearTimeout(timer2);
   }
 }
 

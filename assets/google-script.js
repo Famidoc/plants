@@ -559,6 +559,22 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
   var titleMatch = text.match(/[【\[\(]?(?:相似植物鑑別|相似鑑別)[】\]\)]?[：:\s]*([^\n]+)/i);
   var rawTitle = titleMatch ? titleMatch[1].trim() : fileName.replace(/^[\(\[\【]?鑑別[\]\)\】\_\-\s]*/g, '').replace(/\.(docx?|gdoc)$/i, '').trim();
 
+  function cleanSpeciesNameGAS(rawName) {
+    if (!rawName) return '';
+    var str = rawName.toString();
+    var prev = '';
+    while (prev !== str) {
+      prev = str;
+      str = str.replace(/[\(（\[【][^\(\)（）\[\]【】]*[\)）\]】]/g, ' ');
+    }
+    str = str.replace(/[\/\\].*$/g, '')
+             .replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '')
+             .replace(/[\(\)（）\[\]【】]/g, ' ')
+             .trim();
+    str = str.replace(/\s+[A-Za-z0-9&.,'\-]+.*$/, '').trim();
+    return str;
+  }
+
   // 提取對比物種 (支援【對比物種】：物種A（學名） vs 物種B（學名）)
   var speciesRaw = getField(/[【\[\(]?(?:對比物種|比較物種|鑑別物種)[】\]\)]?[：:\s]+([^\n]+)/);
   var speciesList = [];
@@ -570,7 +586,7 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
       rawParts = speciesRaw.split(/[、，,]+/);
     }
     speciesList = rawParts.map(function(s) {
-      return s.replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '').replace(/[\/\\].*$/g, '').trim();
+      return cleanSpeciesNameGAS(s);
     }).filter(Boolean);
   }
   if (speciesList.length === 0) {
@@ -578,7 +594,7 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
     var vsParts = rawTitle.split(/[-–—vsVS與和、,]+/i).map(function(s){ return s.trim(); }).filter(Boolean);
     if (vsParts.length >= 2) {
       speciesList = vsParts.map(function(s) {
-        return s.replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '').replace(/[\/\\].*$/g, '').trim();
+        return cleanSpeciesNameGAS(s);
       }).filter(Boolean);
     }
   }

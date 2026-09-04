@@ -30,15 +30,29 @@
    * 清理物種名稱（去除所有全形/半形括號內容如學名與別名、後綴標記）
    */
   /**
-   * 清理物種名稱（去除所有全形/半形括號內容如學名與別名、後綴標記）
+   * 清理物種名稱（去除所有全形/半形括號內容如學名與別名、巢狀括號、尾隨學名命名者、後綴標記）
    */
   function cleanSpeciesName(rawName) {
     if (!rawName) return '';
-    return rawName.toString()
-      .replace(/[\(（\[【][^\)）\]】]*[\)）\]】]/g, '') // 去除所有全半形括號及內容
-      .replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '')
-      .replace(/[\/\\].*$/g, '')
-      .trim();
+    let str = rawName.toString();
+
+    // 1. 遞迴清除所有成對的全形/半形括號內容 (解決巢狀括號如 (Griseb.) 造成的截斷殘留)
+    let prev = '';
+    while (prev !== str) {
+      prev = str;
+      str = str.replace(/[\(（\[【][^\(\)（）\[\]【】]*[\)）\]】]/g, ' ');
+    }
+
+    // 2. 清理斜線、常見後綴標記、以及孤立未成對的括號
+    str = str.replace(/[\/\\].*$/g, '')
+             .replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '')
+             .replace(/[\(\)（）\[\]【】]/g, ' ')
+             .trim();
+
+    // 3. 去除尾隨的拉丁學名、命名者縮寫或英文字串 (例如 "貓腥草 R.M.King & H.Rob.")
+    str = str.replace(/\s+[A-Za-z0-9&.,'\-]+.*$/, '').trim();
+
+    return str;
   }
 
   /**

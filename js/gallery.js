@@ -806,17 +806,31 @@ async function triggerFullInitialSync() {
     return;
   }
 
+  let timer1 = null;
+  let timer2 = null;
+
   if (typeof showSyncProgressBanner === 'function') {
-    showSyncProgressBanner('loading', '🔄 初次全量連線同步中..... 正在下載雲端 50+ 筆花草圖資與照片');
+    showSyncProgressBanner('loading', '🌱 初次全量載入中... 正在為您下載 240+ 筆完整圖鑑與知識庫（約需 10~15 秒，請耐心稍候；完成後即可離線秒開！）');
+    timer1 = setTimeout(() => {
+      showSyncProgressBanner('loading', '🌿 雲端 240+ 筆圖鑑資料龐大，正在全力下載中，請勿關閉網頁，即將完成...');
+    }, 6000);
+    timer2 = setTimeout(() => {
+      showSyncProgressBanner('loading', '⏳ 正在解析植物形態特徵與高清圖庫，就快好了，感謝您的耐心等候...');
+    }, 14000);
   }
 
   try {
     const syncRes = await fetchLatestDataFromGAS();
     if (syncRes && syncRes.plants) {
       saveStoredPlants(syncRes.plants);
+      if (syncRes.comparisons && Array.isArray(syncRes.comparisons) && typeof saveStoredComparisons === 'function') {
+        saveStoredComparisons(syncRes.comparisons);
+      }
       initGallery();
+      if (typeof renderCompareCards === 'function') renderCompareCards();
+
       if (typeof showSyncProgressBanner === 'function') {
-        showSyncProgressBanner('success', `✅ 初次同步完成！成功載入 ${syncRes.plants.length} 筆完整花草圖鑑`, 3500);
+        showSyncProgressBanner('success', `✅ 初次載入完成！成功載入 ${syncRes.plants.length} 筆圖鑑與 ${syncRes.comparisons ? syncRes.comparisons.length : 0} 篇鑑別，之後開啟皆可秒開！`, 5000);
       }
       if (typeof showToast === 'function') {
         showToast(`✅ 歡迎使用！已成功載入 ${syncRes.plants.length} 筆花草圖鑑。`, 5000);
@@ -829,6 +843,9 @@ async function triggerFullInitialSync() {
     if (typeof openSettingsModal === 'function') {
       openSettingsModal();
     }
+  } finally {
+    if (timer1) clearTimeout(timer1);
+    if (timer2) clearTimeout(timer2);
   }
 }
 
