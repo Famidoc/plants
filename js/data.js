@@ -6781,9 +6781,82 @@ const DEFAULT_COMPARISON_DATA = [
   }
 ];
 
+/**
+ * 智慧淨化與自動修復相似鑑別資料庫 (修復物種誤拆、純英文學名誤列、口訣結尾殘留標題符號)
+ */
+function sanitizeComparisonsList(list) {
+  if (!Array.isArray(list) || list.length === 0) return { list: list || [], hasChanged: false };
+  let hasChanged = false;
+
+  const sanitized = list.map(item => {
+    if (!item) return item;
+    let itemChanged = false;
+    let cleanSpecies = Array.isArray(item.species) ? [...item.species] : [];
+
+    // 1. 過濾純英文字詞 (如 "Anthurium")，物種名稱必須包含中文字元
+    const chineseSpecies = cleanSpecies.filter(s => typeof s === 'string' && /[\u4e00-\u9fa5]/.test(s));
+    if (chineseSpecies.length !== cleanSpecies.length) {
+      cleanSpecies = chineseSpecies;
+      itemChanged = true;
+    }
+
+    // 2. 物種名稱中若有空格且標題有對應名稱，精簡物種名稱 (如 "白火鶴 白花花燭" -> "白火鶴")
+    if (item.title) {
+      const titleTokens = item.title.split(/[-–—vsVS與和、,\/\s]+/i).map(t => t.trim()).filter(Boolean);
+      cleanSpecies = cleanSpecies.map(s => {
+        if (typeof s === 'string' && s.includes(' ')) {
+          for (let t of titleTokens) {
+            if (t && (s.startsWith(t) || s === t)) {
+              itemChanged = true;
+              return t;
+            }
+          }
+        }
+        return s;
+      });
+
+      // 3. 若標題為明確雙物種 (如 "白鶴芋 vs 白火鶴") 且 cleanSpecies 超出標題物種數
+      if (titleTokens.length === 2 && cleanSpecies.length > 2) {
+        const covered = titleTokens.every(tp => cleanSpecies.some(sp => sp === tp || sp.includes(tp)));
+        if (covered) {
+          cleanSpecies = titleTokens;
+          itemChanged = true;
+        }
+      }
+    }
+
+    // 4. 清理口訣尾端殘留的 【 或孤立符號
+    let cleanMnemonic = item.mnemonic;
+    if (typeof cleanMnemonic === 'string') {
+      const trimmedMnemonic = cleanMnemonic.replace(/[\s【\[\(（:：\-_*]+$/, '').trim();
+      if (trimmedMnemonic !== cleanMnemonic) {
+        cleanMnemonic = trimmedMnemonic;
+        itemChanged = true;
+      }
+    }
+
+    if (itemChanged) {
+      hasChanged = true;
+      return {
+        ...item,
+        species: cleanSpecies,
+        mnemonic: cleanMnemonic
+      };
+    }
+    return item;
+  });
+
+  return { list: sanitized, hasChanged };
+}
+
 function getStoredComparisons() {
   if (inMemoryComparisonsList && inMemoryComparisonsList.length > 0) {
-    return inMemoryComparisonsList;
+    const { list, hasChanged } = sanitizeComparisonsList(inMemoryComparisonsList);
+    if (hasChanged) {
+      inMemoryComparisonsList = list;
+      saveStoredComparisons(list);
+    }
+    return list;
   }
   try {
     for (let key of COMPARISON_STORAGE_KEYS) {
@@ -6791,8 +6864,12 @@ function getStoredComparisons() {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          inMemoryComparisonsList = parsed;
-          return parsed;
+          const { list, hasChanged } = sanitizeComparisonsList(parsed);
+          inMemoryComparisonsList = list;
+          if (hasChanged) {
+            saveStoredComparisons(list);
+          }
+          return list;
         }
       }
     }
@@ -6804,8 +6881,12 @@ async function loadStoredComparisonsAsync() {
   let idbComps = await getFromIndexedDB('synced_comparisons_v3');
 
   if (idbComps && Array.isArray(idbComps) && idbComps.length > 0) {
-    inMemoryComparisonsList = idbComps;
-    return idbComps;
+    const { list, hasChanged } = sanitizeComparisonsList(idbComps);
+    inMemoryComparisonsList = list;
+    if (hasChanged) {
+      saveStoredComparisons(list);
+    }
+    return list;
   }
   return getStoredComparisons();
 }
@@ -6910,4 +6991,6 @@ window.getStoredComparisons = getStoredComparisons;
 window.loadStoredComparisonsAsync = loadStoredComparisonsAsync;
 window.saveStoredComparisons = saveStoredComparisons;
 window.mergeAndSaveStoredComparisons = mergeAndSaveStoredComparisons;
+window.sanitizeComparisonsList = sanitizeComparisonsList;
+
 

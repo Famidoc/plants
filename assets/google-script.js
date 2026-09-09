@@ -1,6 +1,6 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v102 核心鑑別速記多格式相容版
+ * Google Apps Script (GAS) 自動掃描腳本 - v103 相似鑑別括號感知與純英文字詞過濾修正版
  * 
  * 核心升級：
  * 1. 🌟 雲端全量主快取 (Master Cache)：將整份植物資料庫與鑑別庫快照儲存於雲端 master_plants_cache.json
@@ -8,7 +8,8 @@
  * 3. ⚡ [增修刪] 自動合流：在 [增修刪] 處理植物時，立即更新 Master 快取與全域版本號，永不遺漏！
  * 4. 🚀 零等待毫秒級回應：雲端版本一致時 0.1 秒秒回，省流量、免等待、徹底消除手機逾時 (Timeout)！
  * 5. 🎯 \r 換行相容、葉基腺盃標註精確提取、MD5 圖片雜湊防快取機制完全繼承
- * 6. 💡 鑑別速記要訣智慧解析：相容【核心鑑別速記要訣】等多元標題與條列格式，修復前瞻中斷問題
+ * 6. 💡 鑑別速記要訣智慧解析：相容【核心鑑別速記要訣】等多元標題，自動過濾結尾殘留標題符號
+ * 7. 🛡️ 括號感知分割與物種淨化：徹底防止【對比物種】括號內的頓號/逗號將別名或學名 (如 Anthurium) 誤拆為第三鑑別項
  * ==========================================================================
  */
 
@@ -575,27 +576,76 @@ function parseComparisonDoc(doc, text, fileName, folder, imagesFolder, debugLog,
     return str;
   }
 
-  // 提取對比物種 (支援【對比物種】：物種A（學名） vs 物種B（學名）)
+  // 智慧括號感知切割函式 (避免括號內的逗號/頓號破壞物種切分)
+  function splitOutsideBracketsGAS(str, regex) {
+    var result = [];
+    var current = '';
+    var depth = 0;
+    for (var i = 0; i < str.length; i++) {
+      var char = str[i];
+      if (char === '(' || char === '（' || char === '[' || char === '【') {
+        depth++;
+        current += char;
+      } else if (char === ')' || char === '）' || char === ']' || char === '】') {
+        if (depth > 0) depth--;
+        current += char;
+      } else if (depth === 0) {
+        var sub = str.substring(i);
+        var match = sub.match(regex);
+        if (match && match.index === 0) {
+          if (current.trim()) result.push(current.trim());
+          current = '';
+          i += match[0].length - 1;
+          continue;
+        }
+        current += char;
+      } else {
+        current += char;
+      }
+    }
+    if (current.trim()) result.push(current.trim());
+    return result;
+  }
+
+  // 提取對比物種 (支援【對比物種】：物種A（學名） vs 物種B（學名、別名）)
   var speciesRaw = getField(/[【\[\(]?(?:對比物種|比較物種|鑑別物種)[】\]\)]?[：:\s]+([^\n]+)/);
   var speciesList = [];
   if (speciesRaw) {
     var rawParts = [];
     if (/\s*(?:vs|VS|與|和)\s*/i.test(speciesRaw)) {
-      rawParts = speciesRaw.split(/\s*(?:vs|VS|與|和)\s*/i);
+      rawParts = splitOutsideBracketsGAS(speciesRaw, /^\s*(?:vs|VS|與|和)\s*/i);
     } else {
-      rawParts = speciesRaw.split(/[、，,]+/);
+      rawParts = splitOutsideBracketsGAS(speciesRaw, /^[、，,\/]+/);
     }
     speciesList = rawParts.map(function(s) {
       return cleanSpeciesNameGAS(s);
-    }).filter(Boolean);
+    }).filter(function(s) {
+      // 必須包含中文字元，徹底過濾純英文屬名/拉丁學名 (如 Anthurium)
+      return s && /[\u4e00-\u9fa5]/.test(s);
+    });
   }
   if (speciesList.length === 0) {
-    // 從標題嘗試提取 (如: 薰衣草 vs 鼠尾草)
-    var vsParts = rawTitle.split(/[-–—vsVS與和、,]+/i).map(function(s){ return s.trim(); }).filter(Boolean);
+    // 從標題嘗試提取 (如: 白鶴芋 vs 白火鶴)
+    var vsParts = splitOutsideBracketsGAS(rawTitle, /^[-–—vsVS與和、,\/\s]+/i);
     if (vsParts.length >= 2) {
       speciesList = vsParts.map(function(s) {
         return cleanSpeciesNameGAS(s);
-      }).filter(Boolean);
+      }).filter(function(s) {
+        return s && /[\u4e00-\u9fa5]/.test(s);
+      });
+    }
+  }
+
+  // 🛡️ 標題雙物種對決校驗：若標題為明確雙物種 (如 "白鶴芋 vs 白火鶴") 且 speciesList 多出項目
+  var titleSpParts = splitOutsideBracketsGAS(rawTitle, /^\s*(?:vs|VS|與|和)\s*/i)
+    .map(function(s){ return cleanSpeciesNameGAS(s); })
+    .filter(function(s){ return s && /[\u4e00-\u9fa5]/.test(s); });
+  if (titleSpParts.length === 2 && speciesList.length > 2) {
+    var matchedAll = titleSpParts.every(function(tp) {
+      return speciesList.some(function(sp) { return sp === tp || sp.indexOf(tp) !== -1; });
+    });
+    if (matchedAll) {
+      speciesList = titleSpParts;
     }
   }
 
@@ -658,7 +708,11 @@ function extractMnemonic(text) {
   
   // 逐行清理並過濾空行
   var lines = block.split('\n').map(function(l){ return l.trim(); }).filter(Boolean);
-  return lines.join('\n');
+  while (lines.length > 0 && /^[【\[\(（:：\-_*]+$/.test(lines[lines.length - 1])) {
+    lines.pop();
+  }
+  var result = lines.join('\n').replace(/[\s【\[\(（]+$/, '').trim();
+  return result;
 }
 
 function formattedDateFromDate(d) {
