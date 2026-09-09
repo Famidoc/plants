@@ -651,6 +651,112 @@
   color: var(--primary-light);
 }
 
+/* 參考資料分頁 - 關聯相似鑑別樣式 */
+.related-comparisons-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.related-compare-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: linear-gradient(135deg, rgba(39, 110, 84, 0.08) 0%, rgba(26, 77, 58, 0.03) 100%);
+  border: 1px solid rgba(39, 110, 84, 0.22);
+  border-radius: 12px;
+  padding: 0.9rem 1.1rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.22s ease-in-out;
+  color: var(--text-main);
+}
+
+.related-compare-card:hover {
+  background: linear-gradient(135deg, rgba(39, 110, 84, 0.15) 0%, rgba(26, 77, 58, 0.08) 100%);
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.related-compare-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.related-compare-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.related-compare-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+
+.related-compare-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(220, 107, 25, 0.12);
+  color: #c05621;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.related-compare-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.related-compare-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(39, 110, 84, 0.25);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.related-compare-card:hover .related-compare-action {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+@media (max-width: 576px) {
+  .related-compare-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+  }
+  .related-compare-action {
+    align-self: flex-end;
+  }
+}
+
 /* 設定 Modal 專用樣式 (支援手機流暢滾動) */
 #settingsModalBackdrop .modal-container {
   max-width: 640px;

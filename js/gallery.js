@@ -675,6 +675,61 @@ function openPlantDetailModal(plant) {
     }
   }
 
+  // ⚖️ 相似植物鑑別關聯渲染 (若此植物有列入相似鑑別對照庫)
+  const relatedCompSection = document.getElementById('modalRelatedComparisonsSection');
+  const relatedCompContainer = document.getElementById('modalRelatedComparisonsList');
+  if (relatedCompSection && relatedCompContainer) {
+    const allComps = (typeof window.getStoredComparisons === 'function') 
+      ? (window.getStoredComparisons() || []) 
+      : [];
+
+    const cleanPlantName = cleanSpeciesNameForCompare(plant.name);
+    const plantAliases = Array.isArray(plant.aliases) ? plant.aliases.map(a => cleanSpeciesNameForCompare(a)) : [];
+
+    const matchedComps = allComps.filter(c => {
+      if (!c) return false;
+      const speciesList = Array.isArray(c.species) ? c.species : [];
+      const cleanSpecies = speciesList.map(s => cleanSpeciesNameForCompare(s));
+
+      // 1. 直接物種名稱比對 (主名或別名)
+      const hasSpeciesMatch = cleanSpecies.some(s => {
+        if (!s) return false;
+        if (s === cleanPlantName || (cleanPlantName && (s.includes(cleanPlantName) || cleanPlantName.includes(s)))) return true;
+        return plantAliases.some(alias => alias && (s === alias || s.includes(alias) || alias.includes(s)));
+      });
+
+      if (hasSpeciesMatch) return true;
+
+      // 2. 鑑別標題比對 (例如 "九芎 vs 紫薇")
+      if (c.title && cleanPlantName && cleanPlantName.length >= 2) {
+        if (c.title.includes(cleanPlantName)) return true;
+      }
+      return false;
+    });
+
+    if (matchedComps.length > 0) {
+      relatedCompContainer.innerHTML = matchedComps.map(c => `
+        <div class="related-compare-card" onclick="window.jumpToCompareFromPlant('${escapeHtmlSimple(c.id)}')">
+          <div class="related-compare-info">
+            <div class="related-compare-top">
+              <span class="related-compare-title">⚖️ ${escapeHtmlSimple(c.title)}</span>
+              ${c.confusionLevel ? `<span class="related-compare-badge">${escapeHtmlSimple(c.confusionLevel)}</span>` : ''}
+            </div>
+            ${c.mnemonic ? `<div class="related-compare-desc">💡 ${escapeHtmlSimple(c.mnemonic)}</div>` : ''}
+          </div>
+          <div class="related-compare-action">
+            <span>對照鑑別</span>
+            <span>➔</span>
+          </div>
+        </div>
+      `).join('');
+      relatedCompSection.style.display = 'block';
+    } else {
+      relatedCompContainer.innerHTML = '';
+      relatedCompSection.style.display = 'none';
+    }
+  }
+
   // 🔗 參考資料 Tab 渲染 (外部參考連結)
   const refContainer = document.getElementById('modalReferencesList');
   if (refContainer) {
@@ -1634,3 +1689,81 @@ window.downloadPosterImage = downloadPosterImage;
 window.sharePosterImage = sharePosterImage;
 window.copyPosterImage = copyPosterImage;
 window.generatePlantPosterCanvas = generatePlantPosterCanvas;
+
+/**
+ * 清理物種名稱供相似鑑別比對使用
+ */
+function cleanSpeciesNameForCompare(rawName) {
+  if (!rawName) return '';
+  let str = rawName.toString();
+  let prev = '';
+  while (prev !== str) {
+    prev = str;
+    str = str.replace(/[\(（\[【][^\(\)（）\[\]【】]*[\)）\]】]/g, ' ');
+  }
+  str = str.replace(/[\/\\].*$/g, '')
+           .replace(/[-_–\s]*(植物資料|資料|圖鑑).*/g, '')
+           .replace(/[\(\)（）\[\]【】]/g, ' ')
+           .trim();
+  str = str.replace(/\s+[A-Za-z0-9&.,'\-]+.*$/, '').trim();
+  return str;
+}
+
+/**
+ * 簡易 HTML 跳脫
+ */
+function escapeHtmlSimple(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * 從植物燈箱一鍵跳轉至對應的相似鑑別燈箱
+ */
+function jumpToCompareFromPlant(compareId) {
+  if (!compareId) return;
+
+  // 1. 關閉當前植物詳細燈箱
+  closePlantDetailModal();
+
+  // 2. 切換導覽分頁至「相似鑑別」
+  const compareNavBtn = document.querySelector('[data-target-view="compareView"]');
+  if (compareNavBtn) {
+    compareNavBtn.click();
+  }
+
+  // 3. 延遲以確保視圖切換與 DOM 渲染就緒後開啟該相似鑑別詳細燈箱
+  setTimeout(() => {
+    if (typeof window.openCompareModal === 'function') {
+      window.openCompareModal(compareId);
+    }
+  }, 250);
+}
+
+/**
+ * 支援透過植物 ID、名稱或物件開啟植物詳細燈箱 (供相似鑑別模組反向跳轉調用)
+ */
+function openPlantModal(plantIdOrObj) {
+  if (!plantIdOrObj) return;
+  if (typeof plantIdOrObj === 'object') {
+    openPlantDetailModal(plantIdOrObj);
+    return;
+  }
+  const plants = (typeof window.getStoredPlants === 'function') ? (window.getStoredPlants() || []) : [];
+  const cleanTarget = cleanSpeciesNameForCompare(plantIdOrObj);
+  const found = plants.find(p => p.id === plantIdOrObj) ||
+                plants.find(p => cleanSpeciesNameForCompare(p.name) === cleanTarget) ||
+                plants.find(p => p.aliases && p.aliases.some(a => cleanSpeciesNameForCompare(a) === cleanTarget));
+  if (found) {
+    openPlantDetailModal(found);
+  }
+}
+
+window.jumpToCompareFromPlant = jumpToCompareFromPlant;
+window.openPlantModal = openPlantModal;
+
