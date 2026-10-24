@@ -93,6 +93,16 @@ function doGet(e) {
     var imagesFolder = getOrCreateImagesFolder(mainFolder);
     debugLog.push("📂 圖片快取資料夾: " + mainFolder.getName() + "/images/ (ID: " + imagesFolder.getId() + ")");
 
+    // 支援手動或排程觸發全量快照校準與增補 (generate_master / rebuild_all)
+    if (e && e.parameter && (e.parameter.action === "generate_master" || e.parameter.action === "rebuild_all")) {
+      var resGen = generateMasterCache();
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "generate_master",
+        result: resGen
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
     // 檢查是否有請求強制全量重建快取 (force_rebuild / force_full)
     var isForceRebuild = e && e.parameter && (e.parameter.force_rebuild === "true" || e.parameter.rebuild === "true" || e.parameter.force_full === "true");
     var clientLastSynced = e && e.parameter && e.parameter.last_synced ? e.parameter.last_synced : "";
@@ -499,6 +509,14 @@ function generateMasterCache() {
   Logger.log("🌟 Master 快照校準與增補結束！");
   Logger.log("🌿 花草總數: " + finalPlants.length + " 筆");
   Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇");
+
+  return {
+    plantsCount: finalPlants.length,
+    comparisonsCount: finalComps.length,
+    totalDriveDocs: allDocs.length,
+    remainingDocsCount: Math.max(0, allDocs.length - (finalPlants.length + finalComps.length)),
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {
