@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#1b3b2b">
 
   <!-- PWA Manifest & Icons -->
-  <link rel="manifest" href="./manifest.json?v=115">
+  <link rel="manifest" href="./manifest.json?v=118">
   <link rel="icon" type="image/png" href="./assets/icons/icon-192.png">
   <link rel="apple-touch-icon" href="./assets/icons/icon-192.png">
 
@@ -44,11 +44,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
 
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="./css/main.css?v=115">
-  <link rel="stylesheet" href="./css/gallery.css?v=115">
-  <link rel="stylesheet" href="./css/compare.css?v=115">
-  <link rel="stylesheet" href="./css/modal.css?v=115">
-  <link rel="stylesheet" href="./css/quiz.css?v=115">
+  <link rel="stylesheet" href="./css/main.css?v=118">
+  <link rel="stylesheet" href="./css/gallery.css?v=118">
+  <link rel="stylesheet" href="./css/compare.css?v=118">
+  <link rel="stylesheet" href="./css/modal.css?v=118">
+  <link rel="stylesheet" href="./css/quiz.css?v=118">
 </head>
 <body>
 
@@ -64,7 +64,7 @@
               <span>📱</span> <span>QR Code</span>
             </button>
           </div>
-          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v115</small></span>
+          <span class="brand-subtitle">Google Drive 花草圖鑑 & 知識測驗 <small style="opacity: 0.85; font-size: 0.72rem; background: rgba(255,255,255,0.2); padding: 1px 6px; border-radius: 4px; margin-left: 4px;">v118</small></span>
         </div>
       </div>
 
@@ -452,9 +452,12 @@
           </div>
         </div>
 
-        <div style="display: flex; gap: 10px; margin-bottom: 1rem;">
+        <div style="display: flex; gap: 10px; margin-bottom: 0.75rem;">
           <button id="triggerSyncBtn" class="btn-primary" style="flex: 2; font-size: 1.05rem; padding: 0.85rem;">⚡ 立即連線同步</button>
           <button id="clearCacheAndSyncBtn" class="btn-primary" style="flex: 1; font-size: 0.88rem; padding: 0.85rem; background: linear-gradient(135deg, #fff1f0, #ffccc7); color: #9e1000; border: 1px solid #ffa39e;" title="清空本機快取並強制重新連線全量下載照片">🧹 重置快取同步</button>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <button id="uploadMasterBackupBtn" class="btn-primary" style="width: 100%; font-size: 0.95rem; padding: 0.75rem; background: linear-gradient(135deg, #2e7d32, #1b5e20); color: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(46,125,50,0.25);" title="將本機現有的完整圖鑑資料庫備份回傳至 Google 雲端 Master 快照">📤 將本機圖鑑備份至雲端（修復雲端快照）</button>
         </div>
 
         <!-- 🔍 雲端同步診斷日誌 (Debug Log) 面板 -->
@@ -661,13 +664,13 @@
     <p>© 2026 by Famidoc Chang and Antigravity 2.0</p>
   </footer>
 
-  <!-- JavaScript Scripts with ?v=115 Cache Buster -->
-  <script src="./js/data.js?v=115"></script>
-  <script src="./js/sync.js?v=115"></script>
-  <script src="./js/compare.js?v=115"></script>
-  <script src="./js/gallery.js?v=115"></script>
-  <script src="./js/quiz.js?v=115"></script>
-  <script src="./js/app.js?v=115"></script>
+  <!-- JavaScript Scripts with ?v=118 Cache Buster -->
+  <script src="./js/data.js?v=118"></script>
+  <script src="./js/sync.js?v=118"></script>
+  <script src="./js/compare.js?v=118"></script>
+  <script src="./js/gallery.js?v=118"></script>
+  <script src="./js/quiz.js?v=118"></script>
+  <script src="./js/app.js?v=118"></script>
 
 </body>
 </html>

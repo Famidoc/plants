@@ -229,3 +229,63 @@ async function fetchLatestDataFromGAS() {
     throw err;
   }
 }
+
+/**
+ * 📤 將本機目前完整資料庫（植物與鑑別）打包推送至 Google 雲端 Master 快照
+ * 用於多裝置災難復原、或將手機完整的 319 筆資料備份修復回雲端
+ */
+async function uploadCurrentPlantsToGAS() {
+  const url = await getSavedGasUrlAsync();
+  if (!url) {
+    throw new Error('未設定 API 網址，請先輸入並儲存 Google Apps Script 網址。');
+  }
+
+  let plants = [];
+  let comparisons = [];
+  if (typeof loadStoredPlantsAsync === 'function') {
+    plants = await loadStoredPlantsAsync();
+  } else if (typeof getStoredPlants === 'function') {
+    plants = getStoredPlants();
+  }
+
+  if (typeof loadStoredComparisonsAsync === 'function') {
+    try { comparisons = await loadStoredComparisonsAsync(); } catch(e) {}
+  } else if (typeof getStoredComparisons === 'function') {
+    try { comparisons = getStoredComparisons(); } catch(e) {}
+  }
+
+  if (!plants || !Array.isArray(plants) || plants.length === 0) {
+    throw new Error('本機無花草圖鑑資料可備份。');
+  }
+
+  console.log(`[GAS Upload] 準備上傳本機 ${plants.length} 筆植物與 ${comparisons ? comparisons.length : 0} 篇鑑別至雲端...`);
+
+  const payload = {
+    plants: plants,
+    comparisons: comparisons || [],
+    updatedAt: new Date().toISOString()
+  };
+
+  const response = await fetch(url, {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+      'Content-Type': 'text/plain;charset=utf-8'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const resText = await response.text();
+  let resJson = null;
+  try {
+    resJson = JSON.parse(resText);
+  } catch(e) {
+    throw new Error('雲端回應格式錯誤: ' + resText.substring(0, 100));
+  }
+
+  if (resJson.status === 'error') {
+    throw new Error(resJson.error || '上傳至雲端失敗');
+  }
+
+  return resJson;
+}

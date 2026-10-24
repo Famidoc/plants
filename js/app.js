@@ -584,6 +584,44 @@ function setupSettingsModal() {
     });
   }
 
+  // 將本機圖鑑備份至雲端 Master 快照按鈕
+  const uploadBackupBtn = document.getElementById('uploadMasterBackupBtn');
+  if (uploadBackupBtn) {
+    uploadBackupBtn.addEventListener('click', async () => {
+      let localCount = 0;
+      if (typeof getStoredPlants === 'function') {
+        const p = getStoredPlants();
+        if (p) localCount = p.length;
+      }
+      if (localCount < 50) {
+        if (!confirm(`⚠️ 注意：本機目前僅有 ${localCount} 筆資料，低於基準值（50筆）。確定仍要將本機資料備份覆蓋雲端 Master 快照嗎？\n（建議在擁有 319 筆完整資料的手機上執行此操作）`)) {
+          return;
+        }
+      } else {
+        if (!confirm(`確定要將本機 ${localCount} 筆花草圖鑑與鑑別資料備份至 Google 雲端 Master 快照嗎？\n此操作將確保雲端快照恢復為最完整的 ${localCount} 筆！`)) {
+          return;
+        }
+      }
+
+      uploadBackupBtn.disabled = true;
+      uploadBackupBtn.style.opacity = '0.7';
+      const origText = uploadBackupBtn.textContent;
+      uploadBackupBtn.textContent = '⏳ 正在備份資料庫至雲端...';
+
+      try {
+        const res = await uploadCurrentPlantsToGAS();
+        showToast(`✅ ${res.message || '已成功備份至雲端 Master 快照！'}`, 6000);
+        showSyncProgressBanner('success', `✅ 已將本機圖鑑成功備份至雲端 Master 快照！`, 4000);
+      } catch(err) {
+        showToast(`❌ 備份失敗：${err.message}`, 6000);
+      } finally {
+        uploadBackupBtn.disabled = false;
+        uploadBackupBtn.style.opacity = '1';
+        uploadBackupBtn.textContent = origText;
+      }
+    });
+  }
+
   // 純文字解析新增
   if (pasteDocBtn && rawDocInput) {
     pasteDocBtn.addEventListener('click', () => {

@@ -1,15 +1,16 @@
 /**
  * ==========================================================================
- * Google Apps Script (GAS) 自動掃描腳本 - v103 相似鑑別括號感知與純英文字詞過濾修正版
+ * Google Apps Script (GAS) 自動掃描腳本 - v104 快照防縮水保護與急救修復版
  * 
  * 核心升級：
- * 1. 🌟 雲端全量主快取 (Master Cache)：將整份植物資料庫與鑑別庫快照儲存於雲端 master_plants_cache.json
- * 2. 👥 多設備/多使用者獨立同步：無論誰何時開啟手機，只要本機版本小於雲端版本，0.3秒秒傳最新完整資料！
- * 3. ⚡ [增修刪] 自動合流：在 [增修刪] 處理植物時，立即更新 Master 快取與全域版本號，永不遺漏！
- * 4. 🚀 零等待毫秒級回應：雲端版本一致時 0.1 秒秒回，省流量、免等待、徹底消除手機逾時 (Timeout)！
- * 5. 🎯 \r 換行相容、葉基腺盃標註精確提取、MD5 圖片雜湊防快取機制完全繼承
- * 6. 💡 鑑別速記要訣智慧解析：相容【核心鑑別速記要訣】等多元標題，自動過濾結尾殘留標題符號
- * 7. 🛡️ 括號感知分割與物種淨化：徹底防止【對比物種】括號內的頓號/逗號將別名或學名 (如 Anthurium) 誤拆為第三鑑別項
+ * 1. 🛡️ 雲端 Master 快照防縮水保護 (Anti-shrinkage Guard)：嚴禁因逾時中斷導致的半成品覆寫正式庫！
+ * 2. 🚑 客戶端全量急救修復模式 (Client Rescue Mode)：當用戶端筆數異常偏低時，主動下發全量 Master 庫。
+ * 3. 📤 支援客戶端/手機端完整圖鑑備份合流回傳 (doPost)：手機與電腦可互為備援，秒級復原雲端快照！
+ * 4. 🔄 generateMasterCache 全量批次分段自癒增補：5 分鐘超時安全保護，每批 30 篇即時落盤，絕不卡死！
+ * 5. 🌟 雲端全量主快取 (Master Cache)：將整份植物資料庫與鑑別庫快照儲存於雲端 master_plants_cache.json
+ * 6. 👥 多設備/多使用者獨立同步：無論誰何時開啟手機，只要本機版本小於雲端版本，0.3秒秒傳最新完整資料！
+ * 7. ⚡ [增修刪] 自動合流：在 [增修刪] 處理植物時，立即更新 Master 快取與全域版本號，永不遺漏！
+ * 8. 🎯 \r 換行相容、葉基腺盃標註精確提取、括號感知分割與物種淨化完全繼承
  * ==========================================================================
  */
 
@@ -24,20 +25,42 @@ function doPost(e) {
     var data = JSON.parse(raw);
     if (data && (Array.isArray(data.plants) || Array.isArray(data.comparisons))) {
       var mainFolder = getMainFolder();
+      if (!mainFolder) throw new Error("找不到 [捻花惹草] 資料夾");
       var imagesFolder = getOrCreateImagesFolder(mainFolder);
       var now = new Date().toISOString();
+
+      // 讀取現有快取進行雙向合併，絕不遺失既有資料
+      var currentMaster = readMasterCache(imagesFolder, mainFolder, []) || { plants: [], comparisons: [] };
+      var incomingPlants = Array.isArray(data.plants) ? data.plants : [];
+      var incomingComps = Array.isArray(data.comparisons) ? data.comparisons : [];
+
+      var plantMap = {};
+      (currentMaster.plants || []).forEach(function(p){ if (p && p.name) plantMap[p.name.trim()] = p; });
+      incomingPlants.forEach(function(p){ if (p && p.name) plantMap[p.name.trim()] = p; });
+
+      var compMap = {};
+      (currentMaster.comparisons || []).forEach(function(c){ if (c && c.title) compMap[c.title.trim()] = c; });
+      incomingComps.forEach(function(c){ if (c && c.title) compMap[c.title.trim()] = c; });
+
+      var finalPlants = Object.keys(plantMap).map(function(k){ return plantMap[k]; });
+      finalPlants.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+      var finalComps = Object.keys(compMap).map(function(k){ return compMap[k]; });
+      finalComps.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+
       var masterData = {
         version: now,
         updatedAt: now,
-        plants: data.plants || [],
-        comparisons: data.comparisons || []
+        plants: finalPlants,
+        comparisons: finalComps
       };
-      writeMasterCache(imagesFolder, mainFolder, masterData, []);
+
+      // 用戶端主動推送之資料庫合流視為合法更新 (forceOverwrite = true)
+      writeMasterCache(imagesFolder, mainFolder, masterData, [], true);
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        message: "Master 快照已成功透過 POST 寫入雲端！",
-        count: masterData.plants.length,
-        comparisonCount: masterData.comparisons.length,
+        message: "雲端 Master 快照已成功修復/合流！現有花草 " + finalPlants.length + " 筆、鑑別 " + finalComps.length + " 篇",
+        count: finalPlants.length,
+        comparisonCount: finalComps.length,
         updatedAt: now
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -51,7 +74,7 @@ function doGet(e) {
   var debugLog = [];
   var startTime = Date.now();
   try {
-    debugLog.push("🚀 GAS 腳本版本: v101-高可用秒級主快取版");
+    debugLog.push("🚀 GAS 腳本版本: v104-快照防縮水保護與急救修復版");
     var targetInfo = findTargetFolder();
 
     if (!targetInfo || !targetInfo.folder) {
@@ -70,8 +93,8 @@ function doGet(e) {
     var imagesFolder = getOrCreateImagesFolder(mainFolder);
     debugLog.push("📂 圖片快取資料夾: " + mainFolder.getName() + "/images/ (ID: " + imagesFolder.getId() + ")");
 
-    // 檢查是否有請求強制全量重建快取 (force_rebuild)
-    var isForceRebuild = e && e.parameter && (e.parameter.force_rebuild === "true" || e.parameter.rebuild === "true");
+    // 檢查是否有請求強制全量重建快取 (force_rebuild / force_full)
+    var isForceRebuild = e && e.parameter && (e.parameter.force_rebuild === "true" || e.parameter.rebuild === "true" || e.parameter.force_full === "true");
     var clientLastSynced = e && e.parameter && e.parameter.last_synced ? e.parameter.last_synced : "";
     var clientPlantCount = e && e.parameter && e.parameter.plant_count ? parseInt(e.parameter.plant_count, 10) : -1;
 
@@ -92,19 +115,32 @@ function doGet(e) {
       var mergedMaster = mergeChangesIntoMaster(currentMaster, incrementalRes, debugLog);
       writeMasterCache(imagesFolder, mainFolder, mergedMaster, debugLog);
 
+      // 🛡️ 客戶端全量急救修復模式 (Client Rescue Mode)：
+      // 若用戶端現有筆數異常偏低 (例如電腦端因快取問題僅存有 < 50 筆，而 Master 庫已具備 50 筆以上)，
+      // 或是明確要求全量同步 (force_rebuild / force_full)，必須直接下發完整的 mergedMaster.plants！
+      var isClientNeedFull = isForceRebuild || (clientPlantCount >= 0 && clientPlantCount < 50 && mergedMaster.plants.length >= 50);
+
+      var returnSyncMode = isClientNeedFull ? "FULL" : "INCREMENTAL";
+      var returnPlants = isClientNeedFull ? mergedMaster.plants : incrementalRes.plants;
+      var returnComps = isClientNeedFull ? mergedMaster.comparisons : incrementalRes.comparisons;
+
+      if (isClientNeedFull) {
+        debugLog.push("🚑 觸發全量急救修復模式：用戶端現有 " + clientPlantCount + " 筆，主動下發完整 " + mergedMaster.plants.length + " 筆植物庫！");
+      }
+
       var resA = {
         status: "success",
-        scriptVersion: "v102",
-        syncMode: "INCREMENTAL",
+        scriptVersion: "v104",
+        syncMode: returnSyncMode,
         folderFound: folderName,
-        count: incrementalRes.plants.length,
+        count: returnPlants.length,
         deletedCount: incrementalRes.deletedPlants.length,
-        comparisonCount: incrementalRes.comparisons.length,
+        comparisonCount: returnComps.length,
         deletedComparisonCount: incrementalRes.deletedComparisons.length,
         updatedAt: mergedMaster.updatedAt,
-        plants: incrementalRes.plants,
+        plants: returnPlants,
         deletedPlants: incrementalRes.deletedPlants,
-        comparisons: incrementalRes.comparisons,
+        comparisons: returnComps,
         deletedComparisons: incrementalRes.deletedComparisons,
         debugLog: debugLog
       };
@@ -126,8 +162,11 @@ function doGet(e) {
     if (!masterCache || !Array.isArray(masterCache.plants) || masterCache.plants.length === 0) {
       debugLog.push("🔄 Master 快取不存在，執行安全掃描以建立基準庫...");
       masterCache = buildFullMasterCache(mainFolder, imagesFolder, debugLog, 20000);
-      if (masterCache && masterCache.plants && masterCache.plants.length > 0) {
+      // 🛡️ 核心防護：只有在確認沒有被 20 秒逾時截斷且掃描完整時，才寫入 Master 快取！
+      if (masterCache && masterCache.plants && masterCache.plants.length > 0 && !masterCache.isTimedOut) {
         writeMasterCache(imagesFolder, mainFolder, masterCache, debugLog);
+      } else {
+        debugLog.push("🛡️ 全量掃描因 20 秒限制中斷 (僅解析 " + (masterCache ? masterCache.plants.length : 0) + " 筆)，放棄覆寫 Master 快照以防殘缺！");
       }
     }
 
@@ -149,7 +188,7 @@ function doGet(e) {
       debugLog.push("⚡ 本機版本 (" + clientLastSynced + ") 與雲端 Master 快照一致，0.1秒秒回無異動");
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
-        scriptVersion: "v102",
+        scriptVersion: "v104",
         syncMode: "INCREMENTAL",
         folderFound: mainFolder.getName(),
         count: 0,
@@ -169,7 +208,7 @@ function doGet(e) {
     debugLog.push("🌟 傳送最新雲端 Master 全量快照至用戶端 (" + (masterCache ? masterCache.plants.length : 0) + " 筆圖鑑, " + (masterCache && masterCache.comparisons ? masterCache.comparisons.length : 0) + " 篇鑑別)");
     var resB = {
       status: "success",
-      scriptVersion: "v102",
+      scriptVersion: "v104",
       syncMode: "FULL",
       folderFound: mainFolder.getName(),
       count: masterCache ? masterCache.plants.length : 0,
@@ -228,19 +267,39 @@ function readMasterCache(imagesFolder, mainFolder, debugLog) {
   return null;
 }
 
-function writeMasterCache(imagesFolder, mainFolder, masterData, debugLog) {
+function writeMasterCache(imagesFolder, mainFolder, masterData, debugLog, forceOverwrite) {
   try {
     var targetFolder = imagesFolder || mainFolder;
-    if (!targetFolder) return false;
-    var content = JSON.stringify(masterData);
+    if (!targetFolder || !masterData) return false;
+    
+    var newPlantCount = (masterData.plants && Array.isArray(masterData.plants)) ? masterData.plants.length : 0;
     var file = getMasterCacheFile(imagesFolder, mainFolder);
+
+    // 🛡️ 核心防縮水攔截：既有庫已有 50 筆以上時，若新快照筆數大幅減少 50% 以上且未經強制授權，拒絕覆寫！
+    if (file && !forceOverwrite) {
+      try {
+        var oldContent = file.getBlob().getDataAsString("UTF-8");
+        if (oldContent) {
+          var oldParsed = JSON.parse(oldContent);
+          var oldPlantCount = (oldParsed && Array.isArray(oldParsed.plants)) ? oldParsed.plants.length : 0;
+          if (oldPlantCount >= 50 && newPlantCount < (oldPlantCount * 0.5)) {
+            var warnMsg = "🛡️ 快取防縮水攔截：既有雲端快照已有 " + oldPlantCount + " 筆，新寫入僅 " + newPlantCount + " 筆，拒絕覆寫以保護既有圖鑑！";
+            if (debugLog) debugLog.push(warnMsg);
+            Logger.log(warnMsg);
+            return false;
+          }
+        }
+      } catch(chkErr) {}
+    }
+
+    var content = JSON.stringify(masterData);
     if (file) {
       file.setContent(content);
-      if (debugLog) debugLog.push("💾 已覆寫更新雲端 Master 快取檔 (版本: " + masterData.updatedAt + ")");
+      if (debugLog) debugLog.push("💾 已覆寫更新雲端 Master 快取檔 (版本: " + masterData.updatedAt + ", 筆數: " + newPlantCount + ")");
     } else {
       var newFile = targetFolder.createFile(MASTER_CACHE_FILENAME, content, MimeType.PLAIN_TEXT);
       newFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      if (debugLog) debugLog.push("💾 已新建雲端 Master 快取檔 (ID: " + newFile.getId() + ")");
+      if (debugLog) debugLog.push("💾 已新建雲端 Master 快取檔 (ID: " + newFile.getId() + ", 筆數: " + newPlantCount + ")");
     }
     return true;
   } catch (e) {
@@ -337,7 +396,7 @@ function cleanDocNameForMatch(name) {
 }
 
 function generateMasterCache() {
-  Logger.log("=== 開始執行 Master 快照校準與精確同步 ===");
+  Logger.log("=== 開始執行 Master 快照校準與全量自動增補 ===");
   var mainFolder = getMainFolder();
   if (!mainFolder) throw new Error("找不到 [捻花惹草] 資料夾");
   var imagesFolder = getOrCreateImagesFolder(mainFolder);
@@ -380,20 +439,29 @@ function generateMasterCache() {
     }
   }
 
-  // 3. 找出尚未解析的檔案
-  var remainingDocs = allDocs.filter(function(d) {
-    var dName = cleanDocNameForMatch(d.getName());
-    return !cleanPlantsMap[dName] && !cleanCompsMap[dName];
-  });
+  // 3. 迴圈分批解析剩餘文檔，5 分鐘 (270 秒) 安全時間保護
+  var runStart = Date.now();
+  var batchNum = 1;
+  while (true) {
+    var remainingDocs = allDocs.filter(function(d) {
+      var dName = cleanDocNameForMatch(d.getName());
+      return !cleanPlantsMap[dName] && !cleanCompsMap[dName];
+    });
 
-  // 4. 解析剩餘檔案（若有）
-  if (remainingDocs.length > 0) {
-    var batchDocs = remainingDocs.slice(0, 40);
-    Logger.log("⏳ 解析剩餘 " + batchDocs.length + " 篇文檔...");
-    var debugLog = [];
-    var parsedBatch = parseDocsList(batchDocs, "FULL", mainFolder, imagesFolder, debugLog, 0);
-    
-    // 合流
+    if (remainingDocs.length === 0) {
+      Logger.log("🎉 所有雲端文檔已全數解析並增補完成！");
+      break;
+    }
+
+    if (Date.now() - runStart > 270000) {
+      Logger.log("⏱️ 已執行 4.5 分鐘，達到單次執行安全上限，先行儲存進度。剩餘 " + remainingDocs.length + " 篇文檔待下輪增補。");
+      break;
+    }
+
+    var batchDocs = remainingDocs.slice(0, 30);
+    Logger.log("⏳ 正在解析第 " + batchNum + " 批 " + batchDocs.length + " 篇文檔 (剩餘 " + remainingDocs.length + " 篇待處理)...");
+    var parsedBatch = parseDocsList(batchDocs, "FULL", mainFolder, imagesFolder, [], 0);
+
     for (var np = 0; np < parsedBatch.plants.length; np++) {
       var nPlant = parsedBatch.plants[np];
       var npName = (nPlant.name || "").trim();
@@ -406,27 +474,31 @@ function generateMasterCache() {
         cleanCompsMap[ncTitle] = nComp;
       }
     }
+
+    // 每一批次完成後立即即時落盤寫入快取，確保進度絕不丟失
+    var currentPlants = Object.keys(cleanPlantsMap).map(function(k){ return cleanPlantsMap[k]; });
+    currentPlants.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+    var currentComps = Object.keys(cleanCompsMap).map(function(k){ return cleanCompsMap[k]; });
+    currentComps.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
+
+    var now = new Date().toISOString();
+    writeMasterCache(imagesFolder, mainFolder, {
+      version: now,
+      updatedAt: now,
+      plants: currentPlants,
+      comparisons: currentComps
+    }, [], true);
+
+    Logger.log("💾 第 " + batchNum + " 批已成功儲存！目前累計花草 " + currentPlants.length + " 筆、鑑別 " + currentComps.length + " 篇");
+    batchNum++;
   }
 
   var finalPlants = Object.keys(cleanPlantsMap).map(function(k){ return cleanPlantsMap[k]; });
-  finalPlants.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
-
   var finalComps = Object.keys(cleanCompsMap).map(function(k){ return cleanCompsMap[k]; });
-  finalComps.sort(function(a, b) { return (b.dateAdded || "").localeCompare(a.dateAdded || ""); });
 
-  var now = new Date().toISOString();
-  var updatedMaster = {
-    version: now,
-    updatedAt: now,
-    plants: finalPlants,
-    comparisons: finalComps
-  };
-
-  writeMasterCache(imagesFolder, mainFolder, updatedMaster, []);
-
-  Logger.log("🌟 Master 快照校準完成！");
-  Logger.log("🌿 花草總數: " + finalPlants.length + " 筆（已去除重複油桐，剛好 119 筆）");
-  Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇（已保留正確 2 篇鑑別）");
+  Logger.log("🌟 Master 快照校準與增補結束！");
+  Logger.log("🌿 花草總數: " + finalPlants.length + " 筆");
+  Logger.log("⚖️ 鑑別總數: " + finalComps.length + " 篇");
 }
 
 function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs) {
@@ -446,7 +518,10 @@ function buildFullMasterCache(mainFolder, imagesFolder, debugLog, maxDurationMs)
     version: now,
     updatedAt: now,
     plants: parsed.plants,
-    comparisons: parsed.comparisons
+    comparisons: parsed.comparisons,
+    isTimedOut: parsed.isTimedOut,
+    processedCount: parsed.processedCount,
+    totalInputDocs: allDocs.length
   };
 }
 
@@ -456,9 +531,11 @@ function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog, maxDurati
   var comparisonList = [];
   var deletedComparisonList = [];
   var parseStart = Date.now();
+  var isTimedOut = false;
 
   for (var i = 0; i < docs.length; i++) {
     if (maxDurationMs > 0 && (Date.now() - parseStart) > maxDurationMs) {
+      isTimedOut = true;
       if (debugLog) debugLog.push("⏱️ 已達單次最大安全執行時間限制 (" + (maxDurationMs / 1000) + "秒)，先行結束本輪解析");
       break;
     }
@@ -529,7 +606,10 @@ function parseDocsList(docs, syncMode, folder, imagesFolder, debugLog, maxDurati
     plants: plantList,
     deletedPlants: deletedList,
     comparisons: comparisonList,
-    deletedComparisons: deletedComparisonList
+    deletedComparisons: deletedComparisonList,
+    isTimedOut: isTimedOut,
+    processedCount: plantList.length + comparisonList.length + deletedList.length + deletedComparisonList.length,
+    totalInputDocs: docs.length
   };
 }
 
